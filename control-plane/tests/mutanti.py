@@ -33,6 +33,10 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "chiave di lunghezza qualunque": ("peer.py", "if len(grezza) != 32 or ", "if False or "),
     "il server perde il suo indirizzo": ("peer.py", "host = list(rete.hosts())[1:]", "host = list(rete.hosts())"),
     "transizione respinta senza audit": ("peer.py", 'self.audit(c, f"peer.{azione}", "denied", p["id"], f"transizione non valida da {stato}")', "pass"),
+    "il sospeso resta nel runtime": ("runtime.py", 'NEL_RUNTIME = ("PENDING", "ACTIVE")', 'NEL_RUNTIME = ("PENDING", "ACTIVE", "SUSPENDED")'),
+    "chiave del server leggibile accettata": ("runtime.py", "    if modo & 0o077:", "    if False:"),
+    "nessuna verifica del runtime": ("runtime.py", "coincide = vivi == attesi", "coincide = True"),
+    "un cambio nel frattempo sovrascritto": ("runtime.py", "AND stato = ? AND saga = 'PENDING_APPLY'", "AND ? IS NOT NULL"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
@@ -40,6 +44,7 @@ INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
     "un segnaposto detto con altre parole": ("registro.py", "\"[URL REDATTO]\"", "\"[INDIRIZZO WEB REDATTO]\""),
     "un messaggio dell'installer detto con altre parole": ("ops/install.sh", "Prossimo passo:", "Passo successivo:"),
     "un messaggio del registro detto con altre parole": ("peer.py", "riprovare (CONFLICT)", "ritentare (CONFLICT)"),
+    "un messaggio della riconciliazione detto con altre parole": ("runtime.py", "va creata da `init`", "la crea `init`"),
     "una variabile locale rinominata": ("preflight.py", "    gib = fatti[\"disco_libero\"] / 1024 ** 3\n", "    giga = fatti[\"disco_libero\"] / 1024 ** 3\n    gib = giga\n"),
 }
 
