@@ -32,16 +32,19 @@ if [ -n "$RADICE" ]; then
 fi
 
 SORGENTE="$(cd "$(dirname "$0")/.." && pwd)/control-plane/sovereignctl"
-SORGENTE_UNITA="$(cd "$(dirname "$0")" && pwd)/systemd/sovereignvpn-reconcile.service"
+SORGENTE_UNITA="$(cd "$(dirname "$0")" && pwd)/systemd"
+UNITA_NOMI=(sovereignvpn-reconcile.service sovereignvpn-expire.service sovereignvpn-expire.timer)
 OPT="$RADICE/opt/sovereignvpn"
 ETC="$RADICE/etc/sovereignvpn"
 VAR="$RADICE/var/lib/sovereignvpn"
 BIN="$RADICE/usr/local/bin"
-UNITA="$RADICE/etc/systemd/system/sovereignvpn-reconcile.service"
+UNITA="$RADICE/etc/systemd/system"
 
 # prerequisiti (errori runtime: codice 1)
 [ -f "$SORGENTE/__main__.py" ] || { echo "install.sh: sorgente del control plane mancante in $SORGENTE" >&2; exit 1; }
-[ -f "$SORGENTE_UNITA" ] || { echo "install.sh: unita' systemd mancante in $SORGENTE_UNITA" >&2; exit 1; }
+for u in "${UNITA_NOMI[@]}"; do
+  [ -f "$SORGENTE_UNITA/$u" ] || { echo "install.sh: unita' systemd mancante: $SORGENTE_UNITA/$u" >&2; exit 1; }
+done
 python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' \
   || { echo "install.sh: serve Python 3.11 o successivo (ANC-0334)" >&2; exit 1; }
 if [ -z "$RADICE" ] && [ "$DRY" -eq 0 ] && [ "$(id -u)" -ne 0 ]; then
@@ -53,7 +56,7 @@ PASSI=(
   "creare $ETC (0700) per la configurazione"
   "creare $VAR (0700) per lo stato e il manifest"
   "scrivere il comando $BIN/sovereignctl (0755)"
-  "installare l'unita' $UNITA (0644) e, sul sistema vero, abilitarla: a ogni avvio \`sovereignctl reconcile\`, solo dopo init --apply (FR-NET-007)"
+  "installare le unita' systemd in $UNITA (0644) e, sul sistema vero, abilitarle: \`sovereignctl reconcile\` a ogni avvio (FR-NET-007), scadenze dei peer ogni minuto (FR-PEER-005); partono solo dopo init --apply"
 )
 if [ "$DRY" -eq 1 ]; then
   echo "install.sh --dry-run: nessuna mutazione. Piano:"
@@ -86,13 +89,15 @@ printf '#!/bin/sh\nexec python3 -I -c '\''import sys; sys.path.insert(0, "%s"); 
 chmod 0755 "$TMP"
 mv "$TMP" "$BIN/sovereignctl"
 
-# 5. unita' del ripristino al riavvio: scritta accanto e rinominata; abilitata solo dove systemd e' davvero in funzione
-install -d -m 0755 "$(dirname "$UNITA")"
-install -m 0644 "$SORGENTE_UNITA" "$UNITA.nuovo"
-mv "$UNITA.nuovo" "$UNITA"
+# 5. unita' systemd: ognuna scritta accanto e rinominata; abilitate solo dove systemd e' davvero in funzione
+install -d -m 0755 "$UNITA"
+for u in "${UNITA_NOMI[@]}"; do
+  install -m 0644 "$SORGENTE_UNITA/$u" "$UNITA/$u.nuovo"
+  mv "$UNITA/$u.nuovo" "$UNITA/$u"
+done
 if [ -z "$RADICE" ] && [ -d /run/systemd/system ]; then
   systemctl daemon-reload
-  systemctl enable --quiet sovereignvpn-reconcile.service
+  systemctl enable --quiet sovereignvpn-reconcile.service sovereignvpn-expire.timer
 fi
 
 echo "install.sh: installato. Control plane in $OPT, configurazione in $ETC, stato in $VAR."
