@@ -17,26 +17,35 @@ CARTELLA = "/var/lib/sovereignvpn/backup"
 SCHEMA = 1
 
 
-def _age(*argomenti, ingresso):
+class AgeFallito(RuntimeError):
+    """age e' uscito con errore: chiave sbagliata, file manomesso o destinatario non valido."""
+
+
+def _age(*argomenti, ingresso=None):
     try:
         p = subprocess.run(["age", *argomenti], input=ingresso, capture_output=True, timeout=120,
                            env={"PATH": os.environ.get("PATH", "/usr/sbin:/usr/bin:/sbin:/bin"), "LC_ALL": "C"})
     except FileNotFoundError:
         raise RuntimeError("age non installato: serve per cifrare il backup (apt install age) [H20]")
     if p.returncode != 0:
-        raise RuntimeError(f"age non riuscito ({registro.redigi(p.stderr.decode(errors='replace').strip())[:160]})")
+        raise AgeFallito(f"age non riuscito ({registro.redigi(p.stderr.decode(errors='replace').strip())[:160]})")
     return p.stdout
 
 
-def contenuti(percorso_config, db):
-    """Nome nell'archivio -> byte. Il registro come copia coerente (serialize), mai copiando il file aperto."""
+def contenuti(percorso_config, db, presenti_soltanto=False):
+    """Nome nell'archivio -> byte. Il registro come copia coerente, mai copiando il file aperto. Con
+    `presenti_soltanto` (lo stato salvato prima di un restore) un file che manca si salta invece di fermare tutto."""
     file = {}
     for nome, percorso in (("etc/sovereignvpn/server.toml", percorso_config),
                            ("etc/sovereignvpn/wg-server.key", runtime.CHIAVE_SERVER),
                            ("var/lib/sovereignvpn/manifest.json", bootstrap.MANIFEST)):
+        if presenti_soltanto and not os.path.exists(percorso):
+            continue
         with open(percorso, "rb") as f:
             file[nome] = f.read()
     if not os.path.exists(db):
+        if presenti_soltanto:
+            return file
         raise RuntimeError(f"registro dei peer assente in {db}")
     src, mem = sqlite3.connect(f"file:{db}?mode=ro", uri=True), sqlite3.connect(":memory:")
     try:
@@ -65,12 +74,12 @@ def _scrivi(percorso, dati):
         raise
 
 
-def crea(percorso_config, destinatario, cartella=None, db=None, adesso=None):
+def crea(percorso_config, destinatario, cartella=None, db=None, adesso=None, presenti_soltanto=False):
     cartella, db = cartella or CARTELLA, db or peer.DB_PREDEFINITO
     if not configurazione.DESTINATARIO_AGE.match(destinatario or ""):
         raise InputNonValido("--recipient: serve una chiave pubblica age (age1...), o backup_recipient nella configurazione [H20]")
     adesso = adesso or datetime.datetime.now(datetime.timezone.utc)
-    file = contenuti(percorso_config, db)
+    file = contenuti(percorso_config, db, presenti_soltanto)
     m = {"schema": SCHEMA, "sovereignvpn": VERSIONE, "creato": adesso.isoformat(timespec="seconds").replace("+00:00", "Z"),
          "file": [{"nome": n, "sha256": hashlib.sha256(b).hexdigest(), "byte": len(b)} for n, b in sorted(file.items())],
          "cifratura": "age (X25519, ChaCha20-Poly1305)", "destinatario": destinatario,

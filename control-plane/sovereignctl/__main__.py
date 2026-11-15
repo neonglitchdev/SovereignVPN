@@ -85,6 +85,15 @@ def main(argv=None):
     bc.add_argument("--out", help="cartella di destinazione (0700); di base /var/lib/sovereignvpn/backup")
     bc.add_argument("--db", default=peer.DB_PREDEFINITO)
     bc.add_argument("--json", action="store_true")
+    br = ba.add_parser("restore", help="restore transazionale: preflight, stato di prima salvato, verifica, ritorno indietro")
+    br.add_argument("file", help="il backup .tar.age")
+    br.add_argument("--identity", required=True, help="chiave privata age (tenuta fuori dal server)")
+    br.add_argument("--conferma", action="store_true", help="il restore sovrascrive lo stato del server (FR-OPS-003)")
+    br.add_argument("--config", default="/etc/sovereignvpn/server.toml")
+    br.add_argument("--wan-interface", help="altrimenti wan_interface della configurazione ripristinata")
+    br.add_argument("--out", help="dove salvare lo stato di prima; di base /var/lib/sovereignvpn/backup")
+    br.add_argument("--db", default=peer.DB_PREDEFINITO)
+    br.add_argument("--json", action="store_true")
     from . import dns
     dns.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser(sotto, _Parser)
@@ -105,8 +114,8 @@ def main(argv=None):
         from . import profilo
         return profilo.esegui(a)
     if a.comando == "backup":
-        from . import backup
-        return backup.esegui(a)
+        from . import backup, ripristino
+        return ripristino.esegui(a) if a.azione == "restore" else backup.esegui(a)
     if a.comando == "status":
         from . import stato
         return stato.esegui(a)
