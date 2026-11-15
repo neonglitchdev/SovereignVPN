@@ -1,0 +1,22 @@
+# SovereignVPN 14.0.0 — configurazione del server, schema v1 (ServerConfig, ANC-0230).
+# Si prova con: cd control-plane && python3 -m sovereignctl init --check --config ../config/examples/server.toml
+# Nessun segreto in chiaro: il token di amministrazione si scrive solo come hash (ANC-0247).
+
+schema_version = 1
+endpoint = "vpn.example.org"          # IP o nome host pubblico del server
+wg_port = 51820                       # UDP, WireGuard (ANC-0173)
+admin_port = 8443                     # TCP, solo 127.0.0.1 o VPN (ADR-006) [H7]
+subnet = "10.66.0.0/24"               # IPv4 privata; se manca, la sceglie l'IPAM [H6]
+# subnet6 = "fd42:6a5f:1::/64"        # IPv6 ULA, se la 1.0 supporta IPv6 (ANC-0045, ambiguità n. 2)
+dns = []                              # resolver interni; vuoto = Pi-hole + Unbound della release
+mtu = 1420                            # [H9]
+# wan_interface = "ens3"              # mai presumere eth0 (ANC-0174)
+# tls_domain = "admin.example.org"
+firewall_profile = "nftables"         # ADR-005
+# admin_token_hash = "scrypt$..."
+
+[flags]                               # servizi opzionali: fuori dalla 1.0 finché non hanno un gate (ANC-0110)
+tor = false
+multihop = false
+wstunnel = false
+udp2raw = false
