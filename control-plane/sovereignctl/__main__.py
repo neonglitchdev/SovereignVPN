@@ -20,7 +20,10 @@ def main(argv=None):
     p = _Parser(prog="sovereignctl", description=f"SovereignVPN {VERSIONE} — control plane")
     sotto = p.add_subparsers(dest="comando", required=True, parser_class=_Parser)
     init = sotto.add_parser("init", help="preflight e bootstrap")
-    init.add_argument("--check", action="store_true", required=True, help="solo preflight e piano, nessuna mutazione")
+    modo = init.add_mutually_exclusive_group(required=True)
+    modo.add_argument("--check", action="store_true", help="solo preflight e piano, nessuna mutazione")
+    modo.add_argument("--apply", action="store_true", help="bootstrap vero, dopo aver visto il piano di --check (ANC-0266)")
+    init.add_argument("--wan-interface", help="interfaccia verso Internet (ANC-0174: mai presunta)")
     init.add_argument("--wg-port"); init.add_argument("--admin-port"); init.add_argument("--subnet")
     init.add_argument("--config", help="file TOML della configurazione, schema v1 (config/examples/server.toml)")
     init.add_argument("--json", action="store_true", help="rapporto in JSON")
@@ -65,6 +68,27 @@ def main(argv=None):
     if a.config:  # il rapporto dice che cosa ha letto, senza l'hash del token
         rapporto["configurazione"] = {"file": a.config, "schema": configurazione.VERSIONE_SCHEMA,
                                       **{k: ("impostato" if k == "admin_token_hash" else v) for k, v in cfg.items()}}
+    if a.apply:
+        if falliti:
+            print(f"sovereignctl: init --apply rifiutato: {len(falliti)} controlli FALLITO, niente toccato (vedi init --check)", file=sys.stderr)
+            return 1
+        wan = a.wan_interface or cfg.get("wan_interface")
+        if not a.config or not wan:
+            print("sovereignctl: input non valido: init --apply vuole --config e --wan-interface (o wan_interface nella config)", file=sys.stderr)
+            return 2
+        from . import bootstrap
+        try:
+            passi, errore = bootstrap.esegui(fatti, cfg, a.config, wan)
+        except preflight.InputNonValido as e:  # WAN o sorgenti SSH sbagliate: rifiutate prima di toccare l'host
+            print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
+            return 2
+        rapporto.update({"comando": "init --apply", "passi": [{"passo": p, "esito": e} for p, e in passi],
+                         "errore": registro.redigi(errore) if errore else None})
+        rapporto.pop("mutazioni_eseguite", None)
+        print(json.dumps(rapporto, ensure_ascii=False, indent=1) if a.json else
+              "\n".join([f"SovereignVPN {VERSIONE} — init --apply"] + [f"  [OK] {p}: {e}" for p, e in passi]
+                         + ([f"  [FERMO] {registro.redigi(errore)}"] if errore else [])))
+        return 0 if not errore else (4 if passi else 1)
     if a.json:
         print(json.dumps(rapporto, ensure_ascii=False, indent=1))
     else:

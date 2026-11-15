@@ -34,6 +34,8 @@ jobs:
           sudo bash control-plane/tests/prova_nft_vero.sh
       - name: sysctl veri in un network namespace (inoltro IPv4 acceso, IPv6 spento)
         run: sudo bash control-plane/tests/prova_sysctl_vero.sh
+      - name: init --apply vero in un network namespace (sei passi, idempotente, chiave guasta, WAN rifiutata)
+        run: sudo bash control-plane/tests/prova_init_vero.sh
       - name: Banco dei mutanti (guasti presi, innocui vivi)
         run: cd control-plane && python3 tests/mutanti.py
       - name: Preflight vero sul runner, in dry-run
