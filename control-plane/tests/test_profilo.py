@@ -87,5 +87,16 @@ class Export(unittest.TestCase):
         self.assertFalse(self.out.exists())
 
 
+
+class SplitTunnel(unittest.TestCase):
+    def test_con_le_rotte_il_profilo_e_split_tunnel_con_la_vpn(self):
+        p = {"id": "x", "nome": "ufficio", "indirizzo": "10.66.0.2", "scade": None, "rotte": '["192.168.10.0/24"]'}
+        righe = profilo.componi(p, {"endpoint": "vpn.example.org"}, PUB).splitlines()
+        self.assertIn("AllowedIPs = 192.168.10.0/24, 10.66.0.0/24", righe)
+        self.assertIn("split-tunnel", righe[0])
+        righe = profilo.componi({**p, "rotte": None}, {"endpoint": "vpn.example.org"}, PUB).splitlines()
+        self.assertIn("AllowedIPs = 0.0.0.0/0, ::/0", righe)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -27,14 +27,15 @@ def componi(p, cfg, chiave_server_pubblica, keepalive=None):
             endpoint = f"[{endpoint}]"
     except ValueError:
         pass  # un nome host
-    righe = [f"# SovereignVPN {VERSIONE} — profilo full-tunnel del peer {p['id']} ({p['nome']})",
+    tipo = "split-tunnel verso le rotte del peer" if p.get("rotte") else "full-tunnel"
+    righe = [f"# SovereignVPN {VERSIONE} — profilo {tipo} del peer {p['id']} ({p['nome']})",
              "# SEGRETI: nessuno. La chiave privata e' nata sul dispositivo e resta li' [H2]:",
              f"# va scritta al posto di {SEGNAPOSTO} prima di importare il profilo.",
              f"# Scadenza: {p['scade'] or 'nessuna'} (UTC). IPv6: tutto nel tunnel, dove il server lo respinge (FR-WG-004).",
              "", "[Interface]", f"PrivateKey = {SEGNAPOSTO}", f"Address = {p['indirizzo']}/32", f"DNS = {dns}",
              f"MTU = {cfg.get('mtu', 1420)}",
              "", "[Peer]", f"PublicKey = {chiave_server_pubblica}", f"Endpoint = {endpoint}:{cfg.get('wg_port', 51820)}",
-             "AllowedIPs = 0.0.0.0/0, ::/0"]
+             "AllowedIPs = " + (", ".join(json.loads(p["rotte"]) + [str(rete)]) if p.get("rotte") else "0.0.0.0/0, ::/0")]
     if keepalive:
         righe.append(f"PersistentKeepalive = {keepalive}")
     return "\n".join(righe) + "\n"

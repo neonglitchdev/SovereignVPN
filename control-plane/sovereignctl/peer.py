@@ -12,7 +12,9 @@ import base64, binascii, datetime, ipaddress, json, os, sqlite3, sys, unicodedat
 from . import preflight, registro
 from .preflight import InputNonValido
 
-VERSIONE_SCHEMA_DB = 1
+VERSIONE_SCHEMA_DB = 2
+# Migrazioni esplicite (cap. 8): da versione -> istruzioni per passare alla successiva; prima si salva il registro.
+MIGRAZIONI = {1: ["ALTER TABLE peer ADD COLUMN rotte TEXT"]}  # 1 -> 2: rotte per peer (FR-PEER-008), NULL = full-tunnel
 DB_PREDEFINITO = "/var/lib/sovereignvpn/registro.sqlite3"   # [H12] la cartella 0700 la crea l'installer
 TTL_MASSIMO_GIORNI = 365                                    # [H10] ANC-0240 vuole un massimo configurabile
 STATI = ("PENDING", "ACTIVE", "SUSPENDED", "EXPIRED", "REVOKED", "ERROR")   # FR-PEER-003, per intero
@@ -64,6 +66,8 @@ class Archivio:
         self.db = sqlite3.connect(percorso, timeout=30, isolation_level=None)
         self.db.execute("PRAGMA foreign_keys = ON")
         self.db.execute("PRAGMA journal_mode = WAL")
+        if not nuovo:
+            self._migra()
         with self.transazione() as c:
             c.execute("CREATE TABLE IF NOT EXISTS schema (versione INTEGER NOT NULL)")
             v = c.execute("SELECT versione FROM schema").fetchone()
@@ -74,11 +78,34 @@ class Archivio:
                     chiave_pubblica TEXT NOT NULL UNIQUE, indirizzo TEXT NOT NULL UNIQUE,
                     stato TEXT NOT NULL CHECK (stato IN ('PENDING','ACTIVE','SUSPENDED','EXPIRED','REVOKED','ERROR')),
                     saga TEXT NOT NULL CHECK (saga IN ('PENDING_APPLY','APPLIED','ROLLBACK_REQUIRED','ERROR')),
-                    creato TEXT NOT NULL, scade TEXT, revocato TEXT, sospeso TEXT)""")
+                    creato TEXT NOT NULL, scade TEXT, revocato TEXT, sospeso TEXT, rotte TEXT)""")
                 c.execute("CREATE TABLE id_usati (id TEXT PRIMARY KEY)")  # ANC-0237: un UUID non si riusa mai
                 c.execute("CREATE TABLE audit (n INTEGER PRIMARY KEY AUTOINCREMENT, evento TEXT NOT NULL)")
             elif v[0] != VERSIONE_SCHEMA_DB:
                 raise RuntimeError(f"schema del registro {v[0]}, questo sovereignctl conosce il {VERSIONE_SCHEMA_DB}: serve una migrazione")
+
+    def _migra(self):
+        """Porta un registro di schema vecchio al corrente, un passo alla volta; prima una copia coerente 0600 accanto."""
+        try:
+            v = self.db.execute("SELECT versione FROM schema").fetchone()
+        except sqlite3.OperationalError:
+            return  # registro vuoto (creato altrove e mai inizializzato): ci pensa il ramo «nuovo»
+        if v is None or v[0] >= VERSIONE_SCHEMA_DB:
+            return
+        copia = f"{self.percorso}.schema{v[0]}.bak"
+        if not os.path.exists(copia):
+            os.close(os.open(copia, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+            dest = sqlite3.connect(copia)
+            try:
+                self.db.backup(dest)  # copia coerente, WAL compreso, prima di toccare lo schema
+            finally:
+                dest.close()
+        with self.transazione() as c:
+            for da in range(v[0], VERSIONE_SCHEMA_DB):
+                for istruzione in MIGRAZIONI[da]:
+                    c.execute(istruzione)
+            c.execute("UPDATE schema SET versione = ?", (VERSIONE_SCHEMA_DB,))
+            self.audit(c, "registro.migrate", "success", motivo=f"schema {v[0]} -> {VERSIONE_SCHEMA_DB}, copia in {os.path.basename(copia)}")
 
     class _T:
         def __init__(self, db): self.db = db
@@ -96,9 +123,29 @@ class Archivio:
         c.execute("INSERT INTO audit (evento) VALUES (?)", (registro.evento_audit(
             actor="sovereignctl", action=azione, target=bersaglio, outcome=esito, reason=motivo),))
 
-    def aggiungi(self, nome, chiave, rete, ttl_giorni=None):
+    @staticmethod
+    def valida_rotte(testo, rete):
+        """FR-PEER-008, FR-WG-007 [H32]: «CIDR,CIDR» -> lista canonica; reti IPv4, al massimo 32, nessuna sovrapposta
+        alla subnet VPN (la VPN entra sempre nel profilo), niente 0.0.0.0/0 (quello e' il full-tunnel: si omette)."""
+        if testo is None:
+            return None
+        rotte = []
+        for pezzo in [x.strip() for x in testo.split(",") if x.strip()]:
+            try:
+                r = ipaddress.ip_network(pezzo)
+            except ValueError:
+                raise InputNonValido(f"--routes: «{pezzo}» non e' un CIDR canonico")
+            if r.version != 4 or r.prefixlen == 0 or r.overlaps(ipaddress.ip_network(rete)):
+                raise InputNonValido(f"--routes: «{pezzo}» deve essere una rete IPv4 non 0.0.0.0/0 e fuori dalla subnet VPN {rete}")
+            rotte.append(str(r))
+        if not 1 <= len(rotte) <= 32:
+            raise InputNonValido("--routes: da 1 a 32 reti")
+        return sorted(set(rotte))
+
+    def aggiungi(self, nome, chiave, rete, ttl_giorni=None, rotte=None):
         nome, nome_chiave = normalizza_nome(nome)
         chiave = valida_chiave(chiave)
+        rotte = self.valida_rotte(rotte, rete)
         if ttl_giorni is not None and not 1 <= ttl_giorni <= TTL_MASSIMO_GIORNI:
             raise InputNonValido(f"--ttl-days: da 1 a {TTL_MASSIMO_GIORNI} [H10]")
         rete = ipaddress.ip_network(rete)
@@ -126,8 +173,10 @@ class Archivio:
             adesso = datetime.datetime.now(datetime.timezone.utc)
             scade = None if ttl_giorni is None else (adesso + datetime.timedelta(days=ttl_giorni)).isoformat(timespec="seconds").replace("+00:00", "Z")
             c.execute("INSERT INTO id_usati VALUES (?)", (nuovo,))
-            c.execute("INSERT INTO peer VALUES (?,?,?,?,?,?,?,?,?,NULL,NULL)",
-                      (nuovo, nome, nome_chiave, chiave, libero, "PENDING", "PENDING_APPLY", ora(), scade))
+            c.execute("INSERT INTO peer (id, nome, nome_chiave, chiave_pubblica, indirizzo, stato, saga, creato, scade, rotte) "
+                      "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                      (nuovo, nome, nome_chiave, chiave, libero, "PENDING", "PENDING_APPLY", ora(), scade,
+                       json.dumps(rotte) if rotte else None))
             self.audit(c, "peer.add", "success", nuovo)
         return self.mostra(nuovo)
 
@@ -254,6 +303,7 @@ def aggiungi_parser(sotto, classe):
         if nome == "add":
             s.add_argument("--name", required=True); s.add_argument("--public-key", required=True)
             s.add_argument("--ttl-days", type=int); s.add_argument("--config")
+            s.add_argument("--routes", help="split tunnel: CIDR,CIDR verso cui il peer esce (FR-PEER-008); senza, full-tunnel")
         if nome in ("show", "suspend", "resume", "revoke"):
             s.add_argument("id")
         if nome == "reconcile":  # dal registro al runtime WireGuard (ANC-0276/0277)
@@ -268,7 +318,7 @@ def esegui(a):
             from . import configurazione
             cfg = configurazione.leggi(a.config) if a.config else {}
             rete = cfg.get("subnet") or preflight.CANDIDATE_VPN[0]  # [H6] senza configurazione, la prima candidata
-            esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days)
+            esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days, a.routes)
         elif a.azione == "reconcile":
             from . import runtime
             try:

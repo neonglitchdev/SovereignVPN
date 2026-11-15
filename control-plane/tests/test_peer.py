@@ -218,5 +218,62 @@ class Scadenze(Base):
         self.assertEqual(uscita.exception.code, 2)
 
 
+
+class Migrazione(Base):
+    """Cap. 8: schema versionato, migrazione esplicita, copia del registro prima di toccarlo."""
+    V1 = ["CREATE TABLE schema (versione INTEGER NOT NULL)", "INSERT INTO schema VALUES (1)",
+          """CREATE TABLE peer (id TEXT PRIMARY KEY, nome TEXT NOT NULL, nome_chiave TEXT NOT NULL UNIQUE,
+             chiave_pubblica TEXT NOT NULL UNIQUE, indirizzo TEXT NOT NULL UNIQUE, stato TEXT NOT NULL, saga TEXT NOT NULL,
+             creato TEXT NOT NULL, scade TEXT, revocato TEXT, sospeso TEXT)""",
+          "CREATE TABLE id_usati (id TEXT PRIMARY KEY)", "CREATE TABLE audit (n INTEGER PRIMARY KEY AUTOINCREMENT, evento TEXT NOT NULL)",
+          "INSERT INTO peer VALUES ('3f2a7d9e-0000-4000-8000-000000000001', 'vecchio', 'vecchio', 'K', '10.66.0.2', 'ACTIVE', 'APPLIED', '2026-11-01T00:00:00Z', NULL, NULL, NULL)"]
+
+    def test_registro_nuovo_e_gia_alla_versione_2(self):
+        peer.Archivio(self.db).db.close()
+        db = sqlite3.connect(self.db)
+        self.assertEqual(db.execute("SELECT versione FROM schema").fetchone()[0], 2)
+        self.assertIn("rotte", [r[1] for r in db.execute("PRAGMA table_info(peer)")])
+        self.assertFalse(os.path.exists(self.db + ".schema1.bak"))
+
+    def test_da_1_a_2_con_copia_prima_e_peer_intatti(self):
+        db = sqlite3.connect(self.db)
+        for s in self.V1:
+            db.execute(s)
+        db.commit(); db.close()
+        a = peer.Archivio(self.db)
+        p = a.mostra("3f2a7d9e-0000-4000-8000-000000000001")
+        self.assertEqual((p["nome"], p["stato"], p["rotte"]), ("vecchio", "ACTIVE", None))
+        self.assertEqual(a.db.execute("SELECT versione FROM schema").fetchone()[0], 2)
+        copia = self.db + ".schema1.bak"
+        self.assertEqual(oct(os.stat(copia).st_mode & 0o777), "0o600")
+        vecchia = sqlite3.connect(copia)
+        self.assertEqual((vecchia.execute("SELECT versione FROM schema").fetchone()[0],
+                          vecchia.execute("SELECT nome FROM peer").fetchone()[0]), (1, "vecchio"))
+        self.assertNotIn("rotte", [r[1] for r in vecchia.execute("PRAGMA table_info(peer)")])
+        self.assertEqual(self.audit()[-1]["action"], "registro.migrate")
+        a.db.close()
+        peer.Archivio(self.db).db.close()  # riaprire non rifa' niente
+        self.assertEqual(sum(1 for e in self.audit() if e["action"] == "registro.migrate"), 1)
+
+    def test_schema_piu_nuovo_rifiutato(self):
+        peer.Archivio(self.db).db.close()
+        db = sqlite3.connect(self.db); db.execute("UPDATE schema SET versione = 3"); db.commit(); db.close()
+        with self.assertRaises(RuntimeError):
+            peer.Archivio(self.db)
+
+
+class Rotte(Base):
+    """FR-PEER-008 / FR-WG-007: rotte per peer validate e salvate; senza, full-tunnel."""
+    def test_rotte_canoniche_salvate_e_quelle_sbagliate_rifiutate(self):
+        codice, p, err = self.add("ufficio", None, "--routes", "192.168.10.0/24, 172.16.0.0/16,192.168.10.0/24")
+        self.assertEqual(codice, 0, err)
+        self.assertEqual(json.loads(p["rotte"]), ["172.16.0.0/16", "192.168.10.0/24"])
+        self.assertIsNone(self.add("tutto")[1]["rotte"])
+        for sbagliate in ("10.66.0.0/25", "0.0.0.0/0", "192.168.1.1/24", "fd00::/64", "non-una-rete",
+                          ",".join(f"10.{i}.0.0/16" for i in range(100, 133))):
+            with self.subTest(sbagliate=sbagliate[:30]):
+                self.assertEqual(self.add("x" + str(abs(hash(sbagliate)) % 1000), None, "--routes", sbagliate)[0], 2)
+
+
 if __name__ == "__main__":
     unittest.main()
