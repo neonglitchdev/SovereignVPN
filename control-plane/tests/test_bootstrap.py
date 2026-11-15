@@ -94,6 +94,18 @@ class Apply(unittest.TestCase):
         self.assertEqual([p["passo"] for p in r["passi"]], ORDINE[:4])
         self.assertIn("nft -f", r["errore"])
 
+    def test_verifica_che_non_torna_esce_con_4(self):
+        casi = [("sysctl", bootstrap.host, "applica", lambda: {"verificato": False}),
+                ("firewall", bootstrap.firewall, "applica", lambda r: {"verificato": False}),
+                ("riconciliazione", bootstrap.runtime, "riconcilia", lambda *a, **k: {"coincide": False})]
+        for passo, modulo, nome, finto in casi:
+            with self.subTest(passo), mock.patch.object(modulo, nome, finto):
+                codice, out, _ = self.apply()
+                self.assertEqual(codice, 4)
+                r = json.loads(out)
+                self.assertEqual([p["passo"] for p in r["passi"]], ORDINE[:ORDINE.index(passo)])
+                self.assertIn(passo, r["errore"])
+
     def test_check_e_apply_insieme_rifiutati(self):
         import contextlib, io
         from sovereignctl import __main__ as cli
