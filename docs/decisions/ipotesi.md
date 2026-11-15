@@ -18,5 +18,6 @@ chiude nel documento (regola di CLAUDE.md). Ognuna si rovescia cambiando una rig
 | H11 | Il primo host della subnet VPN è del server; i peer partono dal secondo | Convenzione WireGuard; il documento non assegna l'indirizzo del server | `Archivio.aggiungi` | Francesco |
 | H12 | Registro dei peer in /var/lib/sovereignvpn/registro.sqlite3, file 0600 | ANC-0244 dice SQLite, non il percorso; la cartella 0700 la crea l'installer | `peer.DB_PREDEFINITO` | Francesco |
 | H13 | Interfaccia WireGuard `wg0`, chiave del server in /etc/sovereignvpn/wg-server.key (0600), generata da `init` con `wg genkey` | ANC-0148 vuole la chiave del server come file protetto; FR-WG-002 vuole `wg` per generarla; nome e percorso non ci sono | `runtime.INTERFACCIA`, `runtime.CHIAVE_SERVER` | Francesco |
+| H14 | Firewall come tabella propria `inet sovereignvpn`; SSH ammesso solo da `admin_ssh_sources`, senza sorgenti il firewall non si compone; ICMP essenziale ammesso; il DNS dei peer va solo ai resolver interni | ANC-0182 vuole SSH «da sorgenti autorizzate» senza nominarle; un drop senza la via dell'amministratore lo chiuderebbe fuori | `firewall.componi` | Francesco |
 
 Chiuse dal documento, senza ipotesi: backend firewall nftables (ADR-005, ANC-0372); porta WireGuard UDP 51820 (ANC-0173).

@@ -15,7 +15,7 @@ HASH_TOKEN = re.compile(r"^(scrypt|pbkdf2_sha256|argon2id)\$\S{20,}$")
 OPZIONALI = ("tor", "multihop", "wstunnel", "udp2raw")      # fuori dalla 1.0 finche' non hanno un gate (ANC-0110)
 SEGRETI = re.compile(r"token|password|secret|private|psk", re.I)
 CAMPI = {"schema_version", "endpoint", "wg_port", "admin_port", "subnet", "subnet6", "dns", "mtu", "wan_interface",
-         "tls_domain", "firewall_profile", "admin_token_hash", "flags"}
+         "tls_domain", "firewall_profile", "admin_token_hash", "flags", "admin_ssh_sources", "ssh_port"}
 
 
 def _errore(campo, motivo):
@@ -86,6 +86,19 @@ def valida(dati):
         if not isinstance(dati["admin_token_hash"], str) or not HASH_TOKEN.match(dati["admin_token_hash"]):
             raise _errore("admin_token_hash", "deve essere un hash scrypt$, pbkdf2_sha256$ o argon2id$ (ANC-0247); il valore non si mostra")
         imp["admin_token_hash"] = dati["admin_token_hash"]
+    sorgenti = dati.get("admin_ssh_sources", [])
+    if not isinstance(sorgenti, list):
+        raise _errore("admin_ssh_sources", "deve essere un elenco di CIDR (sorgenti autorizzate per SSH, ANC-0182)")
+    for i, s in enumerate(sorgenti):
+        try:
+            ipaddress.ip_network(s, strict=True)
+        except (TypeError, ValueError):
+            raise _errore(f"admin_ssh_sources[{i}]", f"«{s}» non e' un CIDR canonico")
+    imp["admin_ssh_sources"] = list(sorgenti)
+    porta_ssh = dati.get("ssh_port", 22)
+    if not isinstance(porta_ssh, int) or isinstance(porta_ssh, bool) or not 1 <= porta_ssh <= 65535:
+        raise _errore("ssh_port", "deve essere un intero fra 1 e 65535")
+    imp["ssh_port"] = porta_ssh
     flags = dati.get("flags", {})
     if not isinstance(flags, dict):
         raise _errore("flags", "deve essere una tabella [flags]")

@@ -14,6 +14,8 @@ mtu = 1420                            # [H9]
 # tls_domain = "admin.example.org"
 firewall_profile = "nftables"         # ADR-005
 # admin_token_hash = "scrypt$..."
+admin_ssh_sources = ["198.51.100.0/24"]   # da dove si entra in SSH: senza, il firewall non si applica (ANC-0182)
+ssh_port = 22
 
 [flags]                               # servizi opzionali: fuori dalla 1.0 finché non hanno un gate (ANC-0110)
 tor = false

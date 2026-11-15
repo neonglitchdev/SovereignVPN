@@ -28,6 +28,10 @@ jobs:
         run: |
           sudo apt-get install -y -qq wireguard-tools >/dev/null
           sudo bash control-plane/tests/prova_wg_vero.sh
+      - name: nftables vero in un network namespace (policy, transazione, idempotenza)
+        run: |
+          sudo apt-get install -y -qq nftables >/dev/null
+          sudo bash control-plane/tests/prova_nft_vero.sh
       - name: Banco dei mutanti (guasti presi, innocui vivi)
         run: cd control-plane && python3 tests/mutanti.py
       - name: Preflight vero sul runner, in dry-run
