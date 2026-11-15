@@ -49,7 +49,8 @@ def leggi_impostazioni(wg_port=None, admin_port=None, subnet=None, nomi=None):
 
 def _comando(*args, timeout=10):
     try:
-        r = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(args, capture_output=True, text=True, timeout=timeout,  # ambiente controllato (ANC-0344)
+                           env={"PATH": os.environ.get("PATH", "/usr/sbin:/usr/bin:/sbin:/bin"), "LC_ALL": "C"})
         return r.returncode, (r.stdout or "").strip()
     except (OSError, subprocess.TimeoutExpired):
         return None, ""

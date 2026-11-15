@@ -6,7 +6,7 @@ Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [
 """
 import argparse, json, sys
 
-from . import VERSIONE, configurazione, preflight, registro
+from . import VERSIONE, configurazione, manifest, preflight, registro
 
 
 class _Parser(argparse.ArgumentParser):
@@ -47,6 +47,12 @@ def main(argv=None):
     rapporto = {"versione": VERSIONE, "comando": "init --check", "mutazioni_eseguite": 0,
                 "controlli_eseguiti": len(controlli), "superati": len(controlli) - len(falliti),
                 "controlli": controlli, "piano": preflight.piano(imp, rete) if not falliti else []}
+    if not falliti:  # FR-BOOT-002: il manifest si mostra in anteprima; lo scrive solo `init` vero
+        try:
+            rapporto["manifest_anteprima"] = manifest.componi(fatti, a.config)
+        except manifest.ManifestNonValido as e:
+            print(f"sovereignctl: security gate: {registro.redigi(e)}", file=sys.stderr)
+            return 3  # ANC-0255: security gate fallito
     if a.config:  # il rapporto dice che cosa ha letto, senza l'hash del token
         rapporto["configurazione"] = {"file": a.config, "schema": configurazione.VERSIONE_SCHEMA,
                                       **{k: ("impostato" if k == "admin_token_hash" else v) for k, v in cfg.items()}}
@@ -65,6 +71,9 @@ def main(argv=None):
             print("Piano (da approvare, niente e' stato eseguito):")
             for i, passo in enumerate(rapporto["piano"], 1):
                 print(f"  {i}. {passo}")
+            m = rapporto["manifest_anteprima"]
+            print(f"Manifest (anteprima, non scritto): SovereignVPN {m['sovereignvpn']}, {m['os']}, kernel {m['kernel']}, "
+                  f"schema v{m['schema_configurazione']}, configurazione {m['checksum_configurazione'] or 'non indicata'}")
     return 1 if falliti else 0
 
 
