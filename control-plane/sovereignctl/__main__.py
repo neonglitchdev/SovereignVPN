@@ -5,6 +5,7 @@ Codici di uscita (ANC-0255): 0 successo; 1 errore runtime/sistema (anche un prer
 Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [--admin-port N] [--subnet CIDR] [--json]
      python3 -m sovereignctl init --apply --config server.toml --wan-interface IF [--json]
      python3 -m sovereignctl reconcile --config server.toml [--wan-interface IF] [--json]   (a ogni avvio, FR-NET-007)
+     python3 -m sovereignctl status [--config server.toml] [--db FILE] [--json]           (solo letture)
 """
 import argparse, json, sys
 
@@ -61,6 +62,10 @@ def main(argv=None):
     rec.add_argument("--config", required=True, help="file TOML della configurazione (al riavvio /etc/sovereignvpn/server.toml)")
     rec.add_argument("--wan-interface", help="interfaccia verso Internet; altrimenti wan_interface della configurazione")
     rec.add_argument("--json", action="store_true", help="rapporto in JSON")
+    st = sotto.add_parser("status", help="release e salute, solo letture e sanitizzato (NFR-AVL-002)")
+    st.add_argument("--config", default="/etc/sovereignvpn/server.toml", help="configurazione (porta, subnet, WAN)")
+    st.add_argument("--db", default=peer.DB_PREDEFINITO)
+    st.add_argument("--json", action="store_true", help="rapporto in JSON")
     peer.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser_firewall(sotto, _Parser)
     peer.aggiungi_parser_host(sotto, _Parser)
@@ -73,6 +78,9 @@ def main(argv=None):
         return peer.esegui_host(a)
     if a.comando == "reconcile":
         return _ripristina(a)
+    if a.comando == "status":
+        from . import stato
+        return stato.esegui(a)
     try:
         cfg = configurazione.leggi(a.config) if a.config else {}
         valori, nomi = {}, {}

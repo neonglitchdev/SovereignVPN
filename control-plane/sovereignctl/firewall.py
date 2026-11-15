@@ -87,10 +87,20 @@ def applica(ruleset):
     codice, _, errore = _nft("-f", "-", ingresso=ruleset)
     if codice != 0:
         raise RuntimeError(f"nft -f non riuscito, il batch e' atomico: vale la tabella di prima ({registro.redigi(errore.strip())[:200]})")
+    return leggi()
+
+
+def leggi():
+    """La tabella com'e' nel kernel: catene con le policy, numero di regole, e se INPUT e FORWARD sono in drop."""
     codice, uscita, errore = _nft("-j", "list", "table", "inet", TABELLA)
     if codice != 0:
-        raise RuntimeError(f"tabella {TABELLA} non leggibile dopo l'applicazione ({registro.redigi(errore.strip())[:200]})")
-    catene = {o["chain"]["name"]: o["chain"].get("policy") for o in json.loads(uscita)["nftables"] if "chain" in o}
-    regole = sum(1 for o in json.loads(uscita)["nftables"] if "rule" in o)
+        raise RuntimeError(f"tabella {TABELLA} non leggibile ({registro.redigi(errore.strip())[:200]})")
+    oggetti = json.loads(uscita)["nftables"]
+    catene = {o["chain"]["name"]: o["chain"].get("policy") for o in oggetti if "chain" in o}
     ok = catene.get("input") == "drop" and catene.get("forward") == "drop"
-    return {"tabella": f"inet {TABELLA}", "catene": catene, "regole": regole, "verificato": ok}
+    return {"tabella": f"inet {TABELLA}", "catene": catene, "regole": sum(1 for o in oggetti if "rule" in o), "verificato": ok}
+
+
+def regole_dichiarate(ruleset):
+    """Quante regole dichiara un ruleset di `componi`: le righe dentro le catene, tolte quelle `type ... hook`."""
+    return sum(1 for r in ruleset.splitlines() if r.startswith("    ") and not r.lstrip().startswith("type "))

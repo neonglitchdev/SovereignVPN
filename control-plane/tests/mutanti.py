@@ -60,6 +60,11 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "init --apply ignora le verifiche": ("bootstrap.py", "    if ok is not True:", "    if False:"),
     "la porta di un'altra wg0 passa per nostra": ("preflight.py", 'not libera and bool(fatti.get("installato")) and', "not libera and"),
     "la rete di wg0 sempre esclusa": ("preflight.py", '            if itf.get("ifname") == escludi:', '            if itf.get("ifname") in (escludi, "wg0"):'),
+    "status dice sempre OK": ("stato.py", "    return 0 if superati == len(controlli) else 1", "    return 0"),
+    "status non confronta i peer": ("stato.py", 'esito("peer", diverse == 0,', 'esito("peer", True,'),
+    "status non conta le regole del firewall": ("stato.py", 'ok = t["verificato"] and dichiarate in (None, t["regole"])', 'ok = t["verificato"]'),
+    "status senza security gate sulla chiave": ("stato.py", "    if esposta:\n        return 3\n", ""),
+    "status non guarda la porta": ("stato.py", "    elif ascolto != porta:", "    elif False:"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
