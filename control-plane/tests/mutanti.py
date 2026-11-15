@@ -47,7 +47,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "verifica dei sysctl che dice sempre si'": ("host.py", '"verificato": letti == VALORI}', '"verificato": True}'),
     "id dell'installazione rigenerato": ("bootstrap.py", "id_installazione=vecchio or str(uuid.uuid4())", "id_installazione=str(uuid.uuid4())"),
     "chiave del server rigenerata sopra quella esistente": ("bootstrap.py", "    if os.path.exists(percorso):\n        return False\n    os.makedirs(os.path.dirname(percorso), mode=0o700", "    os.makedirs(os.path.dirname(percorso), mode=0o700"),
-    "init --apply ignora il preflight": ("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
+    "la WAN si valida dopo aver toccato l'host": ("bootstrap.py", "    regole = firewall.componi(rete, wg_if, porta, wan_if, cfg.get(\"admin_port\", 8443), cfg.get(\"ssh_port\", 22), cfg.get(\"admin_ssh_sources\"))\n    passi = []\n    try:\n        passi.append((\"manifest\", scrivi_manifest(fatti, percorso_config)))\n", "    passi = []\n    try:\n        passi.append((\"manifest\", scrivi_manifest(fatti, percorso_config)))\n        regole = firewall.componi(rete, wg_if, porta, wan_if, cfg.get(\"admin_port\", 8443), cfg.get(\"ssh_port\", 22), cfg.get(\"admin_ssh_sources\"))\n"),
+    "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi

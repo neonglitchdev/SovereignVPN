@@ -59,18 +59,18 @@ def interfaccia(nome, rete):
 
 
 def esegui(fatti, cfg, percorso_config, wan_if, wg_if="wg0", db=peer.DB_PREDEFINITO):
-    """Restituisce (passi fatti, errore o None)."""
-    rete = cfg.get("subnet") or "10.66.0.0/24"
+    """Restituisce (passi fatti, errore o None). Un input non valido (WAN, sorgenti SSH, subnet) solleva InputNonValido
+    PRIMA di toccare l'host: le regole si compongono qui, e comporle non muta niente (ANC-0255: codice 2, non 4)."""
+    rete, porta = cfg.get("subnet") or "10.66.0.0/24", cfg.get("wg_port", 51820)
+    regole = firewall.componi(rete, wg_if, porta, wan_if, cfg.get("admin_port", 8443), cfg.get("ssh_port", 22), cfg.get("admin_ssh_sources"))
     passi = []
     try:
         passi.append(("manifest", scrivi_manifest(fatti, percorso_config)))
         passi.append(("chiave del server", "generata" if chiave_server() else "gia' presente"))
         passi.append(("interfaccia", f"{wg_if} {interfaccia(wg_if, rete)}"))
         passi.append(("sysctl", host.applica()["verificato"]))
-        passi.append(("firewall", firewall.applica(firewall.componi(rete, wg_if, cfg.get("wg_port", 51820), wan_if,
-                                                                     cfg.get("admin_port", 8443), cfg.get("ssh_port", 22),
-                                                                     cfg.get("admin_ssh_sources")))["verificato"]))
-        esito = runtime.riconcilia(peer.Archivio(db), wg_if, runtime.CHIAVE_SERVER, cfg.get("wg_port", 51820))
+        passi.append(("firewall", firewall.applica(regole)["verificato"]))
+        esito = runtime.riconcilia(peer.Archivio(db), wg_if, runtime.CHIAVE_SERVER, porta)
         passi.append(("riconciliazione", esito["coincide"]))
     except Exception as e:  # noqa: BLE001 — qualunque guasto ferma la sequenza e si riporta coi passi gia' fatti
         return passi, e

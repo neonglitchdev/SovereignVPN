@@ -75,6 +75,17 @@ class Apply(unittest.TestCase):
         self.assertEqual(codice, 2)
         self.assertIn("--wan-interface", err)
 
+    def test_wan_non_valida_esce_con_2_senza_toccare_niente(self):
+        codice, _, err = self.apply_wan("ens3;drop")
+        self.assertEqual(codice, 2, err)
+        self.assertIn("--wan-interface", err)
+        self.assertEqual(self.comandi, [])
+        self.assertFalse(self.manifest.exists())
+        self.assertFalse(self.chiave.exists())
+
+    def apply_wan(self, wan):
+        return esegui(["init", "--apply", "--config", str(ESEMPIO), "--wan-interface", wan], BUONI)
+
     def test_errore_a_meta_esce_con_4_e_dice_i_passi_fatti(self):
         with mock.patch.object(bootstrap.firewall, "applica", side_effect=RuntimeError("nft -f non riuscito")):
             codice, out, _ = self.apply()

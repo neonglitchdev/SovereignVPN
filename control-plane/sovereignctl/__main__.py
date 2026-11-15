@@ -77,7 +77,11 @@ def main(argv=None):
             print("sovereignctl: input non valido: init --apply vuole --config e --wan-interface (o wan_interface nella config)", file=sys.stderr)
             return 2
         from . import bootstrap
-        passi, errore = bootstrap.esegui(fatti, cfg, a.config, wan)
+        try:
+            passi, errore = bootstrap.esegui(fatti, cfg, a.config, wan)
+        except preflight.InputNonValido as e:  # WAN o sorgenti SSH sbagliate: rifiutate prima di toccare l'host
+            print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
+            return 2
         rapporto.update({"comando": "init --apply", "passi": [{"passo": p, "esito": e} for p, e in passi],
                          "errore": registro.redigi(errore) if errore else None})
         rapporto.pop("mutazioni_eseguite", None)
