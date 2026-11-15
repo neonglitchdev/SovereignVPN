@@ -24,6 +24,10 @@ jobs:
           python3 tests/verifica_incrociata.py .
       - name: Prove del control plane
         run: cd control-plane && python3 -m unittest discover -s tests -v
+      - name: WireGuard vero sul runner (interfaccia di prova, revoca entro 5 s)
+        run: |
+          sudo apt-get install -y -qq wireguard-tools >/dev/null
+          sudo bash control-plane/tests/prova_wg_vero.sh
       - name: Banco dei mutanti (guasti presi, innocui vivi)
         run: cd control-plane && python3 tests/mutanti.py
       - name: Preflight vero sul runner, in dry-run

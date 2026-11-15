@@ -167,7 +167,7 @@ class Archivio:
 def aggiungi_parser(sotto, classe):
     peer = sotto.add_parser("peer", help="registro dei peer")
     az = peer.add_subparsers(dest="azione", required=True, parser_class=classe)
-    for nome in ("add", "list", "show", "suspend", "resume", "revoke"):
+    for nome in ("add", "list", "show", "suspend", "resume", "revoke", "reconcile"):
         s = az.add_parser(nome)
         s.add_argument("--db", default=DB_PREDEFINITO)
         s.add_argument("--json", action="store_true")
@@ -176,6 +176,9 @@ def aggiungi_parser(sotto, classe):
             s.add_argument("--ttl-days", type=int); s.add_argument("--config")
         if nome in ("show", "suspend", "resume", "revoke"):
             s.add_argument("id")
+        if nome == "reconcile":  # dal registro al runtime WireGuard (ANC-0276/0277)
+            s.add_argument("--interface", default="wg0"); s.add_argument("--server-key", default="/etc/sovereignvpn/wg-server.key")
+            s.add_argument("--port", type=int, default=51820)
 
 
 def esegui(a):
@@ -186,6 +189,21 @@ def esegui(a):
             cfg = configurazione.leggi(a.config) if a.config else {}
             rete = cfg.get("subnet") or preflight.CANDIDATE_VPN[0]  # [H6] senza configurazione, la prima candidata
             esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days)
+        elif a.azione == "reconcile":
+            from . import runtime
+            try:
+                esito = runtime.riconcilia(archivio, a.interface, a.server_key, a.port)
+            except runtime.ChiaveEsposta as e:
+                print(f"sovereignctl: security gate: {registro.redigi(e)}", file=sys.stderr)
+                return 3
+            if a.json:
+                print(json.dumps(esito, ensure_ascii=False, indent=1))
+            else:
+                print(f"Riconciliazione su {esito['interfaccia']}: attesi {esito['attesi_nel_runtime']}, trovati {esito['trovati_nel_runtime']}, "
+                      f"differenze {esito['differenze']}; peer aggiornati {esito['peer_aggiornati']} in {esito['secondi']} s")
+                if not esito["coincide"]:
+                    print("  Il runtime non coincide col registro: i peer in attesa sono in ERROR, saga ROLLBACK_REQUIRED (ANC-0280).")
+            return 0 if esito["coincide"] else 4  # ANC-0255: 4 = applicato in parte, serve recovery
         elif a.azione == "list":
             esito = archivio.elenco()
         elif a.azione == "show":
