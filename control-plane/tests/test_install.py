@@ -53,11 +53,12 @@ class Installer(unittest.TestCase):
 
     def test_idempotente_e_senza_avanzi(self):
         self.assertEqual(lancia("--radice", self.radice)[0], 0)
+        self.assertEqual(lancia("--radice", self.radice)[0], 0)  # dalla seconda c'e' anche la release precedente
         primo = albero(self.radice)
         codice, _, err = lancia("--radice", self.radice)
         self.assertEqual(codice, 0, err)
         self.assertEqual(albero(self.radice), primo)
-        avanzi = [p for p in primo if any(x in p for x in (".nuovo", ".vecchio", ".lock", "__pycache__"))]
+        avanzi = [p for p in primo if any(x in p for x in (".nuovo", ".vecchio", ".scambio", ".lock", "__pycache__"))]
         self.assertEqual(avanzi, [])
 
     def test_unita_di_avvio_installata_e_coerente(self):
@@ -91,6 +92,27 @@ class Installer(unittest.TestCase):
         timer = (r / "sovereignvpn-expire.timer").read_text().splitlines()
         for voce in ("OnCalendar=minutely", "Persistent=true", "WantedBy=timers.target"):
             self.assertIn(voce, timer)
+
+    def test_rollback_alla_release_precedente_e_ritorno(self):
+        opt = pathlib.Path(self.radice) / "opt/sovereignvpn"
+        self.assertEqual(lancia("--radice", self.radice, "--rollback")[0], 1)  # senza una precedente: niente
+        self.assertEqual(lancia("--radice", self.radice)[0], 0)
+        (opt / "sovereignctl/marca-release-1").write_text("1")
+        self.assertEqual(lancia("--radice", self.radice)[0], 0)
+        self.assertEqual(((opt / "sovereignctl/marca-release-1").exists(), (opt / "sovereignctl.precedente/marca-release-1").exists()),
+                         (False, True))
+        prima = albero(self.radice)
+        codice, out, _ = lancia("--radice", self.radice, "--rollback", "--dry-run")
+        self.assertEqual((codice, albero(self.radice)), (0, prima))
+        codice, _, err = lancia("--radice", self.radice, "--rollback")
+        self.assertEqual(codice, 0, err)
+        self.assertTrue((opt / "sovereignctl/marca-release-1").exists())
+        self.assertFalse((opt / "sovereignctl.precedente/marca-release-1").exists())
+        uscita = subprocess.run([str(pathlib.Path(self.radice) / "usr/local/bin/sovereignctl"), "init", "--check", "--json"],
+                                capture_output=True, text=True, timeout=60)
+        self.assertIn(uscita.returncode, (0, 1), uscita.stderr)  # il comando gira con la release di prima
+        self.assertEqual(lancia("--radice", self.radice, "--rollback")[0], 0)  # un secondo rollback rimette la piu' nuova
+        self.assertFalse((opt / "sovereignctl/marca-release-1").exists())
 
     def test_input_non_valido_esce_con_2(self):
         for argomenti, voce in ((["--colore"], "--colore"), (["--radice"], "--radice"),

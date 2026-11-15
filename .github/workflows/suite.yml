@@ -45,6 +45,15 @@ jobs:
             echo "ROSSO: un'unita' senza ExecStart passa la verifica"; exit 1
           fi
           echo "OK: unita' installata, abilitata, verificata; quella senza ExecStart e' rifiutata"
+          sudo bash ops/install.sh >/dev/null
+          sudo touch /opt/sovereignvpn/sovereignctl/marca-ultima
+          sudo bash ops/install.sh --rollback
+          [ ! -e /opt/sovereignvpn/sovereignctl/marca-ultima ] && [ -e /opt/sovereignvpn/sovereignctl.precedente/marca-ultima ] || { echo "ROSSO: il rollback non ha rimesso la release precedente"; exit 1; }
+          sudo bash ops/install.sh --rollback >/dev/null
+          [ -e /opt/sovereignvpn/sovereignctl/marca-ultima ] || { echo "ROSSO: il secondo rollback non ha rimesso la piu' nuova"; exit 1; }
+          sudo rm /opt/sovereignvpn/sovereignctl/marca-ultima
+          /usr/local/bin/sovereignctl status --help >/dev/null
+          echo "OK: rollback alla release precedente e ritorno, sul sistema vero (FR-OPS-005)"
       - name: init --apply vero in un network namespace (sei passi, idempotente, chiave guasta, WAN rifiutata, riavvio)
         run: sudo bash control-plane/tests/prova_init_vero.sh
       - name: Backup vero con age (decifrato con la chiave giusta, non con un'altra, non se manomesso)
