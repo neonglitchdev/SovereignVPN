@@ -80,7 +80,7 @@ def _passi_di_rete(cfg, wan_if, wg_if, db):
     """I passi comuni a init e al ripristino. Un input non valido (WAN, sorgenti SSH, subnet) solleva InputNonValido
     QUI, prima di toccare l'host: le regole si compongono subito, e comporle non muta niente (ANC-0255: 2, non 4)."""
     rete, porta = cfg.get("subnet") or "10.66.0.0/24", cfg.get("wg_port", 51820)
-    regole = firewall.componi(rete, wg_if, porta, wan_if, cfg.get("admin_port", 8443), cfg.get("ssh_port", 22), cfg.get("admin_ssh_sources"), cfg.get("mtu", 1420))
+    regole = firewall.componi(rete, wg_if, porta, wan_if, cfg.get("admin_port", 8443), cfg.get("ssh_port", 22), cfg.get("admin_ssh_sources"), cfg.get("mtu", 1420), cfg.get("dns_block_dot", True))
     return {
         "firewall": lambda: _verificato("firewall", firewall.applica(regole)["verificato"]),
         "sysctl": lambda: _verificato("sysctl", host.applica()["verificato"]),

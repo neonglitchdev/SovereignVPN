@@ -50,6 +50,15 @@ class Ruleset(unittest.TestCase):
         self.assertIn('iifname "wg0" oifname "ens3" tcp flags syn / syn,rst tcp option maxseg size > 1240 tcp option maxseg size set 1240',
                       righe(mtu=1280))  # segue la MTU della configurazione
 
+    def test_dot_bloccato_di_base_e_disattivabile(self):
+        """FR-DNS-006: reject su TCP 853 dai peer, prima dell'uscita verso la WAN; con dns_block_dot = false non c'e'."""
+        r = righe()
+        dot = 'iifname "wg0" tcp dport 853 reject with tcp reset'
+        self.assertLess(r.index(dot), r.index('iifname "wg0" ip saddr 10.66.0.0/24 oifname "ens3" accept'))
+        self.assertNotIn(dot, righe(blocca_dot=False))
+        sorgente = (pathlib.Path(firewall.__file__)).read_text()
+        self.assertIn("NON ferma ogni DNS cifrato", sorgente)  # la nota di FR-DNS-006 accanto alla regola
+
     def test_ordine_del_forward(self):
         """Isolamento fra peer e DNS esterno bloccati PRIMA dell'uscita verso la WAN: dopo non servirebbero a niente."""
         r = righe()

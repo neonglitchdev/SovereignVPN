@@ -128,5 +128,15 @@ class Rifiuti(unittest.TestCase):
         self.assertIn(segreto, stampato)
 
 
+
+class BloccoDot(unittest.TestCase):
+    def test_dns_block_dot_solo_vero_o_falso(self):
+        import tomllib
+        from sovereignctl import configurazione
+        base = tomllib.loads(ESEMPIO.read_text())
+        self.assertIs(configurazione.valida({**base, "dns_block_dot": False})["dns_block_dot"], False)
+        with self.assertRaises(Exception):
+            configurazione.valida({**base, "dns_block_dot": "no"})
+
 if __name__ == "__main__":
     unittest.main()

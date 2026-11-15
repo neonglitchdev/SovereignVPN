@@ -90,7 +90,7 @@ def controlla(cfg, db=None, wg_if=runtime.INTERFACCIA):
         if cfg.get("wan_interface") and cfg.get("admin_ssh_sources"):
             dichiarate = firewall.regole_dichiarate(firewall.componi(
                 cfg.get("subnet") or "10.66.0.0/24", wg_if, cfg.get("wg_port", 51820), cfg["wan_interface"],
-                cfg.get("admin_port", 8443), cfg.get("ssh_port", 22), cfg["admin_ssh_sources"], cfg.get("mtu", 1420)))
+                cfg.get("admin_port", 8443), cfg.get("ssh_port", 22), cfg["admin_ssh_sources"], cfg.get("mtu", 1420), cfg.get("dns_block_dot", True)))
         ok = t["verificato"] and dichiarate in (None, t["regole"])
         esito("firewall", ok, f"tabella {t['tabella']}, policy " + " ".join(f"{k}={v}" for k, v in t["catene"].items())
               + f", {t['regole']} regole" + ("" if dichiarate is None else f" su {dichiarate} dichiarate"))
