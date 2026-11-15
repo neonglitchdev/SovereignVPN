@@ -59,6 +59,29 @@ def valida_chiave(chiave):
     return chiave
 
 
+def quote(db, vive=None, salva=False):
+    """[H35] (indirizzo, byte, usati) dei peer non revocati con quota; usati = max(registro, tabella viva). Con salva,
+    i byte usati si scrivono nel registro: cosi' sopravvivono al reconcile e al riavvio."""
+    if not os.path.exists(db):
+        return []
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        righe = con.execute("SELECT indirizzo, quota_byte, quota_usati FROM peer WHERE quota_byte IS NOT NULL AND stato != 'REVOKED' ORDER BY indirizzo").fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        con.close()
+    vive = (vive() if callable(vive) else vive) if righe and vive else {}  # nft solo se c'e' una quota
+    esito = [(ind, tot, max(usati or 0, vive.get(ind, 0))) for ind, tot, usati in righe]
+    if salva and esito:
+        con = sqlite3.connect(db)
+        try:
+            con.executemany("UPDATE peer SET quota_usati = ? WHERE indirizzo = ?", [(u, i) for i, _, u in esito]); con.commit()
+        finally:
+            con.close()
+    return esito
+
+
 def dns_liberi(db):
     """FR-PEER-008 [H34]: gli indirizzi dei peer non revocati con DNS libero; registro di schema vecchio = nessuno."""
     if not os.path.exists(db):
@@ -286,7 +309,8 @@ def esegui_firewall(a):
         ruleset = firewall.componi(cfg.get("subnet") or preflight.CANDIDATE_VPN[0], a.wg_interface, cfg.get("wg_port", 51820),
                                    a.wan_interface or cfg.get("wan_interface"), cfg.get("admin_port", 8443),
                                    cfg["ssh_port"], cfg["admin_ssh_sources"], cfg.get("mtu", 1420),
-                                   cfg.get("dns_block_dot", True), limiti_rotte(a.db), dns_liberi(a.db))
+                                   cfg.get("dns_block_dot", True), limiti_rotte(a.db), dns_liberi(a.db),
+                                   quote(a.db, firewall.quote_usate, salva=True))
         if a.azione == "plan":  # solo testo: niente nft, niente host toccato
             print(json.dumps({"ruleset": ruleset, "mutazioni_eseguite": 0}, ensure_ascii=False, indent=1) if a.json else ruleset, end="" if not a.json else "\n")
             return 0

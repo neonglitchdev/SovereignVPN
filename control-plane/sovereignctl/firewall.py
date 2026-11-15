@@ -109,7 +109,10 @@ def applica(ruleset):
 
 def quote_usate():
     """{indirizzo: byte usati} dalle quote della tabella viva, prima di sostituirla; tabella assente = {}."""
-    codice, uscita, _ = _nft("-j", "list", "table", "inet", TABELLA)
+    try:
+        codice, uscita, _ = _nft("-j", "list", "table", "inet", TABELLA)
+    except OSError:
+        return {}  # nft assente: nessuna tabella viva
     if codice != 0:
         return {}
     usate = {}
