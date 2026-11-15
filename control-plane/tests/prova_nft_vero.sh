@@ -14,7 +14,7 @@ dentro() { ip netns exec "$NS" "$@"; }
 dentro python3 -m sovereignctl firewall apply --config ../config/examples/server.toml --wan-interface ens3 --json
 POLICY="$(dentro nft -j list table inet sovereignvpn | python3 -c '
 import json,sys; d=json.load(sys.stdin)["nftables"]
-print(" ".join(f"{o[\"chain\"][\"name\"]}={o[\"chain\"].get(\"policy\")}" for o in d if "chain" in o))')"
+print(" ".join("%s=%s" % (o["chain"]["name"], o["chain"].get("policy")) for o in d if "chain" in o))')"
 [ "$POLICY" = "input=drop forward=drop postrouting=accept" ] || { echo "ROSSO: policy $POLICY"; exit 1; }
 echo "OK: tabella inet sovereignvpn applicata, policy $POLICY"
 dentro nft list table inet sovereignvpn | grep -q 'iifname "wg0" oifname "wg0" drop' || { echo "ROSSO: manca l'isolamento fra peer"; exit 1; }
