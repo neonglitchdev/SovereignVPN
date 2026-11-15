@@ -1,5 +1,9 @@
 name: Suite
-on: [pull_request, push]
+# una corsa per commit: le PR col loro evento, main al push dopo l'unione (prima girava due volte, push e PR)
+on:
+  pull_request:
+  push:
+    branches: [main]
 jobs:
   suite:
     runs-on: ubuntu-24.04
