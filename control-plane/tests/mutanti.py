@@ -54,6 +54,11 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "al riavvio gira il preflight": ("__main__.py", "        passi, errore = bootstrap.ripristina(cfg, wan)\n", "        preflight.raccogli({})\n        passi, errore = bootstrap.ripristina(cfg, wan)\n"),
     "chiave esposta trattata come un guasto qualunque": ("__main__.py", "return 3 if isinstance(errore, runtime.ChiaveEsposta) else", "return 4 if isinstance(errore, runtime.ChiaveEsposta) else"),
     "init --apply ignora le verifiche": ("bootstrap.py", "    if ok is not True:", "    if False:"),
+    "profilo con l'IPv6 fuori dal tunnel": ("profilo.py", '"AllowedIPs = 0.0.0.0/0, ::/0"', '"AllowedIPs = 0.0.0.0/0"'),
+    "profilo esportato senza conferma": ("profilo.py", "    if not a.conferma:", "    if False:"),
+    "profilo di un peer revocato": ("profilo.py", 'if p["stato"] in ("REVOKED", "EXPIRED"):', "if False:"),
+    "profilo leggibile da altri": ("profilo.py", "manifest.scrivi_testo(percorso, testo, 0o600)", "manifest.scrivi_testo(percorso, testo, 0o644)"),
+    "keepalive sempre acceso": ("profilo.py", "    if keepalive:\n", "    if True:\n"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
