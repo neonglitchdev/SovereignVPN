@@ -52,6 +52,14 @@ def configurazione(chiave_server, porta, peer):
     return "\n".join(righe) + "\n"
 
 
+def chiave_pubblica(percorso):
+    """La chiave pubblica del server, da `wg pubkey` con la privata su stdin: la privata non esce mai."""
+    codice, uscita, errore = _wg("pubkey", ingresso=leggi_chiave_server(percorso) + "\n")
+    if codice != 0:
+        raise RuntimeError(f"wg pubkey non riuscito ({registro.redigi(errore.strip())[:160]})")
+    return uscita.strip()
+
+
 def leggi_runtime(interfaccia):
     codice, uscita, errore = _wg("show", interfaccia, "dump")
     if codice != 0:
