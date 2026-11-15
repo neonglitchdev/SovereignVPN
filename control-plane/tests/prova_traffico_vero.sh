@@ -167,6 +167,21 @@ ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interfac
 if passa tp1 10.66.0.3 9000; then rosso "rimesso il firewall vero, i peer si raggiungono ancora"; fi
 echo "OK: col firewall guastato isolamento e DNS cadono, col firewall vero tornano: la prova vede la differenza"
 
+# 6b. rotte per peer nel firewall (FR-PEER-008, H33): il peer 1 limitato a 192.0.2.53/32 non raggiunge piu' il sito
+#     192.0.2.80, la 8853 di 192.0.2.53 si'; col firewall senza limiti il sito torna raggiungibile
+ns tsrv python3 - "$CONFIG" <<'PY'
+import sys
+from sovereignctl import configurazione, firewall
+c = configurazione.leggi(sys.argv[1])
+firewall.applica(firewall.componi(c["subnet"], "wg0", c["wg_port"], "ens3", c["admin_port"], c["ssh_port"], c["admin_ssh_sources"],
+                                  c.get("mtu", 1420), True, [("10.66.0.2", ["192.0.2.53/32"])]))
+PY
+if passa tp1 192.0.2.80 8080; then rosso "il peer limitato a 192.0.2.53/32 raggiunge ancora 192.0.2.80"; fi
+passa tp1 192.0.2.53 8853 || rosso "il peer limitato non raggiunge nemmeno la sua rotta 192.0.2.53"
+ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interface ens3 --db "$D/r.db" >/dev/null
+passa tp1 192.0.2.80 8080 || rosso "col firewall senza limiti il peer 1 non raggiunge piu' il sito"
+echo "OK: rotte per peer, col limite il peer esce solo verso 192.0.2.53/32; senza, il sito torna raggiungibile"
+
 # 7. revoca: il peer revocato non passa piu', l'altro si'
 peer revoke --db "$D/r.db" "$ID1" >/dev/null
 ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" >/dev/null

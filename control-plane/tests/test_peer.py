@@ -269,6 +269,10 @@ class Rotte(Base):
         self.assertEqual(codice, 0, err)
         self.assertEqual(json.loads(p["rotte"]), ["172.16.0.0/16", "192.168.10.0/24"])
         self.assertIsNone(self.add("tutto")[1]["rotte"])
+        self.assertEqual(peer.limiti_rotte(self.db), [(p["indirizzo"], ["172.16.0.0/16", "192.168.10.0/24"])])
+        self.forza(p["id"], "REVOKED")
+        self.assertEqual(peer.limiti_rotte(self.db), [])  # un revocato non ha piu' regole
+        self.assertEqual(peer.limiti_rotte(self.db + ".assente"), [])
         for sbagliate in ("10.66.0.0/25", "0.0.0.0/0", "192.168.1.1/24", "fd00::/64", "non-una-rete",
                           ",".join(f"10.{i}.0.0/16" for i in range(100, 133))):
             with self.subTest(sbagliate=sbagliate[:30]):
