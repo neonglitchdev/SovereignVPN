@@ -178,3 +178,25 @@ dentro nft list table inet sovereignvpn >/dev/null 2>&1 || rosso "con la chiave 
 dentro ip link show wg0 >/dev/null 2>&1 || rosso "con la chiave assente wg0 non e' tornata"
 mv "$D/chiave6" "$CHIAVE"
 echo "OK: giro 6, chiave assente: firewall e wg0 tornano, nessuna chiave nuova, codice 4"
+
+# 7. preflight su un host gia' installato: la porta e la rete di wg0 sono di questa installazione, non un conflitto
+dentro "${ESEGUI[@]}" >/dev/null
+dentro python3 - "$CONFIG" <<'PY'
+import sys
+from sovereignctl import configurazione, preflight
+cfg = configurazione.leggi(sys.argv[1])
+campi = ("wg_port", "admin_port", "subnet")
+imp = preflight.leggi_impostazioni(**{k: cfg.get(k) for k in campi}, nomi={k: f"config.{k}" for k in campi})
+f = preflight.raccogli(imp)
+c = {x["id"]: x for x in preflight.valuta(f, imp)[0]}
+if not (f["installato"] and f["porta_di_wg0"] == 51820):
+    sys.exit(f"ROSSO: installato={f['installato']}, porta_di_wg0={f['porta_di_wg0']}, attesi True e 51820")
+if f["porte_libere"]["udp/51820"]:
+    sys.exit("ROSSO: la 51820 risulta libera con wg0 in ascolto: la prova non distinguerebbe")
+if "10.66.0.0/24" in f["reti_host"]:
+    sys.exit("ROSSO: la rete di wg0 e' fra le reti dell'host")
+for id_ in ("porta-udp-51820", "subnet"):
+    if c[id_]["esito"] != "OK":
+        sys.exit(f"ROSSO: {id_} {c[id_]['esito']}: {c[id_]['dettaglio']}")
+print(f"OK: giro 7, preflight su host installato: porta {c['porta-udp-51820']['dettaglio']}; subnet {c['subnet']['dettaglio']}")
+PY

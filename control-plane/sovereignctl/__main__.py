@@ -62,6 +62,17 @@ def main(argv=None):
     rec.add_argument("--config", required=True, help="file TOML della configurazione (al riavvio /etc/sovereignvpn/server.toml)")
     rec.add_argument("--wan-interface", help="interfaccia verso Internet; altrimenti wan_interface della configurazione")
     rec.add_argument("--json", action="store_true", help="rapporto in JSON")
+    pr = sotto.add_parser("profile", help="profili dei client (FR-PEER-007)")
+    pa = pr.add_subparsers(dest="azione", required=True, parser_class=_Parser)
+    ex = pa.add_parser("export", help="scrive il profilo full-tunnel del peer in un file 0600; stampa percorso e checksum")
+    ex.add_argument("id", help="UUID del peer")
+    ex.add_argument("--conferma", action="store_true", help="autorizzazione esplicita all'export (FR-PEER-007)")
+    ex.add_argument("--keepalive", type=int, help="PersistentKeepalive in secondi; senza, spento (FR-WG-005)")
+    ex.add_argument("--config", default="/etc/sovereignvpn/server.toml")
+    ex.add_argument("--db", default=peer.DB_PREDEFINITO)
+    ex.add_argument("--server-key", default="/etc/sovereignvpn/wg-server.key")
+    ex.add_argument("--out", help="cartella di destinazione (0700); di base /var/lib/sovereignvpn/export")
+    ex.add_argument("--json", action="store_true")
     st = sotto.add_parser("status", help="release e salute, solo letture e sanitizzato (NFR-AVL-002)")
     st.add_argument("--config", default="/etc/sovereignvpn/server.toml", help="configurazione (porta, subnet, WAN)")
     st.add_argument("--db", default=peer.DB_PREDEFINITO)
@@ -86,6 +97,9 @@ def main(argv=None):
         return peer.esegui_host(a)
     if a.comando == "reconcile":
         return _ripristina(a)
+    if a.comando == "profile":
+        from . import profilo
+        return profilo.esegui(a)
     if a.comando == "backup":
         from . import backup
         return backup.esegui(a)

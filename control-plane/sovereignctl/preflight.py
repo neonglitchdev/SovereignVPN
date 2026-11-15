@@ -67,11 +67,14 @@ def _porta_libera(proto, porta):
         s.close()
 
 
-def _reti_host():
+def _reti_host(escludi=None):
+    """Reti IPv4 dell'host e di Docker; `escludi` toglie un'interfaccia (la wg0 di un'installazione esistente)."""
     reti = []
     codice, uscita = _comando("ip", "-j", "addr")
     if codice == 0 and uscita:
         for itf in json.loads(uscita):
+            if itf.get("ifname") == escludi:
+                continue
             for a in itf.get("addr_info", []):
                 if a.get("family") == "inet":
                     reti.append(str(ipaddress.ip_interface(f"{a['local']}/{a['prefixlen']}").network))
@@ -95,6 +98,9 @@ def raccogli(imp):
     compose = _comando("docker", "compose", "version", "--short")
     ntp = _comando("timedatectl", "show", "-p", "NTPSynchronized", "--value")
     wg = os.path.isdir("/sys/module/wireguard") or _comando("modinfo", "wireguard")[0] == 0
+    from . import bootstrap, runtime  # qui e non in testa: bootstrap importa peer, che importa preflight
+    installato = os.path.exists(bootstrap.MANIFEST)  # c'e' gia' un'installazione: wg0 e la sua rete sono sue
+    porta_wg0 = _comando("wg", "show", runtime.INTERFACCIA, "listen-port")
     return {
         "os": (os_rel.get("ID", platform.system().lower()), os_rel.get("VERSION_ID", "")),
         "architettura": platform.machine(),
@@ -106,7 +112,9 @@ def raccogli(imp):
         "ntp": {"yes": True, "no": False}.get(ntp[1]) if ntp[0] == 0 else None,
         "porte_libere": {f"udp/{imp['wg_port']}": _porta_libera("udp", imp["wg_port"]),
                          f"tcp/{imp['admin_port']}": _porta_libera("tcp", imp["admin_port"])},
-        "reti_host": _reti_host(),
+        "installato": installato,
+        "porta_di_wg0": int(porta_wg0[1]) if porta_wg0[0] == 0 and porta_wg0[1].isdigit() else None,
+        "reti_host": _reti_host(escludi=runtime.INTERFACCIA if installato else None),
     }
 
 
@@ -162,7 +170,10 @@ def valuta(fatti, imp):
           "Attivare NTP/chrony: timestamp e TTL dipendono dall'ora (ANC-0325).")
     for chiave, libera in fatti["porte_libere"].items():
         proto, porta = chiave.split("/")
-        esito(f"porta-{proto}-{porta}", f"Porta {proto.upper()} {porta}", libera, "libera" if libera else "gia' in uso",
+        # su un host gia' installato la porta WireGuard la tiene la sua wg0: init la riusa, non e' un conflitto
+        nostra = proto == "udp" and not libera and bool(fatti.get("installato")) and fatti.get("porta_di_wg0") == int(porta)
+        esito(f"porta-{proto}-{porta}", f"Porta {proto.upper()} {porta}", libera or nostra,
+              "libera" if libera else ("di wg0, di questa installazione: init la riusa" if nostra else "gia' in uso"),
               f"Liberare la porta {porta}/{proto} o sceglierne un'altra con --{'wg' if proto == 'udp' else 'admin'}-port (T-004).")
     rete, collisioni = scegli_subnet(imp, fatti["reti_host"])
     if not fatti["reti_host"]:  # zero reti lette non vuol dire zero collisioni: vuol dire che non si e' guardato
