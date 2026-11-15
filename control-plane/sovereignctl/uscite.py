@@ -401,6 +401,7 @@ def esegui(a):
     try:
         if a.azione == "list":
             esito = rapporto(a.cartella)
+            esito["handshake_secondi"] = eta_handshake() if esito["attiva"] else None  # per l'app: collegata o no
             print(json.dumps(esito, ensure_ascii=False, indent=1) if a.json else
                   "\n".join([f"scelta: {esito['scelta'] or 'nessuna (i peer escono dal server)'}; rotazione: "
                              + (f"ogni {esito['rotazione_minuti']} minuti" if esito['rotazione_minuti'] else "statica")]

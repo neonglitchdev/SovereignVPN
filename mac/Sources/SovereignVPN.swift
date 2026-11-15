@@ -280,6 +280,11 @@ struct VistaUscite: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(nomePaese(a.paese)) — \(a.nome)").font(.title3.bold())
                             Text("I siti vedono l'IP del server d'uscita, non quello del server SovereignVPN. Server d'uscita: \(a.endpoint)").foregroundStyle(.secondary)
+                            if let h = r?.handshake_secondi, h < 180 {
+                                Label("Collegata: ultimo handshake \(h) s fa", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                            } else {
+                                Label("Non collegata: nessun handshake recente, i dispositivi sono senza Internet", systemImage: "xmark.octagon.fill").foregroundStyle(.red)
+                            }
                             if let s = r?.prossimo_cambio_secondi { Text("Prossimo cambio d'IP fra \(max(1, (s + 59) / 60)) min").foregroundStyle(.secondary) }
                         }
                     }

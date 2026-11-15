@@ -221,6 +221,7 @@ class Cli(unittest.TestCase):
                 self.assertEqual(cli.main(argomenti), codice, argomenti)
             self.assertNotIn(PRIVATA, out.getvalue())
         r = json.loads(out.getvalue())
+        self.assertIsNone(r["handshake_secondi"])  # nessuna uscita attiva: wg non si interroga
         self.assertEqual(r["paesi"], [{"paese": "DE", "bandierina": "\U0001F1E9\U0001F1EA", "uscite": 1}])
         self.assertEqual((r["uscite"][0]["id"], r["uscite"][0]["attiva"]), ("de-1", False))
 

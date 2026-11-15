@@ -5,5 +5,5 @@ struct ControlloAudit: Decodable, Identifiable { let id: String; let severita: S
 struct RapportoAudit: Decodable { let controlli: [ControlloAudit]; let PASS: Int; let WARN: Int; let FAIL: Int; let SKIPPED: Int }
 struct PaeseUscita: Decodable, Identifiable { let paese: String; let bandierina: String; let uscite: Int; var id: String { paese } }
 struct Uscita: Decodable, Identifiable { let id: String; let nome: String; let paese: String; let bandierina: String; let endpoint: String; let attiva: Bool }
-struct RapportoUscite: Decodable { let scelta: String?; let attiva: String?; let rotazione_minuti: Int; let prossimo_cambio_secondi: Int?; let endpoint_attivo: String?; let paesi: [PaeseUscita]; let uscite: [Uscita] }
+struct RapportoUscite: Decodable { let scelta: String?; let attiva: String?; let rotazione_minuti: Int; let prossimo_cambio_secondi: Int?; let endpoint_attivo: String?; let handshake_secondi: Int?; let paesi: [PaeseUscita]; let uscite: [Uscita] }
 struct Peer: Decodable, Identifiable { let id: String; let nome: String; let indirizzo: String; let stato: String; let saga: String; let scade: String? }
