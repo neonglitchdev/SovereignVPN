@@ -43,6 +43,9 @@ def pihole_env(wg_if="wg0", porta_unbound=PORTA_UNBOUND):
             "FTLCONF_dns_listeningMode": "BIND", "FTLCONF_dns_interface": wg_if,
             "FTLCONF_dns_queryLogging": "false", "FTLCONF_database_maxDBdays": "0", "FTLCONF_misc_privacylevel": "3",
             "FTLCONF_webserver_port": "127.0.0.1:8081o",
+            # Pi-hole 6 accende di suo un server NTP su 0.0.0.0:123 e [::]:123 e sincronizza l'ora da server esterni:
+            # trovato dall'inventario delle porte sul runner. L'ora la tiene l'host; nessun ascolto in piu'.
+            "FTLCONF_ntp_ipv4_active": "false", "FTLCONF_ntp_ipv6_active": "false", "FTLCONF_ntp_sync_active": "false",
             "WEBPASSWORD_FILE": "pihole_webpasswd"}
 
 
@@ -76,6 +79,8 @@ def aggiungi_parser(sotto, classe):
     pl.add_argument("--porta", type=int, default=PORTA_UNBOUND, help="porta di Unbound su 127.0.0.1")
     pl.add_argument("--interfaccia", default="wg0", help="l'interfaccia WireGuard su cui ascolta Pi-hole")
     pl.add_argument("--json", action="store_true")
+    from . import liste
+    liste.aggiungi_parser(az, classe)
     ap = az.add_parser("apply", help="scrive i file di Unbound e Pi-hole che leggono le unita' systemd")
     ap.add_argument("--interfaccia", default="wg0")
     ap.add_argument("--cartella", help="di base /etc/sovereignvpn/dns (0700)")
@@ -83,6 +88,9 @@ def aggiungi_parser(sotto, classe):
 
 
 def esegui(a):
+    if a.azione == "blocklist":
+        from . import liste
+        return liste.esegui(a)
     if a.azione == "apply":
         from .configurazione import INTERFACCIA
         if not INTERFACCIA.match(a.interfaccia):
