@@ -1,0 +1,3222 @@
+[
+ {
+  "ancora": "ANC-0001",
+  "file": "01-sovereignvpn.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "PRD + RFC 14.0"
+ },
+ {
+  "ancora": "ANC-0002",
+  "file": "01-sovereignvpn.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Production Engineering Edition"
+ },
+ {
+  "ancora": "ANC-0003",
+  "file": "01-sovereignvpn.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "Dalla visione self-hosted a una specifica verificabile di prodotto, architettura"
+ },
+ {
+  "ancora": "ANC-0004",
+  "file": "01-sovereignvpn.md",
+  "riga": 9,
+  "tipo": "tbl",
+  "testo": "Campo"
+ },
+ {
+  "ancora": "ANC-0005",
+  "file": "01-sovereignvpn.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "Principio guida"
+ },
+ {
+  "ancora": "ANC-0006",
+  "file": "01-sovereignvpn.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "Nessuna promessa di sicurezza senza un controllo tecnico, un criterio di accetta"
+ },
+ {
+  "ancora": "ANC-0007",
+  "file": "02-indice.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "0. Executive summary"
+ },
+ {
+  "ancora": "ANC-0008",
+  "file": "02-indice.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "1. Visione, problema e posizionamento"
+ },
+ {
+  "ancora": "ANC-0009",
+  "file": "02-indice.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "2. Utenti, ruoli e casi d'uso"
+ },
+ {
+  "ancora": "ANC-0010",
+  "file": "02-indice.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "3. Ambito e roadmap di prodotto"
+ },
+ {
+  "ancora": "ANC-0011",
+  "file": "02-indice.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "4. Requisiti funzionali"
+ },
+ {
+  "ancora": "ANC-0012",
+  "file": "02-indice.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "5. Requisiti non funzionali"
+ },
+ {
+  "ancora": "ANC-0013",
+  "file": "02-indice.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "6. Architettura logica"
+ },
+ {
+  "ancora": "ANC-0014",
+  "file": "02-indice.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "7. Sicurezza e threat model"
+ },
+ {
+  "ancora": "ANC-0015",
+  "file": "02-indice.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "8. Modello dati e segreti"
+ },
+ {
+  "ancora": "ANC-0016",
+  "file": "02-indice.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "9. API e CLI contract"
+ },
+ {
+  "ancora": "ANC-0017",
+  "file": "02-indice.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "10. Workflow end-to-end"
+ },
+ {
+  "ancora": "ANC-0018",
+  "file": "02-indice.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "11. Piano di test e criteri di accettazione"
+ },
+ {
+  "ancora": "ANC-0019",
+  "file": "02-indice.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "12. Observability senza profilazione"
+ },
+ {
+  "ancora": "ANC-0020",
+  "file": "02-indice.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "13. Deployment, ambienti e supply chain"
+ },
+ {
+  "ancora": "ANC-0021",
+  "file": "02-indice.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "14. Organizzazione del repository e piano di implementazione"
+ },
+ {
+  "ancora": "ANC-0022",
+  "file": "02-indice.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "15. Rischi, dipendenze e mitigazioni"
+ },
+ {
+  "ancora": "ANC-0023",
+  "file": "02-indice.md",
+  "riga": 35,
+  "tipo": "p",
+  "testo": "16. Decision log / Architecture Decision Records"
+ },
+ {
+  "ancora": "ANC-0024",
+  "file": "02-indice.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "17. Open questions da chiudere prima del design freeze"
+ },
+ {
+  "ancora": "ANC-0025",
+  "file": "02-indice.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "18. Definition of Done e release gate"
+ },
+ {
+  "ancora": "ANC-0026",
+  "file": "02-indice.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "19. Glossario"
+ },
+ {
+  "ancora": "ANC-0027",
+  "file": "02-indice.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "20. Riferimenti tecnici primari"
+ },
+ {
+  "ancora": "ANC-0028",
+  "file": "02-indice.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "21. Sintesi delle modifiche rispetto a RFC-2026-APEX-13"
+ },
+ {
+  "ancora": "ANC-0029",
+  "file": "03-0-executive-summary.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "SovereignVPN è una piattaforma VPN self-hosted, orientata alla privacy e alla ge"
+ },
+ {
+  "ancora": "ANC-0030",
+  "file": "03-0-executive-summary.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "La proposta non è quella di replicare in ogni dettaglio un servizio VPN commerci"
+ },
+ {
+  "ancora": "ANC-0031",
+  "file": "03-0-executive-summary.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "Il successo del prodotto dipende da cinque risultati:"
+ },
+ {
+  "ancora": "ANC-0032",
+  "file": "03-0-executive-summary.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "1. Connessione affidabile: un peer autorizzato raggiunge l'endpoint configurato,"
+ },
+ {
+  "ancora": "ANC-0033",
+  "file": "03-0-executive-summary.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "2. Gestione semplice e sicura: onboarding, esportazione, rotazione, scadenza e r"
+ },
+ {
+  "ancora": "ANC-0034",
+  "file": "03-0-executive-summary.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "3. Privacy verificabile: il sistema minimizza i dati raccolti, disabilita la reg"
+ },
+ {
+  "ancora": "ANC-0035",
+  "file": "03-0-executive-summary.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "4. Difesa in profondità: firewall, isolamento dei servizi, gestione dei segreti,"
+ },
+ {
+  "ancora": "ANC-0036",
+  "file": "03-0-executive-summary.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "5. Evoluzione controllata: funzioni avanzate come stealth, Tor e multi-hop sono "
+ },
+ {
+  "ancora": "ANC-0037",
+  "file": "03-0-executive-summary.md",
+  "riga": 19,
+  "tipo": "h2",
+  "testo": "0.1 Decisione di prodotto fondamentale"
+ },
+ {
+  "ancora": "ANC-0038",
+  "file": "03-0-executive-summary.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "Il termine RAM-only Zero-Log viene sostituito da due modalità esplicite:"
+ },
+ {
+  "ancora": "ANC-0039",
+  "file": "03-0-executive-summary.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "Privacy-Minimized (default): nessun log applicativo di query DNS, URL, payload o"
+ },
+ {
+  "ancora": "ANC-0040",
+  "file": "03-0-executive-summary.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "Ephemeral Runtime (optional): dove supportato, le informazioni di sessione e le "
+ },
+ {
+  "ancora": "ANC-0041",
+  "file": "03-0-executive-summary.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "Nessuna modalità è definita “provably zero-log” in senso assoluto. Ogni dichiara"
+ },
+ {
+  "ancora": "ANC-0042",
+  "file": "03-0-executive-summary.md",
+  "riga": 29,
+  "tipo": "h2",
+  "testo": "0.2 Decisioni architetturali iniziali"
+ },
+ {
+  "ancora": "ANC-0043",
+  "file": "03-0-executive-summary.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "WireGuard è il solo protocollo VPN standard del MVP."
+ },
+ {
+  "ancora": "ANC-0044",
+  "file": "03-0-executive-summary.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "La PSK WireGuard è supportata come livello simmetrico aggiuntivo, con rotazione;"
+ },
+ {
+  "ancora": "ANC-0045",
+  "file": "03-0-executive-summary.md",
+  "riga": 35,
+  "tipo": "p",
+  "testo": "IPv4 è supportato nel MVP. IPv6 viene gestito esplicitamente: supporto completo "
+ },
+ {
+  "ancora": "ANC-0046",
+  "file": "03-0-executive-summary.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "Il control plane è separato dal data plane e non deve poter leggere il traffico "
+ },
+ {
+  "ancora": "ANC-0047",
+  "file": "03-0-executive-summary.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "Le porte amministrative non sono pubblicate su interfacce pubbliche. L'accesso r"
+ },
+ {
+  "ancora": "ANC-0048",
+  "file": "03-0-executive-summary.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "DNS filtering e risoluzione ricorsiva sono componenti separati e testabili; Unbo"
+ },
+ {
+  "ancora": "ANC-0049",
+  "file": "03-0-executive-summary.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "Stealth, Tor e multi-hop non sono requisiti di rilascio MVP; sono capability suc"
+ },
+ {
+  "ancora": "ANC-0050",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "1.1 Visione"
+ },
+ {
+  "ancora": "ANC-0051",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Consentire a un individuo, a una famiglia o a un piccolo team tecnico di gestire"
+ },
+ {
+  "ancora": "ANC-0052",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 7,
+  "tipo": "h2",
+  "testo": "1.2 Problema da risolvere"
+ },
+ {
+  "ancora": "ANC-0053",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "Le soluzioni self-hosted spesso richiedono interventi manuali su chiavi, peer, f"
+ },
+ {
+  "ancora": "ANC-0054",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "SovereignVPN deve ridurre la complessità operativa mantenendo il controllo local"
+ },
+ {
+  "ancora": "ANC-0055",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 13,
+  "tipo": "h2",
+  "testo": "1.3 Principi non negoziabili"
+ },
+ {
+  "ancora": "ANC-0056",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "1. Secure by default, non “secure if configured correctly”."
+ },
+ {
+  "ancora": "ANC-0057",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "2. Fail closed per le funzioni che dichiarano protezione da leak; nessun fallbac"
+ },
+ {
+  "ancora": "ANC-0058",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "3. Minimo privilegio tra container, processi, utenti di sistema e API."
+ },
+ {
+  "ancora": "ANC-0059",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "4. Nessuna chiave privata o token in log, output diagnostici o telemetry."
+ },
+ {
+  "ancora": "ANC-0060",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "5. Ogni mutazione deve essere idempotente, validata e reversibile oppure accompa"
+ },
+ {
+  "ancora": "ANC-0061",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "6. Ogni feature avanzata ha un flag esplicito, uno stato di salute, una policy d"
+ },
+ {
+  "ancora": "ANC-0062",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "7. Le dichiarazioni di privacy e sicurezza devono essere verificabili e circoscr"
+ },
+ {
+  "ancora": "ANC-0063",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "8. Dipendenze, immagini e release devono essere pin-ning e aggiornabili in modo "
+ },
+ {
+  "ancora": "ANC-0064",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "9. Il sistema deve funzionare senza SaaS, account remoto o telemetria obbligator"
+ },
+ {
+  "ancora": "ANC-0065",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "10. Usabilità e sicurezza non devono essere delegate a un prompt di generazione "
+ },
+ {
+  "ancora": "ANC-0066",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 35,
+  "tipo": "h2",
+  "testo": "1.4 Non-obiettivi"
+ },
+ {
+  "ancora": "ANC-0067",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "Non promettere prestazioni superiori a NordVPN, Surfshark, Proton VPN o a qualsi"
+ },
+ {
+  "ancora": "ANC-0068",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "Non offrire una rete globale di exit node o una distribuzione geografica automat"
+ },
+ {
+  "ancora": "ANC-0069",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "Non garantire anonimato assoluto, protezione contro endpoint compromessi, malwar"
+ },
+ {
+  "ancora": "ANC-0070",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "Non garantire l'elusione di ogni sistema DPI, firewall aziendale o captive porta"
+ },
+ {
+  "ancora": "ANC-0071",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "Non sostituire MDM Apple, EDR, firewall aziendale o strumenti di gestione endpoi"
+ },
+ {
+  "ancora": "ANC-0072",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "Non registrare o analizzare contenuti applicativi per costruire profili utente."
+ },
+ {
+  "ancora": "ANC-0073",
+  "file": "04-1-visione-problema-e-posizionamento.md",
+  "riga": 49,
+  "tipo": "p",
+  "testo": "Non supportare inizialmente cluster multi-host, alta disponibilità geografica o "
+ },
+ {
+  "ancora": "ANC-0074",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "2.1 Persona primaria — Amministratore self-hosted"
+ },
+ {
+  "ancora": "ANC-0075",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Possiede o noleggia un host Linux, conosce le basi di SSH, Docker e networking, "
+ },
+ {
+  "ancora": "ANC-0076",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 7,
+  "tipo": "h2",
+  "testo": "2.2 Persona secondaria — Utente finale"
+ },
+ {
+  "ancora": "ANC-0077",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "Usa i client WireGuard ufficiali o compatibili su desktop e mobile. Vuole import"
+ },
+ {
+  "ancora": "ANC-0078",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 11,
+  "tipo": "h2",
+  "testo": "2.3 Persona — Ospite temporaneo"
+ },
+ {
+  "ancora": "ANC-0079",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "Riceve un profilo con una durata massima, una data di scadenza visibile e revoca"
+ },
+ {
+  "ancora": "ANC-0080",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 15,
+  "tipo": "h2",
+  "testo": "2.4 Persona — Auditor/Reviewer"
+ },
+ {
+  "ancora": "ANC-0081",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "Vuole verificare configurazione, esposizione porte, stato servizi, policy DNS, i"
+ },
+ {
+  "ancora": "ANC-0082",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 19,
+  "tipo": "h2",
+  "testo": "2.5 Ruoli e autorizzazioni"
+ },
+ {
+  "ancora": "ANC-0083",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 21,
+  "tipo": "tbl",
+  "testo": "Ruolo"
+ },
+ {
+  "ancora": "ANC-0084",
+  "file": "05-2-utenti-ruoli-e-casi-d-uso.md",
+  "riga": 28,
+  "tipo": "p",
+  "testo": "Il modello RBAC deve essere applicato lato server a ogni endpoint. Nascondere un"
+ },
+ {
+  "ancora": "ANC-0085",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "3.1 MVP — Release 1.0"
+ },
+ {
+  "ancora": "ANC-0086",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Installazione su singolo host Debian 12 o Ubuntu 24.04 LTS, architettura amd64. "
+ },
+ {
+  "ancora": "ANC-0087",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "WireGuard server e provisioning peer."
+ },
+ {
+  "ancora": "ANC-0088",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "Full-tunnel IPv4 con policy firewall fail-closed."
+ },
+ {
+  "ancora": "ANC-0089",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "Kill switch lato host per il forwarding dei peer; profili client che dichiarano "
+ },
+ {
+  "ancora": "ANC-0090",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "DNS interno Pi-hole + Unbound ricorsivo, query logging disabilitato per default."
+ },
+ {
+  "ancora": "ANC-0091",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "Isolamento peer-to-peer."
+ },
+ {
+  "ancora": "ANC-0092",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "CLI per init, add, list, show, revoke, expire-sweep, rotate-psk, export, backup,"
+ },
+ {
+  "ancora": "ANC-0093",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "Registro peer con storage atomico e backup cifrato."
+ },
+ {
+  "ancora": "ANC-0094",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "API locale amministrativa opzionale, disattivata di default e protetta da autent"
+ },
+ {
+  "ancora": "ANC-0095",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "Test automatici di leak DNS/IPv4/IPv6, firewall, esposizione porte e lifecycle."
+ },
+ {
+  "ancora": "ANC-0096",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "Aggiornamento controllato, rollback e documentazione di incident response."
+ },
+ {
+  "ancora": "ANC-0097",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 27,
+  "tipo": "h2",
+  "testo": "3.2 Release 1.x — Hardening e user experience"
+ },
+ {
+  "ancora": "ANC-0098",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "Dashboard web locale con RBAC e sessioni sicure."
+ },
+ {
+  "ancora": "ANC-0099",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "Profili split-tunnel e home-LAN con validazione dei CIDR e prevenzione di route "
+ },
+ {
+  "ancora": "ANC-0100",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "QR code per onboarding controllato e bundle client."
+ },
+ {
+  "ancora": "ANC-0101",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 35,
+  "tipo": "p",
+  "testo": "Profili Apple WireGuard importabili; documentazione separata per distribuzione M"
+ },
+ {
+  "ancora": "ANC-0102",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "Guest peer con TTL e policy di rinnovo."
+ },
+ {
+  "ancora": "ANC-0103",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "Backup/restore assistito e recovery drills."
+ },
+ {
+  "ancora": "ANC-0104",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 41,
+  "tipo": "h2",
+  "testo": "3.3 Release 2.x — Funzioni opzionali ad alto rischio"
+ },
+ {
+  "ancora": "ANC-0105",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "Wstunnel/WSS come trasporto alternativo, con benchmark e test di compatibilità t"
+ },
+ {
+  "ancora": "ANC-0106",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "Tor per destinazioni onion, inizialmente tramite proxy esplicito; trasparenza TC"
+ },
+ {
+  "ancora": "ANC-0107",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "Multi-hop per un sottoinsieme di peer, con policy routing e kill switch egress."
+ },
+ {
+  "ancora": "ANC-0108",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 49,
+  "tipo": "p",
+  "testo": "UDP2raw/FakeTCP come esperimento opzionale e non supportato in produzione finché"
+ },
+ {
+  "ancora": "ANC-0109",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 51,
+  "tipo": "p",
+  "testo": "IPv6 full support end-to-end, se non già realizzato nel MVP."
+ },
+ {
+  "ancora": "ANC-0110",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 53,
+  "tipo": "h2",
+  "testo": "3.4 Criteri di esclusione dal rilascio"
+ },
+ {
+  "ancora": "ANC-0111",
+  "file": "06-3-ambito-e-roadmap-di-prodotto.md",
+  "riga": 55,
+  "tipo": "p",
+  "testo": "Una feature deve restare disabilitata o essere rimossa dalla release se: non esi"
+ },
+ {
+  "ancora": "ANC-0112",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "I requisiti usano gli identificativi FR-*. “MUST” indica un vincolo di rilascio;"
+ },
+ {
+  "ancora": "ANC-0113",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 5,
+  "tipo": "h2",
+  "testo": "4.1 Bootstrap e configurazione"
+ },
+ {
+  "ancora": "ANC-0114",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 7,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0115",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 15,
+  "tipo": "h2",
+  "testo": "4.2 Identità, peer e lifecycle"
+ },
+ {
+  "ancora": "ANC-0116",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 17,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0117",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 29,
+  "tipo": "h2",
+  "testo": "4.3 WireGuard e profili di routing"
+ },
+ {
+  "ancora": "ANC-0118",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 31,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0119",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 42,
+  "tipo": "h2",
+  "testo": "4.4 DNS, filtering e risoluzione ricorsiva"
+ },
+ {
+  "ancora": "ANC-0120",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 44,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0121",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 56,
+  "tipo": "p",
+  "testo": "Limite funzionale: bloccare TCP/853 impedisce solo il DoT su quella porta. DoH p"
+ },
+ {
+  "ancora": "ANC-0122",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 58,
+  "tipo": "h2",
+  "testo": "4.5 Firewall, routing e isolamento"
+ },
+ {
+  "ancora": "ANC-0123",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 60,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0124",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 72,
+  "tipo": "p",
+  "testo": "Nota architetturale: rp_filter=1 non è imposto globalmente come requisito assolu"
+ },
+ {
+  "ancora": "ANC-0125",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 74,
+  "tipo": "h2",
+  "testo": "4.6 Stealth e trasporti alternativi"
+ },
+ {
+  "ancora": "ANC-0126",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 76,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0127",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 83,
+  "tipo": "p",
+  "testo": "Wstunnel supporta più modalità e trasporti, ma il comportamento dipende dalla ve"
+ },
+ {
+  "ancora": "ANC-0128",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 85,
+  "tipo": "h2",
+  "testo": "4.7 Tor e destinazioni onion"
+ },
+ {
+  "ancora": "ANC-0129",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 87,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0130",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 94,
+  "tipo": "p",
+  "testo": "Tor DNSPort ha limiti di tipi di query e AutomapHostsOnResolve crea indirizzi vi"
+ },
+ {
+  "ancora": "ANC-0131",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 96,
+  "tipo": "h2",
+  "testo": "4.8 Apple e client mobili"
+ },
+ {
+  "ancora": "ANC-0132",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 98,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0133",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 105,
+  "tipo": "p",
+  "testo": "Apple documenta Always On VPN come capability IKEv2 con requisito di supervision"
+ },
+ {
+  "ancora": "ANC-0134",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 107,
+  "tipo": "h2",
+  "testo": "4.9 Control plane, API e dashboard"
+ },
+ {
+  "ancora": "ANC-0135",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 109,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0136",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 119,
+  "tipo": "p",
+  "testo": "Per la dashboard, Python http.server può essere usato solo come server locale mi"
+ },
+ {
+  "ancora": "ANC-0137",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 121,
+  "tipo": "h2",
+  "testo": "4.10 Backup, restore, aggiornamenti e recovery"
+ },
+ {
+  "ancora": "ANC-0138",
+  "file": "07-4-requisiti-funzionali.md",
+  "riga": 123,
+  "tipo": "tbl",
+  "testo": "ID"
+ },
+ {
+  "ancora": "ANC-0139",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "5.1 Sicurezza"
+ },
+ {
+  "ancora": "ANC-0140",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "NFR-SEC-001: ogni processo/container opera con privilegi minimi; NET_ADMIN e SYS"
+ },
+ {
+  "ancora": "ANC-0141",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "NFR-SEC-002: immagini container sono pin-nate per digest, con SBOM e scansione C"
+ },
+ {
+  "ancora": "ANC-0142",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "NFR-SEC-003: filesystem read-only, no-new-privileges, capability drop, seccomp e"
+ },
+ {
+  "ancora": "ANC-0143",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "NFR-SEC-004: segreti con permessi minimi (0600 o secret store), rotazione e zero"
+ },
+ {
+  "ancora": "ANC-0144",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "NFR-SEC-005: operazioni critiche hanno audit event sanitizzati (chi, cosa, quand"
+ },
+ {
+  "ancora": "ANC-0145",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "NFR-SEC-006: threat model aggiornato a ogni feature che introduce nuovo trust bo"
+ },
+ {
+  "ancora": "ANC-0146",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "NFR-SEC-007: dipendenze crittografiche custom sono vietate."
+ },
+ {
+  "ancora": "ANC-0147",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 19,
+  "tipo": "h2",
+  "testo": "5.2 Privacy e conservazione dati"
+ },
+ {
+  "ancora": "ANC-0148",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 21,
+  "tipo": "tbl",
+  "testo": "Dato"
+ },
+ {
+  "ancora": "ANC-0149",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 34,
+  "tipo": "p",
+  "testo": "Il sistema deve documentare anche swap, hibernation, core dump, journald, Docker"
+ },
+ {
+  "ancora": "ANC-0150",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 36,
+  "tipo": "h2",
+  "testo": "5.3 Disponibilità e recuperabilità"
+ },
+ {
+  "ancora": "ANC-0151",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 38,
+  "tipo": "p",
+  "testo": "NFR-AVL-001: il servizio deve ripartire automaticamente dopo reboot host, rispet"
+ },
+ {
+  "ancora": "ANC-0152",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 40,
+  "tipo": "p",
+  "testo": "NFR-AVL-002: health check distinguono processo attivo da servizio realmente funz"
+ },
+ {
+  "ancora": "ANC-0153",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 42,
+  "tipo": "p",
+  "testo": "NFR-AVL-003: target iniziale di recovery time objective (RTO) documentato: 30 mi"
+ },
+ {
+  "ancora": "ANC-0154",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 44,
+  "tipo": "p",
+  "testo": "NFR-AVL-004: nessun update automatico non controllato delle immagini in produzio"
+ },
+ {
+  "ancora": "ANC-0155",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 46,
+  "tipo": "h2",
+  "testo": "5.4 Performance"
+ },
+ {
+  "ancora": "ANC-0156",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 48,
+  "tipo": "p",
+  "testo": "I numeri di throughput/latency non sono promesse universali. La piattaforma deve"
+ },
+ {
+  "ancora": "ANC-0157",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 50,
+  "tipo": "tbl",
+  "testo": "Metrica"
+ },
+ {
+  "ancora": "ANC-0158",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 59,
+  "tipo": "h2",
+  "testo": "5.5 Compatibilità"
+ },
+ {
+  "ancora": "ANC-0159",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 61,
+  "tipo": "p",
+  "testo": "Host MVP: Debian 12 e Ubuntu 24.04 LTS amd64."
+ },
+ {
+  "ancora": "ANC-0160",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 63,
+  "tipo": "p",
+  "testo": "Container runtime: Docker Engine e Docker Compose plugin nelle versioni minime d"
+ },
+ {
+  "ancora": "ANC-0161",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 65,
+  "tipo": "p",
+  "testo": "Client: WireGuard ufficiale su Windows, macOS, iOS, Android e Linux; ogni piatta"
+ },
+ {
+  "ancora": "ANC-0162",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 67,
+  "tipo": "p",
+  "testo": "ARM64: supporto dichiarato solo per immagini, kernel e test CI che lo coprono."
+ },
+ {
+  "ancora": "ANC-0163",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 69,
+  "tipo": "p",
+  "testo": "Kernel: versione minima dichiarata e verificata per WireGuard kernel module o us"
+ },
+ {
+  "ancora": "ANC-0164",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 71,
+  "tipo": "h2",
+  "testo": "5.6 Usabilità e accessibilità"
+ },
+ {
+  "ancora": "ANC-0165",
+  "file": "08-5-requisiti-non-funzionali.md",
+  "riga": 73,
+  "tipo": "p",
+  "testo": "CLI con help, esempi, errori azionabili e codici exit stabili. Dashboard con lay"
+ },
+ {
+  "ancora": "ANC-0166",
+  "file": "09-6-architettura-logica.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "6.1 Separazione dei piani"
+ },
+ {
+  "ancora": "ANC-0167",
+  "file": "09-6-architettura-logica.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Data plane — WireGuard, interfacce, routing, NAT, firewall, MTU e qdisc. È il pe"
+ },
+ {
+  "ancora": "ANC-0168",
+  "file": "09-6-architettura-logica.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "Control plane — CLI/API, validazione, registro peer, lifecycle, generazione prof"
+ },
+ {
+  "ancora": "ANC-0169",
+  "file": "09-6-architettura-logica.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "DNS plane — Pi-hole per policy/filtraggio e Unbound per risoluzione ricorsiva/DN"
+ },
+ {
+  "ancora": "ANC-0170",
+  "file": "09-6-architettura-logica.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "Operations plane — watchdog, update manager, backup/restore, security audit, hea"
+ },
+ {
+  "ancora": "ANC-0171",
+  "file": "09-6-architettura-logica.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "Optional service plane — Wstunnel, Tor, multi-hop ed eventuale adapter UDP2raw. "
+ },
+ {
+  "ancora": "ANC-0172",
+  "file": "09-6-architettura-logica.md",
+  "riga": 15,
+  "tipo": "h2",
+  "testo": "6.2 Topologia di riferimento"
+ },
+ {
+  "ancora": "ANC-0173",
+  "file": "09-6-architettura-logica.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "INTERNET / RETI OSTILI                              |              +------------"
+ },
+ {
+  "ancora": "ANC-0174",
+  "file": "09-6-architettura-logica.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "Gli indirizzi IP e le subnet del diagramma sono esempi logici. La specifica fina"
+ },
+ {
+  "ancora": "ANC-0175",
+  "file": "09-6-architettura-logica.md",
+  "riga": 21,
+  "tipo": "h2",
+  "testo": "6.3 Ownership dei componenti"
+ },
+ {
+  "ancora": "ANC-0176",
+  "file": "09-6-architettura-logica.md",
+  "riga": 23,
+  "tipo": "tbl",
+  "testo": "Componente"
+ },
+ {
+  "ancora": "ANC-0177",
+  "file": "09-6-architettura-logica.md",
+  "riga": 35,
+  "tipo": "h2",
+  "testo": "6.4 Network namespace e IPAM"
+ },
+ {
+  "ancora": "ANC-0178",
+  "file": "09-6-architettura-logica.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "La release deve descrivere per ogni servizio: network namespace, indirizzo, list"
+ },
+ {
+  "ancora": "ANC-0179",
+  "file": "09-6-architettura-logica.md",
+  "riga": 39,
+  "tipo": "h2",
+  "testo": "6.5 Firewall architecture"
+ },
+ {
+  "ancora": "ANC-0180",
+  "file": "09-6-architettura-logica.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "Il prodotto deve scegliere un backend firewall primario per release (nftables co"
+ },
+ {
+  "ancora": "ANC-0181",
+  "file": "09-6-architettura-logica.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "Policy minima concettuale:"
+ },
+ {
+  "ancora": "ANC-0182",
+  "file": "09-6-architettura-logica.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "INPUT: drop default; consentire loopback, established/related, SSH amministrativ"
+ },
+ {
+  "ancora": "ANC-0183",
+  "file": "09-6-architettura-logica.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "FORWARD: drop default; consentire solo peer VPN verso WAN/DNS e verso LAN se esp"
+ },
+ {
+  "ancora": "ANC-0184",
+  "file": "09-6-architettura-logica.md",
+  "riga": 49,
+  "tipo": "p",
+  "testo": "OUTPUT: consentire traffico host necessario; opzionalmente limitare egress per s"
+ },
+ {
+  "ancora": "ANC-0185",
+  "file": "09-6-architettura-logica.md",
+  "riga": 51,
+  "tipo": "p",
+  "testo": "Docker: port publishing verificato anche nel percorso di forwarding e nella chai"
+ },
+ {
+  "ancora": "ANC-0186",
+  "file": "09-6-architettura-logica.md",
+  "riga": 53,
+  "tipo": "p",
+  "testo": "IPv6: stessa postura di sicurezza di IPv4, oppure disabilitazione completa e ver"
+ },
+ {
+  "ancora": "ANC-0187",
+  "file": "09-6-architettura-logica.md",
+  "riga": 55,
+  "tipo": "p",
+  "testo": "Le regole devono essere applicate come ruleset transazionale, preferibilmente co"
+ },
+ {
+  "ancora": "ANC-0188",
+  "file": "09-6-architettura-logica.md",
+  "riga": 57,
+  "tipo": "h2",
+  "testo": "6.6 Routing e QoS"
+ },
+ {
+  "ancora": "ANC-0189",
+  "file": "09-6-architettura-logica.md",
+  "riga": 59,
+  "tipo": "p",
+  "testo": "FQ_CODEL è una disciplina di fair queueing e gestione delle code; non configura "
+ },
+ {
+  "ancora": "ANC-0190",
+  "file": "09-6-architettura-logica.md",
+  "riga": 61,
+  "tipo": "p",
+  "testo": "Il benchmark deve confrontare baseline, FQ_CODEL e CAKE (se abilitato) utilizzan"
+ },
+ {
+  "ancora": "ANC-0191",
+  "file": "09-6-architettura-logica.md",
+  "riga": 63,
+  "tipo": "h2",
+  "testo": "6.7 DNS resolution path"
+ },
+ {
+  "ancora": "ANC-0192",
+  "file": "09-6-architettura-logica.md",
+  "riga": 65,
+  "tipo": "p",
+  "testo": "VPN client   |   | DNS UDP/TCP 53   vPi-hole (policy + cache + blocklists)   |  "
+ },
+ {
+  "ancora": "ANC-0193",
+  "file": "09-6-architettura-logica.md",
+  "riga": 67,
+  "tipo": "p",
+  "testo": "Il resolver ricorsivo contatta server DNS autoritativi della gerarchia pubblica;"
+ },
+ {
+  "ancora": "ANC-0194",
+  "file": "09-6-architettura-logica.md",
+  "riga": 69,
+  "tipo": "h2",
+  "testo": "6.8 Multi-hop architecture (futura)"
+ },
+ {
+  "ancora": "ANC-0195",
+  "file": "09-6-architettura-logica.md",
+  "riga": 71,
+  "tipo": "p",
+  "testo": "Ogni peer abilitato al multi-hop deve essere marcato in modo non ambiguo. Il pol"
+ },
+ {
+  "ancora": "ANC-0196",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "7.1 Asset da proteggere"
+ },
+ {
+  "ancora": "ANC-0197",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Private key server e peer."
+ },
+ {
+  "ancora": "ANC-0198",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "PSK WireGuard."
+ },
+ {
+  "ancora": "ANC-0199",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "Token/API credential e certificati TLS."
+ },
+ {
+  "ancora": "ANC-0200",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "Registro peer, subnet e policy di accesso."
+ },
+ {
+  "ancora": "ANC-0201",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "Integrità delle regole firewall e del routing."
+ },
+ {
+  "ancora": "ANC-0202",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "Disponibilità di tunnel, DNS e control plane."
+ },
+ {
+  "ancora": "ANC-0203",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "Metadati amministrativi e informazioni di rete dell'host."
+ },
+ {
+  "ancora": "ANC-0204",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 19,
+  "tipo": "h2",
+  "testo": "7.2 Avversari e capacità considerate"
+ },
+ {
+  "ancora": "ANC-0205",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "1. Attaccante su Wi-Fi pubblico che osserva, blocca o altera traffico."
+ },
+ {
+  "ancora": "ANC-0206",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "2. Host remoto che effettua scansioni delle porte pubbliche."
+ },
+ {
+  "ancora": "ANC-0207",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "3. Peer legittimo ma malevolo che tenta lateral movement o abuso delle route."
+ },
+ {
+  "ancora": "ANC-0208",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "4. Attaccante che ottiene credenziali amministrative."
+ },
+ {
+  "ancora": "ANC-0209",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "5. Compromissione di container o dipendenza di terze parti."
+ },
+ {
+  "ancora": "ANC-0210",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "6. Provider cloud/ISP con visibilità sul traffico in ingresso/uscita e sui metad"
+ },
+ {
+  "ancora": "ANC-0211",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "7. Utente con accesso root all'host o al client."
+ },
+ {
+  "ancora": "ANC-0212",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 35,
+  "tipo": "h2",
+  "testo": "7.3 Minacce non risolte dal prodotto"
+ },
+ {
+  "ancora": "ANC-0213",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "Endpoint client compromesso o keylogger."
+ },
+ {
+  "ancora": "ANC-0214",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "Analisi di timing/volume e correlazione globale del traffico."
+ },
+ {
+  "ancora": "ANC-0215",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "Provider cloud che effettua snapshot o ha accesso al layer hypervisor."
+ },
+ {
+  "ancora": "ANC-0216",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "Malware con privilegi locali sul server."
+ },
+ {
+  "ancora": "ANC-0217",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "Server di destinazione che identifica l'utente tramite account, cookie o fingerp"
+ },
+ {
+  "ancora": "ANC-0218",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "Restrizioni legali o richieste del provider/giurisdizione."
+ },
+ {
+  "ancora": "ANC-0219",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 49,
+  "tipo": "p",
+  "testo": "Traffic confirmation da avversari con osservazione di entrambi i lati della rete"
+ },
+ {
+  "ancora": "ANC-0220",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 51,
+  "tipo": "h2",
+  "testo": "7.4 Controlli richiesti"
+ },
+ {
+  "ancora": "ANC-0221",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 53,
+  "tipo": "tbl",
+  "testo": "Minaccia"
+ },
+ {
+  "ancora": "ANC-0222",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 66,
+  "tipo": "h2",
+  "testo": "7.5 Crittografia e post-quantum"
+ },
+ {
+  "ancora": "ANC-0223",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 68,
+  "tipo": "p",
+  "testo": "WireGuard utilizza Noise_IK e Curve25519 per il proprio handshake e consente una"
+ },
+ {
+  "ancora": "ANC-0224",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 70,
+  "tipo": "p",
+  "testo": "La specifica deve però evitare la formula “post-quantum VPN completa”. La PSK no"
+ },
+ {
+  "ancora": "ANC-0225",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 72,
+  "tipo": "p",
+  "testo": "La generazione di chiavi utilizza wg genkey, wg pubkey e wg genpsk o strumenti e"
+ },
+ {
+  "ancora": "ANC-0226",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 74,
+  "tipo": "h2",
+  "testo": "7.6 Zero-Log: formulazione verificabile"
+ },
+ {
+  "ancora": "ANC-0227",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 76,
+  "tipo": "p",
+  "testo": "La dichiarazione ammessa è: “SovereignVPN non registra intenzionalmente query DN"
+ },
+ {
+  "ancora": "ANC-0228",
+  "file": "10-7-sicurezza-e-threat-model.md",
+  "riga": 78,
+  "tipo": "p",
+  "testo": "La parola “provable” può essere usata soltanto per singoli test circoscritti, ad"
+ },
+ {
+  "ancora": "ANC-0229",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "8.1 Entità principali"
+ },
+ {
+  "ancora": "ANC-0230",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "ServerConfig — endpoint pubblico, porte, subnet, DNS, MTU, interfaccia WAN, domi"
+ },
+ {
+  "ancora": "ANC-0231",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "PeerRecord — UUID, display name, public key, eventuale private key cifrata se il"
+ },
+ {
+  "ancora": "ANC-0232",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "AuditEvent — UUID, timestamp, actor, action, target UUID, outcome, request ID, s"
+ },
+ {
+  "ancora": "ANC-0233",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "ReleaseManifest — versione SovereignVPN, OS/kernel, digest immagini, versioni co"
+ },
+ {
+  "ancora": "ANC-0234",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "BackupManifest — versione schema, timestamp, lista file, checksum, algoritmo cif"
+ },
+ {
+  "ancora": "ANC-0235",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 15,
+  "tipo": "h2",
+  "testo": "8.2 Validazione"
+ },
+ {
+  "ancora": "ANC-0236",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "CIDR canonici, IPv4/IPv6 validati con librerie standard."
+ },
+ {
+  "ancora": "ANC-0237",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "UUID non riutilizzati."
+ },
+ {
+  "ancora": "ANC-0238",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "Peer name normalizzato e non usato come path filesystem."
+ },
+ {
+  "ancora": "ANC-0239",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "Timestamp UTC ISO-8601, clock skew gestito."
+ },
+ {
+  "ancora": "ANC-0240",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "TTL minimo/massimo configurabile e limite massimo per guest."
+ },
+ {
+  "ancora": "ANC-0241",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "Chiavi e token non sono serializzati in error messages."
+ },
+ {
+  "ancora": "ANC-0242",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "Schema versionato con migrazioni esplicite e backup pre-migrazione."
+ },
+ {
+  "ancora": "ANC-0243",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 31,
+  "tipo": "h2",
+  "testo": "8.3 Storage e atomicità"
+ },
+ {
+  "ancora": "ANC-0244",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "Il registro può essere SQLite con transazioni BEGIN IMMEDIATE e vincoli univoci;"
+ },
+ {
+  "ancora": "ANC-0245",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 35,
+  "tipo": "h2",
+  "testo": "8.4 Segreti"
+ },
+ {
+  "ancora": "ANC-0246",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "Private key server e PSK non sono mai mostrate in list/status."
+ },
+ {
+  "ancora": "ANC-0247",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "Il token admin viene verificato con funzione constant-time; preferire hash robus"
+ },
+ {
+  "ancora": "ANC-0248",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "Backup cifrati con algoritmo autenticato e derivazione chiave robusta, parametri"
+ },
+ {
+  "ancora": "ANC-0249",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "La password di backup non deve essere conservata nello stesso backup."
+ },
+ {
+  "ancora": "ANC-0250",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "I file di export sono temporanei, permessi restrittivi e con avviso di importanz"
+ },
+ {
+  "ancora": "ANC-0251",
+  "file": "11-8-modello-dati-e-segreti.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "Rotazione PSK deve prevedere fase preparatoria, sincronizzazione, conferma, time"
+ },
+ {
+  "ancora": "ANC-0252",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "9.1 CLI"
+ },
+ {
+  "ancora": "ANC-0253",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Comandi di riferimento:"
+ },
+ {
+  "ancora": "ANC-0254",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 7,
+  "tipo": "tbl",
+  "testo": "Comando"
+ },
+ {
+  "ancora": "ANC-0255",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 24,
+  "tipo": "p",
+  "testo": "Codici di uscita: 0 successo; 1 errore runtime/sistema; 2 input o schema non val"
+ },
+ {
+  "ancora": "ANC-0256",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 26,
+  "tipo": "h2",
+  "testo": "9.2 API v1 — endpoint essenziali"
+ },
+ {
+  "ancora": "ANC-0257",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 28,
+  "tipo": "p",
+  "testo": "Prefisso: /api/v1. Risposte JSON con request_id, status, data o error. Non espor"
+ },
+ {
+  "ancora": "ANC-0258",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 30,
+  "tipo": "tbl",
+  "testo": "Metodo"
+ },
+ {
+  "ancora": "ANC-0259",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 44,
+  "tipo": "p",
+  "testo": "La creazione peer deve supportare Idempotency-Key; le operazioni distruttive dev"
+ },
+ {
+  "ancora": "ANC-0260",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 46,
+  "tipo": "h2",
+  "testo": "9.3 Error model"
+ },
+ {
+  "ancora": "ANC-0261",
+  "file": "12-9-api-e-cli-contract.md",
+  "riga": 48,
+  "tipo": "p",
+  "testo": "Codici esempio: VALIDATION_ERROR, AUTH_REQUIRED, FORBIDDEN, PEER_NOT_FOUND, SUBN"
+ },
+ {
+  "ancora": "ANC-0262",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "10.1 Provisioning host"
+ },
+ {
+  "ancora": "ANC-0263",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "1. L'operatore esegue init --check."
+ },
+ {
+  "ancora": "ANC-0264",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "2. Il sistema rileva prerequisiti e conflitti di rete/porte."
+ },
+ {
+  "ancora": "ANC-0265",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "3. Genera un piano senza mutazioni."
+ },
+ {
+  "ancora": "ANC-0266",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "4. L'operatore approva il piano."
+ },
+ {
+  "ancora": "ANC-0267",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "5. Vengono salvati backup e manifest iniziali."
+ },
+ {
+  "ancora": "ANC-0268",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "6. Si applicano container, firewall, sysctl e servizio WireGuard in fasi atomich"
+ },
+ {
+  "ancora": "ANC-0269",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "7. Si eseguono health check e test di leak."
+ },
+ {
+  "ancora": "ANC-0270",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "8. Il sistema stampa il riepilogo e le sole azioni successive necessarie."
+ },
+ {
+  "ancora": "ANC-0271",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 21,
+  "tipo": "h2",
+  "testo": "10.2 Onboarding peer"
+ },
+ {
+  "ancora": "ANC-0272",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "1. Operatore crea peer con display name e TTL opzionale."
+ },
+ {
+  "ancora": "ANC-0273",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "2. Control plane controlla quota subnet, policy e route overlap."
+ },
+ {
+  "ancora": "ANC-0274",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "3. Genera o riceve le chiavi secondo il modello scelto."
+ },
+ {
+  "ancora": "ANC-0275",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "4. Scrive registro in stato PENDING_APPLY."
+ },
+ {
+  "ancora": "ANC-0276",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "5. Aggiorna WireGuard tramite sync sicuro."
+ },
+ {
+  "ancora": "ANC-0277",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "6. Verifica configurazione runtime."
+ },
+ {
+  "ancora": "ANC-0278",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 35,
+  "tipo": "p",
+  "testo": "7. Transizione a ACTIVE."
+ },
+ {
+  "ancora": "ANC-0279",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "8. Export del profilo avviene una sola volta o con autorizzazione esplicita."
+ },
+ {
+  "ancora": "ANC-0280",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "Se il punto 5 o 6 fallisce, il peer non resta ACTIVE: rollback o stato ERROR con"
+ },
+ {
+  "ancora": "ANC-0281",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 41,
+  "tipo": "h2",
+  "testo": "10.3 Revoca peer"
+ },
+ {
+  "ancora": "ANC-0282",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "1. Richiesta autenticata e autorizzata."
+ },
+ {
+  "ancora": "ANC-0283",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "2. Peer transita a REVOKED_PENDING."
+ },
+ {
+  "ancora": "ANC-0284",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "3. Control plane rimuove peer dalla config runtime e applica il nuovo stato."
+ },
+ {
+  "ancora": "ANC-0285",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 49,
+  "tipo": "p",
+  "testo": "4. Verifica che la chiave non sia più presente in WireGuard."
+ },
+ {
+  "ancora": "ANC-0286",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 51,
+  "tipo": "p",
+  "testo": "5. Commit definitivo REVOKED."
+ },
+ {
+  "ancora": "ANC-0287",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 53,
+  "tipo": "p",
+  "testo": "6. Eventuale export/backup viene invalidato dove applicabile."
+ },
+ {
+  "ancora": "ANC-0288",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 55,
+  "tipo": "p",
+  "testo": "Il database non deve dichiarare revoca completata prima che lo stato live sia co"
+ },
+ {
+  "ancora": "ANC-0289",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 57,
+  "tipo": "h2",
+  "testo": "10.4 Rotazione PSK"
+ },
+ {
+  "ancora": "ANC-0290",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 59,
+  "tipo": "p",
+  "testo": "La rotazione può essere per singolo peer o per tutti. Deve gestire client non ra"
+ },
+ {
+  "ancora": "ANC-0291",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 61,
+  "tipo": "h2",
+  "testo": "10.5 Expiration guest"
+ },
+ {
+  "ancora": "ANC-0292",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 63,
+  "tipo": "p",
+  "testo": "Il TTL è interpretato in UTC. Il job è idempotente e può essere eseguito dopo re"
+ },
+ {
+  "ancora": "ANC-0293",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 65,
+  "tipo": "h2",
+  "testo": "10.6 Upgrade e rollback"
+ },
+ {
+  "ancora": "ANC-0294",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 67,
+  "tipo": "p",
+  "testo": "1. Verifica release, digest e stato backup."
+ },
+ {
+  "ancora": "ANC-0295",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 69,
+  "tipo": "p",
+  "testo": "2. Esecuzione test pre-upgrade."
+ },
+ {
+  "ancora": "ANC-0296",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 71,
+  "tipo": "p",
+  "testo": "3. Pull immagine pin-nata."
+ },
+ {
+  "ancora": "ANC-0297",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 73,
+  "tipo": "p",
+  "testo": "4. Migrazione schema versionata."
+ },
+ {
+  "ancora": "ANC-0298",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 75,
+  "tipo": "p",
+  "testo": "5. Deploy con health check."
+ },
+ {
+  "ancora": "ANC-0299",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 77,
+  "tipo": "p",
+  "testo": "6. Audit post-upgrade."
+ },
+ {
+  "ancora": "ANC-0300",
+  "file": "13-10-workflow-end-to-end.md",
+  "riga": 79,
+  "tipo": "p",
+  "testo": "7. Se fallisce, rollback immagine/config/database secondo compatibilità schema; "
+ },
+ {
+  "ancora": "ANC-0301",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "Il rilascio non è approvato sulla base della sola compilazione dei file. Ogni fe"
+ },
+ {
+  "ancora": "ANC-0302",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 5,
+  "tipo": "h2",
+  "testo": "11.1 Gate P0"
+ },
+ {
+  "ancora": "ANC-0303",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 7,
+  "tipo": "tbl",
+  "testo": "ID test"
+ },
+ {
+  "ancora": "ANC-0304",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 40,
+  "tipo": "h2",
+  "testo": "11.2 Gate P1/P2"
+ },
+ {
+  "ancora": "ANC-0305",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 42,
+  "tipo": "tbl",
+  "testo": "ID test"
+ },
+ {
+  "ancora": "ANC-0306",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 57,
+  "tipo": "h2",
+  "testo": "11.3 Security audit report"
+ },
+ {
+  "ancora": "ANC-0307",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 59,
+  "tipo": "p",
+  "testo": "Ogni controllo deve produrre: ID, severità, stato, evidenza non sensibile, remed"
+ },
+ {
+  "ancora": "ANC-0308",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 61,
+  "tipo": "h2",
+  "testo": "11.4 Test di leak"
+ },
+ {
+  "ancora": "ANC-0309",
+  "file": "14-11-piano-di-test-e-criteri-di-accettazio.md",
+  "riga": 63,
+  "tipo": "p",
+  "testo": "I test devono usare almeno due punti di osservazione: client (resolver/route) e "
+ },
+ {
+  "ancora": "ANC-0310",
+  "file": "15-12-observability-senza-profilazione.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "Metriche ammesse: stato container, stato interfaccia, numero peer attivi (conteg"
+ },
+ {
+  "ancora": "ANC-0311",
+  "file": "15-12-observability-senza-profilazione.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Le statistiche WireGuard che contengono endpoint e handshake devono restare vola"
+ },
+ {
+  "ancora": "ANC-0312",
+  "file": "15-12-observability-senza-profilazione.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "Il diagnostic bundle deve avere due modalità: minimal (config sanitizzata, versi"
+ },
+ {
+  "ancora": "ANC-0313",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "13.1 Ambienti"
+ },
+ {
+  "ancora": "ANC-0314",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "DEV: VM locale, dati sintetici, nessun segreto reale."
+ },
+ {
+  "ancora": "ANC-0315",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "CI: test unitari, static analysis, schema check, secret scan, build immagine, SB"
+ },
+ {
+  "ancora": "ANC-0316",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "STAGING: VM disposable con rete simulata e client di test."
+ },
+ {
+  "ancora": "ANC-0317",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "PRODUCTION: host gestito dall'owner, release pin-nata, backup prima di ogni upda"
+ },
+ {
+  "ancora": "ANC-0318",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 13,
+  "tipo": "h2",
+  "testo": "13.2 Dipendenze e immagini"
+ },
+ {
+  "ancora": "ANC-0319",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "Ogni immagine deve essere pin-nata a digest nel manifest di release. I tag mobil"
+ },
+ {
+  "ancora": "ANC-0320",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 17,
+  "tipo": "h2",
+  "testo": "13.3 Hardening host"
+ },
+ {
+  "ancora": "ANC-0321",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "SSH key-only, root login disabilitato ove possibile, MFA/out-of-band se disponib"
+ },
+ {
+  "ancora": "ANC-0322",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "Aggiornamenti security del sistema operativo pianificati."
+ },
+ {
+  "ancora": "ANC-0323",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "Firewall host e Docker integrati e testati."
+ },
+ {
+  "ancora": "ANC-0324",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "Swap cifrato o disabilitato secondo capacità host e threat model; core dump disa"
+ },
+ {
+  "ancora": "ANC-0325",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "NTP/chrony per timestamp e TTL."
+ },
+ {
+  "ancora": "ANC-0326",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "Accesso al socket Docker trattato come root-equivalent."
+ },
+ {
+  "ancora": "ANC-0327",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "Directory dati con owner/permessi minimi; backup cifrato fuori host."
+ },
+ {
+  "ancora": "ANC-0328",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "Provider snapshots e serial console documentati come trust boundary."
+ },
+ {
+  "ancora": "ANC-0329",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 35,
+  "tipo": "h2",
+  "testo": "13.4 Cloud free tier"
+ },
+ {
+  "ancora": "ANC-0330",
+  "file": "16-13-deployment-ambienti-e-supply-chain.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "La documentazione Oracle Cloud o di altri provider deve essere un deployment gui"
+ },
+ {
+  "ancora": "ANC-0331",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "Il vincolo originario “60 file in 10 batch” viene sostituito da un repository or"
+ },
+ {
+  "ancora": "ANC-0332",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "sovereign-vpn/├── README.md├── LICENSE├── SECURITY.md├── CONTRIBUTING.md├── Make"
+ },
+ {
+  "ancora": "ANC-0333",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 7,
+  "tipo": "h2",
+  "testo": "14.1 Stack e vincoli di implementazione"
+ },
+ {
+  "ancora": "ANC-0334",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "Control plane host: Python 3.11+ standard library per il nucleo, salvo decisione"
+ },
+ {
+  "ancora": "ANC-0335",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "Storage: SQLite con WAL valutato, transazioni esplicite e backup consistente."
+ },
+ {
+  "ancora": "ANC-0336",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "WireGuard: wg/wg-quick o gestione netlink equivalente; evitare parsing fragile d"
+ },
+ {
+  "ancora": "ANC-0337",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "Firewall: nftables preferito per nuove installazioni; compatibilità iptables sol"
+ },
+ {
+  "ancora": "ANC-0338",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "DNS: Pi-hole e Unbound con versioni pin-nate, configurazione versionata."
+ },
+ {
+  "ancora": "ANC-0339",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "API: implementazione limitata all'interfaccia locale; non assumere che la librer"
+ },
+ {
+  "ancora": "ANC-0340",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "Test: unittest/pytest (se dipendenza di test accettata), test VM, network namesp"
+ },
+ {
+  "ancora": "ANC-0341",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 23,
+  "tipo": "h2",
+  "testo": "14.2 Contratto degli script Bash"
+ },
+ {
+  "ancora": "ANC-0342",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "Gli script che modificano host o rete devono usare set -Eeuo pipefail, IFS contr"
+ },
+ {
+  "ancora": "ANC-0343",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 27,
+  "tipo": "h2",
+  "testo": "14.3 Python e atomicità"
+ },
+ {
+  "ancora": "ANC-0344",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "Python 3.11+ con typing, modelli immutabili dove utili e gerarchia errori di dom"
+ },
+ {
+  "ancora": "ANC-0345",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 31,
+  "tipo": "h2",
+  "testo": "14.4 Piano di implementazione per vertical slice"
+ },
+ {
+  "ancora": "ANC-0346",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "1. Slice A — Base host: preflight, manifest, schema config, logging sanitizzato,"
+ },
+ {
+  "ancora": "ANC-0347",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 35,
+  "tipo": "p",
+  "testo": "2. Slice B — WireGuard core: peer create/list/revoke, routing, firewall baseline"
+ },
+ {
+  "ancora": "ANC-0348",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "3. Slice C — DNS privacy: Pi-hole/Unbound, query logging off, blocklist updates,"
+ },
+ {
+  "ancora": "ANC-0349",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "4. Slice D — Persistence/recovery: DB, atomic apply, backup/restore, recovery st"
+ },
+ {
+  "ancora": "ANC-0350",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "5. Slice E — Operations: watchdog, update/rollback, audit report, docs."
+ },
+ {
+  "ancora": "ANC-0351",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "6. Slice F — UX: bundle, QR, API locale, dashboard se i gate security sono soddi"
+ },
+ {
+  "ancora": "ANC-0352",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "7. Slice G — Optional transports: WSS, Tor, multi-hop come progetti separati con"
+ },
+ {
+  "ancora": "ANC-0353",
+  "file": "17-14-organizzazione-del-repository-e-piano.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "Ogni slice produce release candidate installabile e testato; non si consegnano d"
+ },
+ {
+  "ancora": "ANC-0354",
+  "file": "18-15-rischi-dipendenze-e-mitigazioni.md",
+  "riga": 3,
+  "tipo": "tbl",
+  "testo": "Rischio"
+ },
+ {
+  "ancora": "ANC-0355",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 3,
+  "tipo": "h2",
+  "testo": "ADR-001 — WireGuard come protocollo core"
+ },
+ {
+  "ancora": "ANC-0356",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Decisione: WireGuard è il protocollo standard del MVP."
+ },
+ {
+  "ancora": "ANC-0357",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "Motivo: implementazione moderna, configurazione relativamente semplice, integraz"
+ },
+ {
+  "ancora": "ANC-0358",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "Conseguenza: UDP deve essere raggiungibile per il percorso standard; trasporti a"
+ },
+ {
+  "ancora": "ANC-0359",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 11,
+  "tipo": "h2",
+  "testo": "ADR-002 — PSK come defense-in-depth, non PQC completa"
+ },
+ {
+  "ancora": "ANC-0360",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "Decisione: PSK WireGuard opzionale/abilitabile per peer e ruotabile."
+ },
+ {
+  "ancora": "ANC-0361",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "Motivo: aggiunge un segreto simmetrico al handshake; non elimina la dipendenza d"
+ },
+ {
+  "ancora": "ANC-0362",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "Conseguenza: il marketing e la documentazione non usano “quantum-proof”."
+ },
+ {
+  "ancora": "ANC-0363",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 19,
+  "tipo": "h2",
+  "testo": "ADR-003 — Privacy-Minimized come default"
+ },
+ {
+  "ancora": "ANC-0364",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "Decisione: persistere i metadati indispensabili al funzionamento, non query DNS "
+ },
+ {
+  "ancora": "ANC-0365",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "Motivo: un sistema che deve sopravvivere ai reboot ha bisogno di configurazioni "
+ },
+ {
+  "ancora": "ANC-0366",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "Conseguenza: retention e storage sono espliciti e auditabili."
+ },
+ {
+  "ancora": "ANC-0367",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 27,
+  "tipo": "h2",
+  "testo": "ADR-004 — IPv6 esplicito"
+ },
+ {
+  "ancora": "ANC-0368",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "Decisione: supportare IPv6 integralmente oppure disabilitare/filtrare il percors"
+ },
+ {
+  "ancora": "ANC-0369",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "Motivo: una regola isolata su ip6tables può non coprire tutti i namespace e tutt"
+ },
+ {
+  "ancora": "ANC-0370",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "Conseguenza: i test dual-stack sono P0."
+ },
+ {
+  "ancora": "ANC-0371",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 35,
+  "tipo": "h2",
+  "testo": "ADR-005 — Firewall backend singolo per installazione"
+ },
+ {
+  "ancora": "ANC-0372",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "Decisione: backend nftables preferito; iptables compatibility mode separato."
+ },
+ {
+  "ancora": "ANC-0373",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "Motivo: ridurre conflitti di ordering e di ownership con Docker e strumenti host"
+ },
+ {
+  "ancora": "ANC-0374",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "Conseguenza: nessuna miscela casuale fra iptables legacy, iptables-nft e nft nat"
+ },
+ {
+  "ancora": "ANC-0375",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 43,
+  "tipo": "h2",
+  "testo": "ADR-006 — API e dashboard non pubbliche"
+ },
+ {
+  "ancora": "ANC-0376",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "Decisione: control plane disabilitato per default e local/VPN-only."
+ },
+ {
+  "ancora": "ANC-0377",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "Motivo: superficie d'attacco e segreti di provisioning."
+ },
+ {
+  "ancora": "ANC-0378",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 49,
+  "tipo": "p",
+  "testo": "Conseguenza: l'amministrazione remota usa un canale VPN admin o un reverse proxy"
+ },
+ {
+  "ancora": "ANC-0379",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 51,
+  "tipo": "h2",
+  "testo": "ADR-007 — Funzioni avanzate feature-gated"
+ },
+ {
+  "ancora": "ANC-0380",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 53,
+  "tipo": "p",
+  "testo": "Decisione: Tor, stealth, UDP2raw e multi-hop non sono requisiti MVP."
+ },
+ {
+  "ancora": "ANC-0381",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 55,
+  "tipo": "p",
+  "testo": "Motivo: maggiore complessità di routing, fallback e test, non necessaria al valo"
+ },
+ {
+  "ancora": "ANC-0382",
+  "file": "19-16-decision-log-architecture-decision-re.md",
+  "riga": 57,
+  "tipo": "p",
+  "testo": "Conseguenza: ogni feature ha owner, compatibilità, kill switch e gate."
+ },
+ {
+  "ancora": "ANC-0383",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "1. Qual è il target reale: uso personale/familiare, piccolo team o installazione"
+ },
+ {
+  "ancora": "ANC-0384",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "2. Si vuole conservare la private key del peer sul server per rigenerare tutti i"
+ },
+ {
+  "ancora": "ANC-0385",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "3. Il target primario resta Debian 12/Ubuntu 24.04 amd64 o ARM64 deve entrare ne"
+ },
+ {
+  "ancora": "ANC-0386",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "4. L'accesso LAN deve essere un profilo standard o una capability abilitata per "
+ },
+ {
+  "ancora": "ANC-0387",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "5. Il pannello web è davvero necessario nella prima release, o la CLI è sufficie"
+ },
+ {
+  "ancora": "ANC-0388",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "6. Quale threat model è prioritario: Wi-Fi ostile, provider cloud, peer malevolo"
+ },
+ {
+  "ancora": "ANC-0389",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "7. Il multi-hop deve usare un secondo host sotto controllo dello stesso owner o "
+ },
+ {
+  "ancora": "ANC-0390",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "8. Qual è la politica di retention richiesta per audit amministrativo: 0, 7, 30 "
+ },
+ {
+  "ancora": "ANC-0391",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "9. Quali client e versioni OS saranno realmente testati e supportati nella matri"
+ },
+ {
+  "ancora": "ANC-0392",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "10. Quale budget minimo di risorse/throughput è necessario per la macchina targe"
+ },
+ {
+  "ancora": "ANC-0393",
+  "file": "20-17-open-questions-da-chiudere-prima-del.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "In assenza di risposta, la baseline di prodotto assume uso personale/piccolo tea"
+ },
+ {
+  "ancora": "ANC-0394",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "Una release è Done solo quando:"
+ },
+ {
+  "ancora": "ANC-0395",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Tutti i requisiti P0 sono implementati o esplicitamente esclusi dal perimetro co"
+ },
+ {
+  "ancora": "ANC-0396",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "Le migration sono testate su DB vuoto e DB aggiornato da release precedente."
+ },
+ {
+  "ancora": "ANC-0397",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "Tutti i test P0 e i test di regressione passano su host pulito."
+ },
+ {
+  "ancora": "ANC-0398",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "Il security audit non presenta FAIL P0."
+ },
+ {
+  "ancora": "ANC-0399",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "Il repository non contiene segreti e le immagini sono pin-nate."
+ },
+ {
+  "ancora": "ANC-0400",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "SBOM, checksum, note release e procedura rollback sono pubblicati."
+ },
+ {
+  "ancora": "ANC-0401",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "Backup/restore è stato provato su un ambiente isolato."
+ },
+ {
+  "ancora": "ANC-0402",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "La documentazione indica chiaramente limiti, dipendenze, porte, dati persistenti"
+ },
+ {
+  "ancora": "ANC-0403",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "Nessuna feature avanzata è attiva senza test e opt-in."
+ },
+ {
+  "ancora": "ANC-0404",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "Le dichiarazioni di performance/privacy sono supportate da test riproducibili."
+ },
+ {
+  "ancora": "ANC-0405",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 25,
+  "tipo": "h2",
+  "testo": "18.1 Release checklist"
+ },
+ {
+  "ancora": "ANC-0406",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "[ ] Preflight installazione pulita PASS"
+ },
+ {
+  "ancora": "ANC-0407",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "[ ] Upgrade da release precedente PASS"
+ },
+ {
+  "ancora": "ANC-0408",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "[ ] Rollback PASS"
+ },
+ {
+  "ancora": "ANC-0409",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 33,
+  "tipo": "p",
+  "testo": "[ ] WireGuard peer lifecycle PASS"
+ },
+ {
+  "ancora": "ANC-0410",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 35,
+  "tipo": "p",
+  "testo": "[ ] DNSSEC e DNS filtering PASS"
+ },
+ {
+  "ancora": "ANC-0411",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 37,
+  "tipo": "p",
+  "testo": "[ ] DNS/IPv6 leak suite PASS"
+ },
+ {
+  "ancora": "ANC-0412",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 39,
+  "tipo": "p",
+  "testo": "[ ] Firewall/Docker port exposure audit PASS"
+ },
+ {
+  "ancora": "ANC-0413",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 41,
+  "tipo": "p",
+  "testo": "[ ] Peer isolation PASS"
+ },
+ {
+  "ancora": "ANC-0414",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 43,
+  "tipo": "p",
+  "testo": "[ ] Backup/restore PASS"
+ },
+ {
+  "ancora": "ANC-0415",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 45,
+  "tipo": "p",
+  "testo": "[ ] Secret scan PASS"
+ },
+ {
+  "ancora": "ANC-0416",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 47,
+  "tipo": "p",
+  "testo": "[ ] SBOM e digest immagini pubblicati"
+ },
+ {
+  "ancora": "ANC-0417",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 49,
+  "tipo": "p",
+  "testo": "[ ] Threat model aggiornato"
+ },
+ {
+  "ancora": "ANC-0418",
+  "file": "21-18-definition-of-done-e-release-gate.md",
+  "riga": 51,
+  "tipo": "p",
+  "testo": "[ ] README, deployment guide, client guide e incident response aggiornati"
+ },
+ {
+  "ancora": "ANC-0419",
+  "file": "22-19-glossario.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "Data plane: percorso che trasporta i pacchetti utente."
+ },
+ {
+  "ancora": "ANC-0420",
+  "file": "22-19-glossario.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "Control plane: funzioni di gestione, configurazione e lifecycle."
+ },
+ {
+  "ancora": "ANC-0421",
+  "file": "22-19-glossario.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "Peer: identità WireGuard autorizzata a collegarsi."
+ },
+ {
+  "ancora": "ANC-0422",
+  "file": "22-19-glossario.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "PSK: pre-shared key simmetrica aggiuntiva al handshake WireGuard."
+ },
+ {
+  "ancora": "ANC-0423",
+  "file": "22-19-glossario.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "PQC: post-quantum cryptography; famiglia di algoritmi progettati per resistere a"
+ },
+ {
+  "ancora": "ANC-0424",
+  "file": "22-19-glossario.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "DoH: DNS over HTTPS, spesso su TCP/443 o QUIC/UDP 443."
+ },
+ {
+  "ancora": "ANC-0425",
+  "file": "22-19-glossario.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "DoT: DNS over TLS, normalmente su TCP/853."
+ },
+ {
+  "ancora": "ANC-0426",
+  "file": "22-19-glossario.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "DoQ: DNS over QUIC."
+ },
+ {
+  "ancora": "ANC-0427",
+  "file": "22-19-glossario.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "DNSSEC: autenticazione crittografica dei dati DNS, non cifratura della query."
+ },
+ {
+  "ancora": "ANC-0428",
+  "file": "22-19-glossario.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "QNAME minimisation: riduzione delle informazioni sul nome richiesto inviate ai s"
+ },
+ {
+  "ancora": "ANC-0429",
+  "file": "22-19-glossario.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "Kill switch: policy fail-closed che blocca il traffico quando il tunnel previsto"
+ },
+ {
+  "ancora": "ANC-0430",
+  "file": "22-19-glossario.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "RTO/RPO: obiettivi di tempo di ripristino e punto di ripristino."
+ },
+ {
+  "ancora": "ANC-0431",
+  "file": "22-19-glossario.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "SBOM: Software Bill of Materials."
+ },
+ {
+  "ancora": "ANC-0432",
+  "file": "22-19-glossario.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "DPI: Deep Packet Inspection."
+ },
+ {
+  "ancora": "ANC-0433",
+  "file": "22-19-glossario.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "IPAM: gestione allocazione indirizzi IP."
+ },
+ {
+  "ancora": "ANC-0434",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "Riferimenti consultati per la revisione tecnica; consultare la documentazione uf"
+ },
+ {
+  "ancora": "ANC-0435",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "[R1] WireGuard — Protocol & Cryptography: https://www.wireguard.com/protocol/ — "
+ },
+ {
+  "ancora": "ANC-0436",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "[R2] WireGuard — Quick Start: https://www.wireguard.com/quickstart/ — generazion"
+ },
+ {
+  "ancora": "ANC-0437",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "[R3] Docker Docs — Packet filtering and firewalls: https://docs.docker.com/engin"
+ },
+ {
+  "ancora": "ANC-0438",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "[R4] Linux Kernel Docs — IP sysctl: https://docs.kernel.org/networking/ip-sysctl"
+ },
+ {
+  "ancora": "ANC-0439",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "[R5] Apple Platform Deployment — VPN overview: https://support.apple.com/guide/d"
+ },
+ {
+  "ancora": "ANC-0440",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "[R6] Apple Developer — VPN payload: https://developer.apple.com/documentation/de"
+ },
+ {
+  "ancora": "ANC-0441",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "[R7] Pi-hole Docs — Privacy levels: https://docs.pi-hole.net/ftldns/privacylevel"
+ },
+ {
+  "ancora": "ANC-0442",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "[R8] Wstunnel — Project documentation: https://github.com/erebe/wstunnel — proto"
+ },
+ {
+  "ancora": "ANC-0443",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "[R9] Tor — torrc man page: https://manpages.debian.org/bookworm/tor/torrc.5.en.h"
+ },
+ {
+  "ancora": "ANC-0444",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "[R10] Pi-hole Docs — Configuration: https://docs.pi-hole.net/ftldns/configfile/ "
+ },
+ {
+  "ancora": "ANC-0445",
+  "file": "23-20-riferimenti-tecnici-primari.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "[R11] Pi-hole Docs — Unbound: https://docs.pi-hole.net/guides/dns/unbound/ — res"
+ },
+ {
+  "ancora": "ANC-0446",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 3,
+  "tipo": "p",
+  "testo": "1. Da “prompt per generare 60 file in batch” a PRD/RFC con requisiti e gate veri"
+ },
+ {
+  "ancora": "ANC-0447",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 5,
+  "tipo": "p",
+  "testo": "2. Da “supera i provider commerciali” a posizionamento self-hosted onesto, con b"
+ },
+ {
+  "ancora": "ANC-0448",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 7,
+  "tipo": "p",
+  "testo": "3. Da “post-quantum symmetric PSK” a PSK addizionale con claim crittografico cir"
+ },
+ {
+  "ancora": "ANC-0449",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 9,
+  "tipo": "p",
+  "testo": "4. Da “RAM-only Zero-Log provable” a Privacy-Minimized + Ephemeral Runtime con d"
+ },
+ {
+  "ancora": "ANC-0450",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 11,
+  "tipo": "p",
+  "testo": "5. Da Always-On Apple generico a distinzione tra WireGuard import, On Demand e A"
+ },
+ {
+  "ancora": "ANC-0451",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 13,
+  "tipo": "p",
+  "testo": "6. Da UFW come unico firewall a policy host + Docker + forwarding + port invento"
+ },
+ {
+  "ancora": "ANC-0452",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 15,
+  "tipo": "p",
+  "testo": "7. Da rp_filter=1 globale a configurazione per scenario di routing."
+ },
+ {
+  "ancora": "ANC-0453",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 17,
+  "tipo": "p",
+  "testo": "8. Da FQ_CODEL su wg0 come cura universale a QoS misurata nel punto di congestio"
+ },
+ {
+  "ancora": "ANC-0454",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 19,
+  "tipo": "p",
+  "testo": "9. Da DoT block come anti-DoH totale a mitigazione parziale con limiti DoH/DoQ d"
+ },
+ {
+  "ancora": "ANC-0455",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 21,
+  "tipo": "p",
+  "testo": "10. Da DNS Tor via forwarding singolo a separazione DNSPort, TransPort e virtual"
+ },
+ {
+  "ancora": "ANC-0456",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 23,
+  "tipo": "p",
+  "testo": "11. Da atomicità teorica tra più sottosistemi a saga, stato di recovery e riconc"
+ },
+ {
+  "ancora": "ANC-0457",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 25,
+  "tipo": "p",
+  "testo": "12. Da dashboard standard library implicitamente production-ready a API locale c"
+ },
+ {
+  "ancora": "ANC-0458",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 27,
+  "tipo": "p",
+  "testo": "13. Da lista fissa di 24 controlli ad audit estendibile con PASS/WARN/FAIL/SKIPP"
+ },
+ {
+  "ancora": "ANC-0459",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 29,
+  "tipo": "p",
+  "testo": "14. Da feature advanced tutte promesse a roadmap con feature flag, owner e relea"
+ },
+ {
+  "ancora": "ANC-0460",
+  "file": "24-21-sintesi-delle-modifiche-rispetto-a-rf.md",
+  "riga": 31,
+  "tipo": "p",
+  "testo": "Fine documento — SovereignVPN PRD + RFC 14.0"
+ }
+]

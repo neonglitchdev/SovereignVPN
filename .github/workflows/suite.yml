@@ -1,0 +1,13 @@
+name: Suite
+on: [pull_request, push]
+jobs:
+  suite:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Taratura estrattore — la mutazione deve dire rosso
+        run: python3 tests/prova_corpus.py
+      - name: Corpus dal documento
+        run: |
+          python3 estrai_corpus.py sorgente/SovereignVPN_PRD_RFC_14.0.docx corpus/
+          cat corpus/profilo.json

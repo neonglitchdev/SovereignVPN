@@ -1,0 +1,16 @@
+{
+ "tabelle": 21,
+ "celle": 751,
+ "celle_unite": 0,
+ "sdt": 0,
+ "tabelle_annidate": 0,
+ "generatore": {
+  "versione": 2,
+  "impronta_script": "d509091ba1909e11",
+  "impronta_document_xml": "806562946299a514",
+  "sorgente": "SovereignVPN_PRD_RFC_14.0.docx"
+ },
+ "capitoli": 25,
+ "blocchi": 460,
+ "presenti_nel_corpus": 460
+}
