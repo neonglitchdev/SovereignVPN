@@ -10,7 +10,7 @@ from test_preflight import esegui
 PRIVATA = base64.b64encode(b"s" * 32).decode()
 CHIAVE_PEER = base64.b64encode(os.urandom(32)).decode()
 GIORNALE = (f"2026-11-15T18:00:00+0000 sovereignctl[1]: syncconf wg0, chiave {CHIAVE_PEER}, peer 10.66.0.7 da 8.8.8.8\n"
-            "2026-11-15T18:00:01+0000 sovereignctl[1]: scaricata https://example.org/lista token=abc123segreto\n")
+            "2026-11-15T18:00:01+0000 sovereignctl[1]: scaricata https://example.org/lista token=abc123segreto\n")  # gitleaks:allow (segreto finto della prova, marcato: T-025)
 TABELLA = 'table inet sovereignvpn {\n chain forward {\n  iifname "wg0" ip saddr 10.66.0.7 ip daddr != { 10.66.0.0/24 } drop\n }\n}\n'
 
 
