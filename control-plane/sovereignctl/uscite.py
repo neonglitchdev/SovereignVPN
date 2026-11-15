@@ -116,8 +116,8 @@ def _leggi_json(percorso, predefinito):
     try:
         with open(percorso, encoding="utf-8") as f:
             return json.load(f)
-    except FileNotFoundError:
-        return predefinito
+    except (FileNotFoundError, PermissionError):  # come il manifest in status: da utente normale /var/lib/sovereignvpn
+        return predefinito                          # (0700 di root) non si legge, e status non deve cadere per questo
 
 
 def pool(cartella=None):

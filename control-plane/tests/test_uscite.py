@@ -48,6 +48,22 @@ class Pool(unittest.TestCase):
                 uscite.leggi(testo, paese)
 
 
+class Illeggibile(unittest.TestCase):
+    """status e reconcile leggono lo stato delle uscite anche da utente normale: sul server /var/lib/sovereignvpn e'
+    0700 di root, e un PermissionError faceva cadere status, audit e reconcile (CI della #45, banco dei mutanti)."""
+    @unittest.skipIf(os.geteuid() == 0, "da root la cartella si legge comunque: il caso esiste solo da utente normale")
+    def test_cartella_illeggibile_vale_nessuna_uscita(self):
+        base = tempfile.mkdtemp()
+        c = os.path.join(base, "uscite")
+        uscite.importa(BUONA, "DE", cartella=c); uscite.scegli("DE", c)
+        os.chmod(base, 0o000)
+        try:
+            self.assertEqual((uscite.stato(c)["attiva"], uscite.pool(c)), (None, []))
+            self.assertEqual(uscite.ripristina({"subnet": "10.66.0.0/24"}, cartella=c), "nessuna uscita scelta")
+        finally:
+            os.chmod(base, 0o700)
+
+
 class Disco(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.mkdtemp()
