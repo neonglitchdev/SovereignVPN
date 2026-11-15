@@ -75,6 +75,7 @@ FISSO="interfaccia=wg0 10.66.0.1/24 | sysctl=True | firewall=True"
 # 1. primo giro: sei passi, chiave generata
 R1="$(applica ens3)"; L1="$(riassunto "$R1")"; echo "giro 1: $L1"
 ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id_installazione"])' "$MANIFEST")"
+[ "$(python3 -c 'import json,sys; print(" ".join(i["digest"][:7] for i in json.load(open(sys.argv[1]))["immagini"]))' "$MANIFEST")" = "sha256: sha256:" ] || rosso "il manifest non porta le due immagini col digest (FR-OPS-004)"
 [ "$L1" = "manifest=$ID | chiave del server=generata | $FISSO | riconciliazione=True | None | None" ] || rosso "primo giro diverso dall'atteso"
 if grep -qF "$(cat "$CHIAVE")" <<<"$R1"; then rosso "la chiave privata del server e' nel rapporto"; fi
 P="$(stat -c '%a' "$CHIAVE" /etc/sovereignvpn /var/lib/sovereignvpn "$REGISTRO" | tr '\n' ' ')"
