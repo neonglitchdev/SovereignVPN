@@ -19,3 +19,6 @@ jobs:
           set +e; python3 -m sovereignctl init --check; c=$?; set -e
           echo "codice di uscita: $c (0 host conforme, 1 prerequisito mancante)"
           [ "$c" -le 1 ]
+          set +e; python3 -m sovereignctl init --check --config ../config/examples/server.toml; c=$?; set -e
+          echo "con l'esempio di configurazione, codice di uscita: $c"
+          [ "$c" -le 1 ]

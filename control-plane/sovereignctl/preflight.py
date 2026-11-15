@@ -18,7 +18,10 @@ class InputNonValido(ValueError):
     """Input o schema non valido: codice di uscita 2, nessuna raccolta e nessuna mutazione (FR-BOOT-003)."""
 
 
-def leggi_impostazioni(wg_port=None, admin_port=None, subnet=None):
+def leggi_impostazioni(wg_port=None, admin_port=None, subnet=None, nomi=None):
+    """Valida porte e subnet; `nomi` dice da dove viene ogni valore (--wg-port o config.wg_port) per l'errore."""
+    nomi = {"wg_port": "--wg-port", "admin_port": "--admin-port", "subnet": "--subnet", **(nomi or {})}
+
     def porta(nome, v, base):
         if v is None:
             return base
@@ -29,18 +32,18 @@ def leggi_impostazioni(wg_port=None, admin_port=None, subnet=None):
         if not 1 <= n <= 65535:
             raise InputNonValido(f"{nome}: {n} fuori dall'intervallo 1-65535")
         return n
-    imp = {"wg_port": porta("--wg-port", wg_port, PORTA_WG), "admin_port": porta("--admin-port", admin_port, PORTA_ADMIN),
-           "subnet": None}
+    imp = {"wg_port": porta(nomi["wg_port"], wg_port, PORTA_WG),
+           "admin_port": porta(nomi["admin_port"], admin_port, PORTA_ADMIN), "subnet": None}
     if subnet is not None:
         try:
             rete = ipaddress.ip_network(subnet, strict=True)
-        except ValueError as e:
-            raise InputNonValido(f"--subnet: «{subnet}» non e' un CIDR canonico ({e})")
+        except (TypeError, ValueError) as e:
+            raise InputNonValido(f"{nomi['subnet']}: «{subnet}» non e' un CIDR canonico ({e})")
         if rete.version != 4 or not rete.is_private or rete.prefixlen > 29:
-            raise InputNonValido(f"--subnet: {rete} deve essere una rete IPv4 privata grande almeno /29")
+            raise InputNonValido(f"{nomi['subnet']}: {rete} deve essere una rete IPv4 privata grande almeno /29")
         imp["subnet"] = str(rete)
     if imp["wg_port"] == imp["admin_port"]:
-        raise InputNonValido(f"--admin-port: {imp['admin_port']} coincide con --wg-port")
+        raise InputNonValido(f"{nomi['admin_port']}: {imp['admin_port']} coincide con {nomi['wg_port']}")
     return imp
 
 
