@@ -28,12 +28,18 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "l'installer ignora il lucchetto": ("ops/install.sh", 'mkdir "$LUCCHETTO" 2>/dev/null ||', 'mkdir -p "$LUCCHETTO" 2>/dev/null ||'),
     "configurazione leggibile da tutti": ("ops/install.sh", 'chmod 0700 "$ETC" "$VAR"', 'chmod 0755 "$ETC" "$VAR"'),
     "input non valido dell'installer esce con 1": ("ops/install.sh", 'echo "install.sh: input non valido: $1" >&2; exit 2; }', 'echo "install.sh: input non valido: $1" >&2; exit 1; }'),
+    "la revoca torna indietro": ("peer.py", '    ("ERROR", "revoke"): "REVOKED",\n', '    ("ERROR", "revoke"): "REVOKED", ("REVOKED", "resume"): "ACTIVE",\n'),
+    "nomi confrontati con le maiuscole": ("peer.py", "return n, n.casefold()", "return n, n"),
+    "chiave di lunghezza qualunque": ("peer.py", "if len(grezza) != 32 or ", "if False or "),
+    "il server perde il suo indirizzo": ("peer.py", "host = list(rete.hosts())[1:]", "host = list(rete.hosts())"),
+    "transizione respinta senza audit": ("peer.py", 'self.audit(c, f"peer.{azione}", "denied", p["id"], f"transizione non valida da {stato}")', "pass"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
     "un rimedio detto con altre parole": ("preflight.py", "\"Liberare spazio: servono almeno", "\"Fare spazio: servono almeno"),
     "un segnaposto detto con altre parole": ("registro.py", "\"[URL REDATTO]\"", "\"[INDIRIZZO WEB REDATTO]\""),
     "un messaggio dell'installer detto con altre parole": ("ops/install.sh", "Prossimo passo:", "Passo successivo:"),
+    "un messaggio del registro detto con altre parole": ("peer.py", "riprovare (CONFLICT)", "ritentare (CONFLICT)"),
     "una variabile locale rinominata": ("preflight.py", "    gib = fatti[\"disco_libero\"] / 1024 ** 3\n", "    giga = fatti[\"disco_libero\"] / 1024 ** 3\n    gib = giga\n"),
 }
 
