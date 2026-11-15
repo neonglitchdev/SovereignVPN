@@ -72,6 +72,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "vincoli: capability in piu' non viste": ("audit.py", """    mancano += [f"cap-add {c} in piu'" for c in sorted(cap(hc.get("CapAdd")) - cap(voluti["cap-add"]))]\n""", ""),
     "Pi-hole con no-new-privileges": ("dns.py", '"--cap-add", "SETFCAP")', '"--cap-add", "SETFCAP", "--security-opt", "no-new-privileges")'),
     "Pi-hole con tutte le capability": ("dns.py", 'VINCOLI_PIHOLE = ("--cap-drop", "ALL", ', 'VINCOLI_PIHOLE = ('),
+    "bundle con un file senza checksum": ("profilo.py", 'for n, b in sorted(file.items())]}\n    file["manifest.json"]', 'for n, b in sorted(file.items())[:1]]}\n    file["manifest.json"]'),
+    "bundle senza i limiti dichiarati": ("profilo.py", "- «Connect On Demand» delle app Apple non e' Always-On VPN: Always-On vuole IKEv2 su dispositivi supervisionati via\n  MDM, che la 1.0 non fornisce.\n", ""),
     "transizione respinta senza audit": ("peer.py", 'self.audit(c, f"peer.{azione}", "denied", p["id"], f"transizione non valida da {stato}")', "pass"),
     "il sospeso resta nel runtime": ("runtime.py", 'NEL_RUNTIME = ("PENDING", "ACTIVE")', 'NEL_RUNTIME = ("PENDING", "ACTIVE", "SUSPENDED")'),
     "chiave del server leggibile accettata": ("runtime.py", "    if modo & 0o077:", "    if False:"),

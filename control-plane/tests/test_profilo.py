@@ -88,6 +88,36 @@ class Export(unittest.TestCase):
 
 
 
+class Bundle(Export):
+    """FR-PEER-009 [H45]: il bundle di onboarding ha solo il profilo di questo peer, le istruzioni e il manifest."""
+
+    def test_solo_questo_peer_con_checksum_e_manifest(self):
+        a = peer.Archivio(self.db)
+        altro = a.aggiungi("portatile", base64.b64encode(os.urandom(32)).decode(), "10.66.0.0/24")
+        a.db.close()
+        codice, out, err = self.export("--conferma", "--bundle", "--json")
+        self.assertEqual(codice, 0, err)
+        r = json.loads(out)
+        f = pathlib.Path(r["percorso"])
+        self.assertEqual((f.name, stat.S_IMODE(f.stat().st_mode), r["file"]), (f"{self.p['id']}.tar.gz", 0o600, 3))
+        self.assertEqual(r["checksum"], "sha256:" + hashlib.sha256(f.read_bytes()).hexdigest())
+        import tarfile
+        with tarfile.open(f) as tar:
+            file = {m.name: tar.extractfile(m).read() for m in tar.getmembers()}
+        self.assertEqual(set(file), {f"{self.p['id']}.conf", "LEGGIMI.txt", "manifest.json"})
+        m = json.loads(file["manifest.json"])
+        self.assertEqual({x["nome"]: x["sha256"] for x in m["file"]},
+                         {n: hashlib.sha256(b).hexdigest() for n, b in file.items() if n != "manifest.json"})
+        self.assertFalse(m["segreti"])
+        tutto = b"".join(file.values()).decode()
+        for vietato in (PRIVATA, altro["chiave_pubblica"], altro["indirizzo"] + "/", "portatile"):
+            self.assertNotIn(vietato, tutto)  # niente segreti e niente dell'altro peer (il suo nome compreso)
+        self.assertIn(f"Address = {self.p['indirizzo']}/32", tutto)
+        for limite in ("kill switch", "Always-On", "MDM"):
+            self.assertIn(limite, file["LEGGIMI.txt"].decode())  # FR-APPLE-003/004: i limiti scritti
+        self.assertNotIn("AllowedIPs", out + err)
+
+
 class SplitTunnel(unittest.TestCase):
     def test_con_le_rotte_il_profilo_e_split_tunnel_con_la_vpn(self):
         p = {"id": "x", "nome": "ufficio", "indirizzo": "10.66.0.2", "scade": None, "rotte": '["192.168.10.0/24"]'}
