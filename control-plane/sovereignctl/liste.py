@@ -15,6 +15,10 @@ from .preflight import InputNonValido
 
 DENTRO_PIHOLE = "/etc/pihole/sovereignvpn"  # dove l'unita' di Pi-hole monta la cartella delle liste, in sola lettura
 CONTENITORE = "sovereignvpn-pihole"
+# FR-DNS-008 [H28]: la lista dei permessi vince su quella di blocco (antigravity di Pi-hole); stessa cartella, link suo.
+LINK = {"blocklist": "attiva.txt", "allowlist": "permessi.txt"}
+STATO = {"blocklist": "stato.json", "allowlist": "stato-permessi.json"}
+TIPO_PIHOLE = {"blocklist": 0, "allowlist": 1}  # colonna `type` della tabella adlist
 
 
 def cartella_predefinita():
@@ -42,25 +46,25 @@ def valida(testo):
     return sorted(set(domini)), errori, doppioni
 
 
-def _stato(cartella):
+def _stato(cartella, tipo="blocklist"):
     try:
-        with open(os.path.join(cartella, "stato.json"), encoding="utf-8") as f:
+        with open(os.path.join(cartella, STATO[tipo]), encoding="utf-8") as f:
             return json.load(f)
     except (OSError, ValueError):
         return {}
 
 
-def _attiva(cartella, nome, stato):
-    link = os.path.join(cartella, "attiva.txt")
+def _attiva(cartella, nome, stato, tipo="blocklist"):
+    link = os.path.join(cartella, LINK[tipo])
     if os.path.lexists(link + ".nuovo"):
         os.unlink(link + ".nuovo")
     os.symlink(nome, link + ".nuovo")  # relativo: si risolve anche dentro il container
     os.replace(link + ".nuovo", link)  # atomico: in ogni istante attiva.txt e' la lista vecchia o la nuova
-    scrivi_testo(os.path.join(cartella, "stato.json"), json.dumps(stato, ensure_ascii=False, indent=1) + "\n", 0o644)
+    scrivi_testo(os.path.join(cartella, STATO[tipo]), json.dumps(stato, ensure_ascii=False, indent=1) + "\n", 0o644)
     return stato
 
 
-def applica(file, cartella=None, adesso=None):
+def applica(file, cartella=None, adesso=None, tipo="blocklist"):
     cartella = cartella or cartella_predefinita()
     with open(file, encoding="utf-8") as f:
         testo = f.read(50 * 1024 * 1024)
@@ -73,22 +77,27 @@ def applica(file, cartella=None, adesso=None):
     os.makedirs(cartella, mode=0o755, exist_ok=True)  # liste non segrete: le legge l'utente di Pi-hole nel container
     nome = f"lista-{sha[:16]}.txt"
     scrivi_testo(os.path.join(cartella, nome), corpo, 0o644)
-    prima = _stato(cartella)
+    prima = _stato(cartella, tipo)
     adesso = adesso or datetime.datetime.now(datetime.timezone.utc)
-    return _attiva(cartella, nome, {"attiva": nome, "sha256": sha, "domini": len(domini), "doppioni_tolti": len(doppioni),
+    altra = os.path.join(cartella, LINK["allowlist" if tipo == "blocklist" else "blocklist"])
+    comuni = sorted(set(domini) & set(open(altra, encoding="utf-8").read().split())) if os.path.exists(altra) else []
+    return _attiva(cartella, nome, {"tipo": tipo, "conflitti": comuni[:50], "conflitti_totali": len(comuni),
+                                     "precedenza": "allowlist", "attiva": nome, "sha256": sha, "domini": len(domini), "doppioni_tolti": len(doppioni),
                                      "attivata": adesso.isoformat(timespec="seconds").replace("+00:00", "Z"),
                                      "precedente": prima.get("attiva") if prima.get("attiva") != nome else prima.get("precedente"),
-                                     "precedente_stato": {k: prima.get(k) for k in ("attiva", "sha256", "domini", "attivata")} if prima else None})
+                                     "precedente_stato": {k: prima.get(k) for k in ("attiva", "sha256", "domini", "attivata")} if prima else None},
+                   tipo)
 
 
-def rollback(cartella=None):
+def rollback(cartella=None, tipo="blocklist"):
     cartella = cartella or cartella_predefinita()
-    prima = _stato(cartella)
+    prima = _stato(cartella, tipo)
     vecchio = prima.get("precedente_stato") or {}
     if not vecchio.get("attiva") or not os.path.exists(os.path.join(cartella, vecchio["attiva"])):
         raise InputNonValido("nessuna lista precedente a cui tornare")
     return _attiva(cartella, vecchio["attiva"], {**vecchio, "doppioni_tolti": None, "precedente": prima.get("attiva"),
-                                                 "precedente_stato": {k: prima.get(k) for k in ("attiva", "sha256", "domini", "attivata")}})
+                                                 "precedente_stato": {k: prima.get(k) for k in ("attiva", "sha256", "domini", "attivata")}},
+                   tipo)
 
 
 def _docker(*argomenti):
@@ -99,11 +108,11 @@ def _docker(*argomenti):
     return p.stdout
 
 
-def sincronizza(contenitore=CONTENITORE):
-    """Registra in Pi-hole l'adlist della lista attiva (una volta) e ricompila gravity; restituisce numero e stato."""
-    indirizzo = f"file://{DENTRO_PIHOLE}/attiva.txt"
+def sincronizza(contenitore=CONTENITORE, tipo="blocklist"):
+    """Registra in Pi-hole l'adlist della lista attiva (una volta, col suo tipo) e ricompila gravity."""
+    indirizzo = f"file://{DENTRO_PIHOLE}/{LINK[tipo]}"
     _docker("exec", contenitore, "pihole-FTL", "sqlite3", "/etc/pihole/gravity.db",
-            f"INSERT OR IGNORE INTO adlist (address, enabled, comment) VALUES ('{indirizzo}', 1, 'sovereignvpn');")
+            f"INSERT OR IGNORE INTO adlist (address, enabled, comment, type) VALUES ('{indirizzo}', 1, 'sovereignvpn', {TIPO_PIHOLE[tipo]});")
     _docker("exec", contenitore, "pihole", "-g")
     riga = _docker("exec", contenitore, "pihole-FTL", "sqlite3", "/etc/pihole/gravity.db",
                    f"SELECT number, status FROM adlist WHERE address = '{indirizzo}';").strip()
@@ -112,26 +121,28 @@ def sincronizza(contenitore=CONTENITORE):
 
 
 def aggiungi_parser(az, classe):
-    bl = az.add_parser("blocklist", help="liste di blocco versionate: apply, rollback, status (FR-DNS-002/007)")
-    ba = bl.add_subparsers(dest="lista", required=True, parser_class=classe)
-    ap = ba.add_parser("apply"); ap.add_argument("file")
-    ba.add_parser("rollback")
-    ba.add_parser("status")
-    for s in (ap, ba.choices["rollback"], ba.choices["status"]):
-        s.add_argument("--cartella"); s.add_argument("--json", action="store_true")
-    for s in (ap, ba.choices["rollback"]):
-        s.add_argument("--sincronizza", action="store_true", help="registra l'adlist in Pi-hole e ricompila gravity")
-        s.add_argument("--contenitore", default=CONTENITORE)
+    for tipo, aiuto in (("blocklist", "liste di blocco versionate: apply, rollback, status (FR-DNS-002/007)"),
+                        ("allowlist", "permessi versionati, vincono sui blocchi: apply, rollback, status (FR-DNS-008)")):
+        bl = az.add_parser(tipo, help=aiuto)
+        bl.set_defaults(tipo=tipo)
+        ba = bl.add_subparsers(dest="lista", required=True, parser_class=classe)
+        ap = ba.add_parser("apply"); ap.add_argument("file")
+        rb = ba.add_parser("rollback"); st = ba.add_parser("status")
+        for s in (ap, rb, st):
+            s.add_argument("--cartella"); s.add_argument("--json", action="store_true")
+        for s in (ap, rb):
+            s.add_argument("--sincronizza", action="store_true", help="registra l'adlist in Pi-hole e ricompila gravity")
+            s.add_argument("--contenitore", default=CONTENITORE)
 
 
 def esegui(a):
     try:
         if a.lista == "status":
-            esito = _stato(a.cartella or cartella_predefinita()) or {"attiva": None}
+            esito = _stato(a.cartella or cartella_predefinita(), a.tipo) or {"attiva": None}
         else:
-            esito = applica(a.file, a.cartella) if a.lista == "apply" else rollback(a.cartella)
+            esito = applica(a.file, a.cartella, tipo=a.tipo) if a.lista == "apply" else rollback(a.cartella, a.tipo)
             if a.sincronizza:
-                esito = {**esito, "pihole": sincronizza(a.contenitore)}
+                esito = {**esito, "pihole": sincronizza(a.contenitore, a.tipo)}
     except InputNonValido as e:
         print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
         return 2

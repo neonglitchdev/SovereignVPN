@@ -120,3 +120,11 @@ bl rollback --sincronizza >/dev/null
 aspetta si lista-prova.example || rosso "dopo il rollback lista-prova.example non e' bloccato"
 aspetta no altra-prova.example || rosso "dopo il rollback altra-prova.example e' ancora bloccato"
 echo "OK: liste di blocco, la attiva blocca, una invalida (2) lascia l'attiva, la nuova sostituisce, il rollback rimette la vecchia"
+
+# permessi (FR-DNS-008, H28): lista-prova.example e' bloccato; un permesso per lo stesso nome segnala il conflitto e
+# vince (antigravity di Pi-hole), il nome torna a risolversi senza 0.0.0.0
+printf 'lista-prova.example\n' > "$D/p1.txt"
+RP="$(python3 -m sovereignctl dns allowlist apply "$D/p1.txt" --cartella "$D/liste" --contenitore "$PIHOLE" --sincronizza --json)"
+[ "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["conflitti"])' "$RP")" = "['lista-prova.example']" ] || { echo "$RP"; rosso "il conflitto fra permesso e blocco non e' segnalato"; }
+aspetta no lista-prova.example || rosso "con il permesso lista-prova.example e' ancora bloccato: il permesso non vince"
+echo "OK: permessi, il conflitto con la lista di blocco e' segnalato e il permesso vince (lista-prova.example non piu' bloccato)"
