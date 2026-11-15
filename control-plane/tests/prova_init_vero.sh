@@ -5,9 +5,12 @@
 # UNA eccezione, dichiarata: l'orologio. Il runner non sempre ha l'NTP sincronizzato (15/11: 10 controlli su 11 alle
 # 09:25, 11 su 11 alle 09:29) e una prova che a volte salta e' rossa: se manca, `ntp` si forza a True SOLO qui e lo si
 # stampa. Il prodotto non ha flag che saltano controlli.
-# Quattro giri: primo (sei passi), secondo (idempotente, porta nel runtime il peer aggiunto), terzo con la chiave guasta
-# (deve fermarsi alla riconciliazione senza sovrascriverla), quarto con la WAN non valida (rifiutato, niente toccato).
-#   sudo bash control-plane/tests/prova_init_vero.sh
+# Sei giri: primo (sei passi), secondo (idempotente, porta nel runtime il peer aggiunto), terzo con la chiave guasta
+# (deve fermarsi alla riconciliazione senza sovrascriverla), quarto con la WAN non valida (rifiutato, niente toccato);
+# poi il riavvio (FR-NET-007): quinto, si toglie cio' che un riavvio perde e gira la riga ExecStart dell'unita' systemd
+# installata, che deve riportare tutto com'era; sesto, lo stesso con la chiave assente, che non si deve rigenerare.
+# Il riavvio vero del runner non si puo' fare: e' dichiarato. Richiede ops/install.sh (nel CI e' il passo prima).
+#   sudo bash ops/install.sh && sudo bash control-plane/tests/prova_init_vero.sh
 set -Eeuo pipefail
 IFS=$'\n\t'
 [ "$(id -u)" -eq 0 ] || { echo "prova_init_vero: serve root"; exit 1; }
@@ -118,3 +121,46 @@ R4="$(applica 'ens3;drop')"; L4="$(riassunto "$R4")"; echo "giro 4: $L4"
 [ "$(sha256sum "$MANIFEST")" = "$HM" ] || rosso "la WAN non valida ha riscritto il manifest"
 [ "$(dentro nft list table inet sovereignvpn)" = "$T2" ] || rosso "la WAN non valida ha cambiato il firewall"
 echo "OK: giro 4, WAN non valida rifiutata con 0 passi su 6, manifest e firewall intatti (la CLI esce con 2)"
+
+# 5. riavvio simulato: si toglie cio' che un riavvio perde, poi gira la riga ExecStart dell'unita' come la lancia systemd
+UNITA=/etc/systemd/system/sovereignvpn-reconcile.service
+[ -f "$UNITA" ] || rosso "manca $UNITA: prima sudo bash ops/install.sh"
+{ echo 'wan_interface = "ens3"'; cat "$CONFIG"; } > "$D/server.toml"  # in testa: dopo [flags] finirebbe nella tabella
+install -m 0600 "$D/server.toml" /etc/sovereignvpn/server.toml
+EXEC="$(sed -n 's/^ExecStart=//p' "$UNITA")"
+IFS=' ' read -r -a ESEGUI <<<"$EXEC"
+stato() {
+  dentro nft list table inet sovereignvpn
+  dentro ip -4 -o addr show dev wg0 | awk '{print $4}'
+  dentro wg show wg0 listen-port; dentro wg show wg0 public-key; dentro wg show wg0 allowed-ips
+  echo "$(dentro sysctl -n net.ipv4.ip_forward) $(dentro sysctl -n net.ipv6.conf.all.forwarding)"
+}
+perdi() {  # cio' che un riavvio perde; e si controlla che sia perso davvero, o la prova non distinguerebbe
+  dentro ip link del wg0
+  dentro nft delete table inet sovereignvpn
+  dentro sysctl -q -w net.ipv4.ip_forward=0 net.ipv6.conf.all.forwarding=1
+  if dentro ip link show wg0 >/dev/null 2>&1 || dentro nft list table inet sovereignvpn >/dev/null 2>&1; then
+    rosso "il riavvio simulato non ha tolto wg0 o la tabella"
+  fi
+}
+PRIMA="$(stato)"
+perdi
+set +e; R5="$(dentro "${ESEGUI[@]}" 2>&1)"; C5=$?; set -e
+echo "giro 5 ($EXEC), codice $C5:"; echo "$R5"
+[ "$C5" -eq 0 ] || rosso "il ripristino al riavvio esce con $C5"
+ORDINE="$(sed -n 's/^  \[OK\] \([a-z]*\):.*/\1/p' <<<"$R5" | tr '\n' ' ')"
+[ "$ORDINE" = "firewall sysctl interfaccia riconciliazione " ] || rosso "ordine dei passi al riavvio: $ORDINE"
+[ "$(stato)" = "$PRIMA" ] || rosso "dopo il ripristino lo stato non e' quello di prima del riavvio"
+echo "OK: giro 5, dopo il riavvio simulato firewall, sysctl, wg0 e il peer tornano identici, col firewall per primo"
+
+# 6. chiave assente al riavvio: firewall e rete tornano, la chiave NON si rigenera (cambierebbe l'identita' del server)
+mv "$CHIAVE" "$D/chiave6"
+perdi
+set +e; R6="$(dentro "${ESEGUI[@]}" 2>&1)"; C6=$?; set -e
+echo "giro 6, codice $C6:"; echo "$R6"
+[ ! -e "$CHIAVE" ] || rosso "il ripristino ha generato una chiave del server nuova"
+[ "$C6" -eq 4 ] || rosso "chiave assente al riavvio: codice $C6, atteso 4 (applicato in parte)"
+dentro nft list table inet sovereignvpn >/dev/null 2>&1 || rosso "con la chiave assente il firewall non e' tornato"
+dentro ip link show wg0 >/dev/null 2>&1 || rosso "con la chiave assente wg0 non e' tornata"
+mv "$D/chiave6" "$CHIAVE"
+echo "OK: giro 6, chiave assente: firewall e wg0 tornano, nessuna chiave nuova, codice 4"

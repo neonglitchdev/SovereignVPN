@@ -34,7 +34,17 @@ jobs:
           sudo bash control-plane/tests/prova_nft_vero.sh
       - name: sysctl veri in un network namespace (inoltro IPv4 acceso, IPv6 spento)
         run: sudo bash control-plane/tests/prova_sysctl_vero.sh
-      - name: init --apply vero in un network namespace (sei passi, idempotente, chiave guasta, WAN rifiutata)
+      - name: Installer vero sul runner, unita' di avvio abilitata e verificata (con controllo negativo)
+        run: |
+          sudo bash ops/install.sh
+          systemctl is-enabled sovereignvpn-reconcile.service
+          sudo systemd-analyze verify /etc/systemd/system/sovereignvpn-reconcile.service
+          sed '/^ExecStart=/d' ops/systemd/sovereignvpn-reconcile.service > "$RUNNER_TEMP/sovereignvpn-guasta.service"
+          if sudo systemd-analyze verify "$RUNNER_TEMP/sovereignvpn-guasta.service"; then
+            echo "ROSSO: un'unita' senza ExecStart passa la verifica"; exit 1
+          fi
+          echo "OK: unita' installata, abilitata, verificata; quella senza ExecStart e' rifiutata"
+      - name: init --apply vero in un network namespace (sei passi, idempotente, chiave guasta, WAN rifiutata, riavvio)
         run: sudo bash control-plane/tests/prova_init_vero.sh
       - name: Banco dei mutanti (guasti presi, innocui vivi)
         run: cd control-plane && python3 tests/mutanti.py

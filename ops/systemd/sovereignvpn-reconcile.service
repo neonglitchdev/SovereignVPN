@@ -1,0 +1,25 @@
+# SovereignVPN — ripristino dello stato dichiarato a ogni avvio (FR-NET-007, NFR-AVL-001).
+# Un riavvio perde wg0, la tabella nftables e lo stato dei peer nel runtime: `sovereignctl reconcile` li rifa' dal
+# registro e dalla configurazione, col firewall per primo. Gira prima della rete, come nftables.service, cosi' quando
+# le interfacce salgono la tabella inet sovereignvpn c'e' gia'. Senza preflight e senza mai generare una chiave nuova.
+# La installa e la abilita ops/install.sh; parte solo dove `init --apply` ha scritto il manifest.
+[Unit]
+Description=SovereignVPN: ripristino di firewall, sysctl, WireGuard e peer
+Documentation=file:///opt/sovereignvpn/sovereignctl/bootstrap.py
+DefaultDependencies=no
+After=local-fs.target systemd-sysctl.service systemd-modules-load.service
+Before=network-pre.target shutdown.target
+Wants=network-pre.target
+Conflicts=shutdown.target
+ConditionPathExists=/var/lib/sovereignvpn/manifest.json
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/sovereignctl reconcile --config /etc/sovereignvpn/server.toml
+UMask=0077
+NoNewPrivileges=yes
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target
