@@ -6,7 +6,7 @@ Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [
 """
 import argparse, json, sys
 
-from . import VERSIONE, configurazione, preflight
+from . import VERSIONE, configurazione, preflight, registro
 
 
 class _Parser(argparse.ArgumentParser):
@@ -35,7 +35,7 @@ def main(argv=None):
                 valori[campo] = da_cli
         imp = preflight.leggi_impostazioni(**valori, nomi=nomi)
     except preflight.InputNonValido as e:
-        print(f"sovereignctl: input non valido: {e}", file=sys.stderr)
+        print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)  # ANC-0059: mai un segreto in uscita
         return 2
     try:
         fatti = preflight.raccogli(imp)

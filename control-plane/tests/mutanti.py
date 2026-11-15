@@ -19,9 +19,13 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "il segreto finisce nell'errore": ("configurazione.py", "raise _errore(k, \"un segreto in chiaro", "raise _errore(k, f\"{dati[k]} un segreto in chiaro"),
     "MTU senza limiti": ("configurazione.py", "not 1280 <= mtu <= 1500", "False"),
     "la CLI ignora il file di configurazione": ("__main__.py", "if da_cli is None and campo in cfg:", "if False:"),
+    "le chiavi WireGuard non vengono redatte": ("registro.py", "    t = _CHIAVE_WG.sub(\"[CHIAVE REDATTA]\", t)\n", ""),
+    "il filtro lascia passare gli argomenti": ("registro.py", "        record.msg = redigi(record.getMessage())\n        record.args = ()\n", ""),
+    "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
     "un rimedio detto con altre parole": ("preflight.py", "\"Liberare spazio: servono almeno", "\"Fare spazio: servono almeno"),
+    "un segnaposto detto con altre parole": ("registro.py", "\"[URL REDATTO]\"", "\"[INDIRIZZO WEB REDATTO]\""),
     "una variabile locale rinominata": ("preflight.py", "    gib = fatti[\"disco_libero\"] / 1024 ** 3\n", "    giga = fatti[\"disco_libero\"] / 1024 ** 3\n    gib = giga\n"),
 }
 
