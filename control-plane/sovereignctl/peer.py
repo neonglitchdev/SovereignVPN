@@ -20,6 +20,10 @@ TRANSIZIONI = {  # (stato, azione) -> nuovo stato; tutto il resto e' respinto. R
     ("PENDING", "revoke"): "REVOKED", ("ACTIVE", "suspend"): "SUSPENDED", ("ACTIVE", "revoke"): "REVOKED",
     ("SUSPENDED", "resume"): "ACTIVE", ("SUSPENDED", "revoke"): "REVOKED", ("EXPIRED", "revoke"): "REVOKED",
     ("ERROR", "revoke"): "REVOKED",
+    # FR-PEER-005: «expire» la fa solo il tempo (peer expire-sweep), mai un comando sul singolo peer; da EXPIRED
+    # si esce solo con revoke: il peer scaduto non si riattiva, serve un provisioning nuovo (workflow 10).
+    ("PENDING", "expire"): "EXPIRED", ("ACTIVE", "expire"): "EXPIRED", ("SUSPENDED", "expire"): "EXPIRED",
+    ("ERROR", "expire"): "EXPIRED",
 }
 
 
@@ -127,6 +131,23 @@ class Archivio:
             self.audit(c, "peer.add", "success", nuovo)
         return self.mostra(nuovo)
 
+    def scadi(self, adesso=None):
+        """FR-PEER-005: i peer col TTL passato vanno in EXPIRED, saga PENDING_APPLY (dal runtime li toglie la
+        riconciliazione). Legge solo `scade`, in UTC: nessun timer in memoria, si puo' rifare dopo un riavvio e una
+        seconda volta non cambia niente. `adesso` lo passano solo le prove (orologio controllato), mai la CLI."""
+        adesso = adesso or ora()
+        with self.transazione() as c:
+            con_ttl = [(i, s) for i, s in c.execute("SELECT id, stato FROM peer WHERE scade IS NOT NULL AND stato != 'EXPIRED'")]
+            scaduti = 0
+            for i, s in c.execute("SELECT id, stato FROM peer WHERE scade IS NOT NULL AND scade <= ?", (adesso,)).fetchall():
+                nuovo = TRANSIZIONI.get((s, "expire"))
+                if nuovo:
+                    c.execute("UPDATE peer SET stato = ?, saga = 'PENDING_APPLY' WHERE id = ?", (nuovo, i))
+                    self.audit(c, "peer.expire", "success", i)
+                    scaduti += 1
+        return {"scaduti": scaduti, "con_ttl": sum(1 for _, s in con_ttl if (s, "expire") in TRANSIZIONI),
+                "controllato_alle": adesso}
+
     def elenco(self):
         cur = self.db.execute("SELECT id, nome, indirizzo, stato, saga, creato, scade FROM peer ORDER BY creato, nome")
         return [dict(zip(("id", "nome", "indirizzo", "stato", "saga", "creato", "scade"), r)) for r in cur]
@@ -225,7 +246,7 @@ def esegui_host(a):
 def aggiungi_parser(sotto, classe):
     peer = sotto.add_parser("peer", help="registro dei peer")
     az = peer.add_subparsers(dest="azione", required=True, parser_class=classe)
-    for nome in ("add", "list", "show", "suspend", "resume", "revoke", "reconcile"):
+    for nome in ("add", "list", "show", "suspend", "resume", "revoke", "reconcile", "expire-sweep"):
         s = az.add_parser(nome)
         s.add_argument("--db", default=DB_PREDEFINITO)
         s.add_argument("--json", action="store_true")
@@ -262,6 +283,12 @@ def esegui(a):
                 if not esito["coincide"]:
                     print("  Il runtime non coincide col registro: i peer in attesa sono in ERROR, saga ROLLBACK_REQUIRED (ANC-0280).")
             return 0 if esito["coincide"] else 4  # ANC-0255: 4 = applicato in parte, serve recovery
+        elif a.azione == "expire-sweep":  # conteggio sintetico (ANC-0254): niente nomi, niente chiavi
+            esito = archivio.scadi()
+            print(json.dumps(esito, ensure_ascii=False, indent=1) if a.json else
+                  f"Scadenze: {esito['scaduti']} peer scaduti su {esito['con_ttl']} col TTL ancora in corso "
+                  f"(controllo delle {esito['controllato_alle']} UTC); dal runtime li toglie la riconciliazione.")
+            return 0
         elif a.azione == "list":
             esito = archivio.elenco()
         elif a.azione == "show":

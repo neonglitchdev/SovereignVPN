@@ -1,0 +1,15 @@
+# SovereignVPN — scadenze dei peer (FR-PEER-005, FR-OPS-006). La lancia sovereignvpn-expire.timer ogni minuto: i peer
+# col TTL passato vanno in EXPIRED, poi `reconcile` li toglie dal runtime e riporta firewall e rete allo stato
+# dichiarato. Nessun timer in memoria: dopo un riavvio il timer riparte e le scadenze si rileggono dal registro.
+[Unit]
+Description=SovereignVPN: scadenze dei peer e riconciliazione
+After=sovereignvpn-reconcile.service
+ConditionPathExists=/var/lib/sovereignvpn/manifest.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/sovereignctl peer expire-sweep
+ExecStart=/usr/local/bin/sovereignctl reconcile --config /etc/sovereignvpn/server.toml
+UMask=0077
+NoNewPrivileges=yes
+ProtectHome=yes

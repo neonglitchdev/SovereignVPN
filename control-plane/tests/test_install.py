@@ -73,7 +73,24 @@ class Installer(unittest.TestCase):
         self.assertEqual(aiuto.returncode, 0, aiuto.stderr)  # il comando installato conosce `reconcile`
         self.assertEqual(voci["ConditionPathExists"], "/var/lib/sovereignvpn/manifest.json")  # solo dopo init --apply
         self.assertIn("network-pre.target", voci["Before"])  # il firewall prima che salga la rete
-        self.assertIn("5. installare l'unita'", lancia("--radice", self.radice, "--dry-run")[1])
+        self.assertIn("5. installare le unita'", lancia("--radice", self.radice, "--dry-run")[1])
+
+    def test_scadenze_ogni_minuto_anche_dopo_un_riavvio(self):
+        codice, _, err = lancia("--radice", self.radice)
+        self.assertEqual(codice, 0, err)
+        r = pathlib.Path(self.radice) / "etc/systemd/system"
+        for nome in ("sovereignvpn-expire.service", "sovereignvpn-expire.timer"):
+            self.assertEqual(stat.S_IMODE((r / nome).stat().st_mode), 0o644, nome)
+        servizio = (r / "sovereignvpn-expire.service").read_text().splitlines()
+        self.assertEqual([x.split("=", 1)[1] for x in servizio if x.startswith("ExecStart=")],
+                         ["/usr/local/bin/sovereignctl peer expire-sweep",
+                          "/usr/local/bin/sovereignctl reconcile --config /etc/sovereignvpn/server.toml"])
+        aiuto = subprocess.run([str(pathlib.Path(self.radice) / "usr/local/bin/sovereignctl"), "peer", "expire-sweep", "--help"],
+                               capture_output=True, text=True, timeout=60)
+        self.assertEqual(aiuto.returncode, 0, aiuto.stderr)  # il comando installato conosce `peer expire-sweep`
+        timer = (r / "sovereignvpn-expire.timer").read_text().splitlines()
+        for voce in ("OnCalendar=minutely", "Persistent=true", "WantedBy=timers.target"):
+            self.assertIn(voce, timer)
 
     def test_input_non_valido_esce_con_2(self):
         for argomenti, voce in ((["--colore"], "--colore"), (["--radice"], "--radice"),

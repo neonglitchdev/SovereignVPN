@@ -37,8 +37,9 @@ jobs:
       - name: Installer vero sul runner, unita' di avvio abilitata e verificata (con controllo negativo)
         run: |
           sudo bash ops/install.sh
-          systemctl is-enabled sovereignvpn-reconcile.service
-          sudo systemd-analyze verify /etc/systemd/system/sovereignvpn-reconcile.service
+          systemctl is-enabled sovereignvpn-reconcile.service sovereignvpn-expire.timer
+          sudo systemd-analyze verify /etc/systemd/system/sovereignvpn-reconcile.service \
+            /etc/systemd/system/sovereignvpn-expire.service /etc/systemd/system/sovereignvpn-expire.timer
           sed '/^ExecStart=/d' ops/systemd/sovereignvpn-reconcile.service > "$RUNNER_TEMP/sovereignvpn-guasta.service"
           if sudo systemd-analyze verify "$RUNNER_TEMP/sovereignvpn-guasta.service"; then
             echo "ROSSO: un'unita' senza ExecStart passa la verifica"; exit 1

@@ -1,6 +1,6 @@
 """Prove del registro dei peer (FR-PEER-001/002/003/006, ANC-0237/0238/0244/0288, H1, H2).
 Uso, da control-plane/: python3 -m unittest discover -s tests"""
-import base64, json, os, pathlib, sqlite3, stat, subprocess, sys, tempfile, unittest
+import base64, datetime, json, os, pathlib, sqlite3, stat, subprocess, sys, tempfile, unittest
 
 from sovereignctl import peer
 from test_preflight import esegui
@@ -166,6 +166,56 @@ class Lettura(Base):
         codice, _, err = self.cli("list")
         self.assertEqual(codice, 1)
         self.assertIn("migrazione", err)
+
+
+class Scadenze(Base):
+    """FR-PEER-005 con l'orologio controllato: `scadi` riceve l'istante dalle prove; il comando no (un --now sulla riga
+    di comando permetterebbe di spostare l'orologio indietro e non far scadere nessuno)."""
+    MAI = "2999-01-01T00:00:00Z"
+
+    def test_scade_all_istante_giusto_e_una_volta_sola(self):
+        _, p, _ = self.add("ospite", None, "--ttl-days", "1")
+        s = p["scade"]
+        un_secondo_prima = (datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+                            - datetime.timedelta(seconds=1)).isoformat(timespec="seconds").replace("+00:00", "Z")
+        a = peer.Archivio(self.db)
+        self.assertEqual(a.scadi(un_secondo_prima), {"scaduti": 0, "con_ttl": 1, "controllato_alle": un_secondo_prima})
+        self.assertEqual(a.mostra(p["id"])["stato"], "PENDING")
+        self.assertEqual(a.scadi(s), {"scaduti": 1, "con_ttl": 1, "controllato_alle": s})
+        q = a.mostra(p["id"])
+        self.assertEqual((q["stato"], q["saga"]), ("EXPIRED", "PENDING_APPLY"))
+        self.assertEqual(a.scadi(s)["scaduti"], 0)  # idempotente: rifarla dopo un riavvio non cambia niente
+        e = self.audit()[-1]
+        self.assertEqual((e["action"], e["outcome"], e["target"]), ("peer.expire", "success", p["id"]))
+
+    def test_scaduto_non_si_riattiva_ma_si_revoca(self):
+        _, p, _ = self.add("ospite", None, "--ttl-days", "1")
+        self.forza(p["id"], "SUSPENDED")
+        peer.Archivio(self.db).scadi(self.MAI)
+        self.assertEqual(self.cli("resume", p["id"])[0], 2)
+        codice, out, err = self.cli("revoke", p["id"], "--json")
+        self.assertEqual(codice, 0, err)
+        self.assertEqual(json.loads(out)["stato"], "REVOKED")
+
+    def test_revocati_e_senza_ttl_non_scadono(self):
+        _, r, _ = self.add("revocato", None, "--ttl-days", "1")
+        self.forza(r["id"], "REVOKED")
+        self.add("fisso")
+        _, a, _ = self.add("attivo", None, "--ttl-days", "1")
+        self.forza(a["id"], "ACTIVE")
+        self.assertEqual(peer.Archivio(self.db).scadi(self.MAI)["scaduti"], 1)
+        stati = {x["nome"]: x["stato"] for x in peer.Archivio(self.db).elenco()}
+        self.assertEqual(stati, {"revocato": "REVOKED", "fisso": "PENDING", "attivo": "EXPIRED"})
+
+    def test_il_comando_usa_l_orologio_vero_e_non_ne_accetta_un_altro(self):
+        self.add("ospite", None, "--ttl-days", "1")
+        codice, out, err = self.cli("expire-sweep", "--json")
+        self.assertEqual(codice, 0, err)
+        r = json.loads(out)
+        self.assertEqual((r["scaduti"], r["con_ttl"]), (0, 1))  # scade fra un giorno: adesso no
+        with self.assertRaises(SystemExit) as uscita:
+            self.cli("expire-sweep", "--now", self.MAI)
+        self.assertEqual(uscita.exception.code, 2)
 
 
 if __name__ == "__main__":
