@@ -114,6 +114,10 @@ class AvvioDns(unittest.TestCase):
         self.assertIn("--network host " + " ".join(dns.VINCOLI_UNBOUND) + " -v", unbound)  # [H44] gli stessi vincoli
         self.assertIn('  pidfile: ""', dns.unbound_conf())
         self.assertIn("--network host " + " ".join(dns.VINCOLI_PIHOLE) + " --env-file", pihole)
+        # [H44] no-new-privileges annulla le capability del file di pihole-FTL (utente pihole): senza NET_BIND_SERVICE
+        # la 53 non si apre dove le porte privilegiate partono dalla 1024 (misurato sul runner, CI 43748141024)
+        self.assertNotIn("no-new-privileges", dns.VINCOLI_PIHOLE)
+        self.assertNotIn("no-new-privileges", pihole)
         etichetta = re.search(r"(sovereignvpn-unbound:[\w.]+)", unbound).group(1)
         self.assertIn(f"docker build -q -t {etichetta} ", (ops / "install.sh").read_text())
 

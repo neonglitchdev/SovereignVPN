@@ -161,7 +161,7 @@ class Vincoli(unittest.TestCase):
     """[H44] I vincoli dei container letti da docker inspect, contro quelli dichiarati in dns."""
     CONFORME = {"ReadonlyRootfs": True, "CapDrop": ["ALL"], "CapAdd": ["CAP_SETUID", "CAP_SETGID"], "SecurityOpt": ["no-new-privileges"]}
 
-    PIHOLE = {"ReadonlyRootfs": False, "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges"],
+    PIHOLE = {"ReadonlyRootfs": False, "CapDrop": ["ALL"], "SecurityOpt": None,
               "CapAdd": ["CAP_CHOWN", "CAP_SETUID", "CAP_SETGID", "CAP_NET_BIND_SERVICE", "CAP_DAC_OVERRIDE", "CAP_FOWNER", "CAP_SETFCAP"]}
 
     def ispeziona(self, hc, pihole=None):
@@ -184,8 +184,10 @@ class Vincoli(unittest.TestCase):
     def test_il_controllo_dell_audit(self):
         with self.ispeziona(self.CONFORME, self.PIHOLE):
             self.assertEqual(audit._vincoli()[0], "PASS")
-        with self.ispeziona(self.CONFORME, {**self.PIHOLE, "SecurityOpt": []}):
-            self.assertIn("sovereignvpn-pihole: security-opt no-new-privileges", audit._vincoli()[1])
+        with self.ispeziona(self.CONFORME, {**self.PIHOLE, "CapAdd": self.PIHOLE["CapAdd"] + ["CAP_NET_RAW"]}):
+            self.assertIn("sovereignvpn-pihole: cap-add NET_RAW in piu'", audit._vincoli()[1])
+        with self.ispeziona(self.CONFORME, {**self.PIHOLE, "CapDrop": None}):
+            self.assertIn("sovereignvpn-pihole: cap-drop ALL", audit._vincoli()[1])
         with self.ispeziona({**self.CONFORME, "ReadonlyRootfs": False}, self.PIHOLE):
             stato_, evidenza, rimedio = audit._vincoli()
             self.assertEqual(stato_, "FAIL"); self.assertIn("read-only", evidenza); self.assertTrue(rimedio)

@@ -20,12 +20,14 @@ BASE_UNBOUND = "debian:12-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2
 # privilegi; misurato che risponde cosi'. Ascolta sopra la 1024 e non scrive niente (pidfile spento).
 VINCOLI_UNBOUND = ("--read-only", "--cap-drop", "ALL", "--cap-add", "SETUID", "--cap-add", "SETGID",
                    "--security-opt", "no-new-privileges")
-# Pi-hole: capability minime e mai nuovi privilegi, misurati: con queste risponde; senza SETFCAP non imposta le
-# capability di pihole-FTL e non parte; senza DAC_OVERRIDE non legge pihole.toml; NET_RAW non serve. La sola lettura
-# NON e' compatibile: all'avvio scrive in / (macvendor.db, crontab); NFR-SEC-003 la vuole «quando compatibile».
+# Pi-hole: capability minime, misurate: senza SETFCAP non imposta le capability di pihole-FTL e non parte; senza
+# DAC_OVERRIDE non legge pihole.toml; NET_RAW non serve. NON compatibili, quindi non dichiarate (NFR-SEC-003 le vuole
+# «quando compatibili»): la sola lettura (all'avvio scrive in /: macvendor.db, crontab) e no-new-privileges, perche'
+# pihole-FTL gira come utente pihole e prende NET_BIND_SERVICE dalle capability del file, che no-new-privileges
+# annulla all'exec (CapEff 0): la 53 si apre solo dove l'host abbassa ip_unprivileged_port_start (colima), non sul
+# runner ne' su un server vero. Meglio FTL senza root e senza no-new-privileges che FTL root con no-new-privileges.
 VINCOLI_PIHOLE = ("--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "SETUID", "--cap-add", "SETGID",
-                  "--cap-add", "NET_BIND_SERVICE", "--cap-add", "DAC_OVERRIDE", "--cap-add", "FOWNER", "--cap-add", "SETFCAP",
-                  "--security-opt", "no-new-privileges")
+                  "--cap-add", "NET_BIND_SERVICE", "--cap-add", "DAC_OVERRIDE", "--cap-add", "FOWNER", "--cap-add", "SETFCAP")
 
 
 def immagini():

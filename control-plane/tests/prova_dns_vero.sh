@@ -67,7 +67,12 @@ chiedi_vpn() { ns dig +timeout=3 +tries=1 @10.98.0.1 "$@"; }
 [ "$(vincoli "$PIHOLE" VINCOLI_PIHOLE)" = "[]" ] || rosso "Pi-hole acceso senza i vincoli dichiarati: $(vincoli "$PIHOLE" VINCOLI_PIHOLE)"
 for _ in $(seq 90); do chiedi_vpn isc.org A 2>/dev/null | contiene "status: NOERROR" && break; sleep 1; done
 BUONO="$(chiedi_vpn isc.org A || true)"
-grep -q "status: NOERROR" <<<"$BUONO" || { echo "$BUONO"; docker logs "$PIHOLE" 2>&1 | tail -20; rosso "dal tunnel Pi-hole non risolve isc.org"; }
+grep -q "status: NOERROR" <<<"$BUONO" || { echo "$BUONO"; docker logs "$PIHOLE" 2>&1 | tail -20; docker exec "$PIHOLE" grep -E "WARNING|CRIT|ERROR" /var/log/pihole/FTL.log | tail -10; rosso "dal tunnel Pi-hole non risolve isc.org"; }
+# [H44] la capability per la 53 si misura sul processo: dove l'host abbassa ip_unprivileged_port_start (colima) la 53 si
+# apre anche senza, e la risposta qui sopra non basta a dirlo
+CAPEFF="$(docker exec "$PIHOLE" sh -c 'grep CapEff /proc/$(pidof pihole-FTL)/status' | awk '{print $2}')"
+(( 0x${CAPEFF:-0} & 0x400 )) || rosso "pihole-FTL senza NET_BIND_SERVICE effettiva (CapEff ${CAPEFF:-assente}): la 53 si apre solo dove l'host abbassa le porte privilegiate"
+echo "OK: pihole-FTL ha NET_BIND_SERVICE effettiva (CapEff $CAPEFF)"
 ROTTO="$(chiedi_vpn dnssec-failed.org A || true)"
 grep -q "status: SERVFAIL" <<<"$ROTTO" || { echo "$ROTTO"; rosso "dnssec-failed.org attraverso Pi-hole non da' SERVFAIL"; }
 echo "OK: dal tunnel Pi-hole risolve isc.org (via Unbound) e passa il SERVFAIL di dnssec-failed.org"

@@ -204,7 +204,7 @@ def _vincoli():
         return "SKIPPED", "nessun container del DNS acceso (o Docker assente)", ""
     if male:
         return "FAIL", f"vincoli mancanti: {', '.join(male)}", "riavviare il servizio dall'unita' installata (systemctl restart sovereignvpn-unbound)"
-    return "PASS", f"{accesi} container coi vincoli dichiarati (sola lettura, capability minime, nessun nuovo privilegio)", ""
+    return "PASS", f"{accesi} container coi vincoli dichiarati (capability minime; sola lettura e nessun nuovo privilegio dove compatibili)", ""
 
 
 def esegui_controlli(cfg, db=None, wg_if=runtime.INTERFACCIA):
