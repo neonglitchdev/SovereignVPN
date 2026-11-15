@@ -13,7 +13,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 [ "$(id -u)" -eq 0 ] || { echo "prova_traffico_vero: serve root"; exit 1; }
-for c in wg nft ping; do command -v "$c" >/dev/null || { echo "prova_traffico_vero: serve $c"; exit 1; }; done
+for c in wg wg-quick nft ping; do command -v "$c" >/dev/null || { echo "prova_traffico_vero: serve $c"; exit 1; }; done
 NSS=(tinet tsrv tp1 tp2)
 D="$(mktemp -d)"
 PIDS=()
@@ -83,8 +83,25 @@ cliente() {  # ns indirizzo
   ns "$1" ping -q -c 2 -W 2 10.66.0.1 >/dev/null || rosso "$1 non raggiunge il server nel tunnel"
 }
 cliente tp1 10.66.0.2
-cliente tp2 10.66.0.3
-echo "OK: due peer WireGuard veri collegati al server (ping nel tunnel)"
+# il peer 2 si configura dal profilo esportato (FR-PEER-007, FR-WG-004): full-tunnel, la chiave privata messa sul
+# «dispositivo» al posto del segnaposto [H2]; l'endpoint resta raggiungibile perche' la rotta del ponte e' piu' specifica
+ID2="$(peer list --db "$D/r.db" --json | python3 -c 'import json,sys; print([p["id"] for p in json.load(sys.stdin) if p["nome"] == "due"][0])')"
+sed 's/^endpoint = .*/endpoint = "203.0.113.1"/' "$CONFIG" > "$D/server.toml"  # l'esempio dice vpn.example.org, qui non risolvibile
+python3 -m sovereignctl profile export "$ID2" --conferma --config "$D/server.toml" --db "$D/r.db" --server-key "$D/server.key" --out "$D/export" >/dev/null
+PROFILO="$D/export/$ID2.conf"
+grep -qx 'Endpoint = 203.0.113.1:51820' "$PROFILO" || rosso "l'endpoint del profilo non e' quello della configurazione"
+[ "$(stat -c '%a' "$PROFILO")" = "600" ] || rosso "il profilo esportato non e' 0600"
+grep -qx 'AllowedIPs = 0.0.0.0/0, ::/0' "$PROFILO" || rosso "il profilo non e' full-tunnel con l'IPv6 nel tunnel"
+if grep -qF "$(cat "$D/server.key")" "$PROFILO"; then rosso "nel profilo c'e' la chiave privata del server"; fi
+sed "s|<CHIAVE_PRIVATA_DEL_DISPOSITIVO>|$(cat "$D/tp2.key")|" "$PROFILO" > "$D/tp2.conf"
+wg-quick strip "$D/tp2.conf" > "$D/tp2.wg"
+ns tp2 ip link add wgp type wireguard
+ns tp2 wg setconf wgp "$D/tp2.wg"
+ns tp2 ip address add "$(sed -n 's/^Address = //p' "$D/tp2.conf")" dev wgp
+ns tp2 ip link set wgp up
+ns tp2 ip route add default dev wgp
+ns tp2 ping -q -c 2 -W 2 10.66.0.1 >/dev/null || rosso "tp2 col profilo esportato non raggiunge il server"
+echo "OK: due peer WireGuard veri collegati al server, il secondo col profilo esportato (full-tunnel, 0600, senza segreti)"
 
 ascolta tinet tcp 192.0.2.80 8080 "$D/sito.txt"
 ascolta tinet udp 192.0.2.53 53 "$D/dns53.txt"
