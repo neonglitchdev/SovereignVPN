@@ -143,7 +143,8 @@ def main(argv=None):
                 "controlli": controlli, "piano": preflight.piano(imp, rete) if not falliti else []}
     if not falliti:  # FR-BOOT-002: il manifest si mostra in anteprima; lo scrive solo `init` vero
         try:
-            rapporto["manifest_anteprima"] = manifest.componi(fatti, a.config)
+            from . import dns
+            rapporto["manifest_anteprima"] = manifest.componi(fatti, a.config, immagini=dns.immagini())
         except manifest.ManifestNonValido as e:
             print(f"sovereignctl: security gate: {registro.redigi(e)}", file=sys.stderr)
             return 3  # ANC-0255: security gate fallito

@@ -106,6 +106,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "Pi-hole con il server NTP acceso": ("dns.py", '"FTLCONF_ntp_ipv4_active": "false"', '"FTLCONF_ntp_ipv4_active": "true"'),
     "permessi registrati come blocco": ("liste.py", '"allowlist": 1}  # colonna `type`', '"allowlist": 0}  # colonna `type`'),
     "conflitti fra permessi e blocchi non segnalati": ("liste.py", '"conflitti": comuni[:50],', '"conflitti": [],'),
+    "manifest senza immagini": ("bootstrap.py", ", immagini=dns.immagini())", ")"),
+    "base di Unbound diversa dal Dockerfile": ("dns.py", 'BASE_UNBOUND = "debian:12-slim@sha256:734a', 'BASE_UNBOUND = "debian:12-slim@sha256:004a'),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
