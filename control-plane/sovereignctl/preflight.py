@@ -77,7 +77,8 @@ def _ascolto_53_loopback():
     for riga in uscita.splitlines():
         campi = riga.split()
         if len(campi) >= 5 and campi[4] == "127.0.0.1:53":
-            chi.add(riga.split('users:(("', 1)[1].split('"', 1)[0] if 'users:(("' in riga else "processo sconosciuto")
+            chi.add(riga.split('users:(("', 1)[1].split('"', 1)[0] if 'users:(("' in riga
+                    else "un processo non identificabile (da utente normale ss non dice chi: rifare il preflight da root)")
     return sorted(chi)
 
 

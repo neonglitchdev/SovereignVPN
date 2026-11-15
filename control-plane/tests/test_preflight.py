@@ -190,6 +190,11 @@ class Loopback53(unittest.TestCase):
             self.assertEqual(preflight._ascolto_53_loopback(), [])
         with mock.patch.object(preflight, "_comando", lambda *a, **k: (None, "")):
             self.assertIsNone(preflight._ascolto_53_loopback())
+        anonimo = "udp   UNCONN 0 0 127.0.0.1:53 0.0.0.0:*"  # da utente normale ss non mostra users:((...))
+        with mock.patch.object(preflight, "_comando", lambda *a, **k: (0, anonimo)):
+            chi = preflight._ascolto_53_loopback()
+        self.assertEqual(len(chi), 1); self.assertIn("rifare il preflight da root", chi[0])
+        self.assertEqual(self.esito(ascolto_53=chi)["esito"], "FALLITO")  # non si sa chi: non si da' per buono
 
 
 class Reinstallazione(unittest.TestCase):
