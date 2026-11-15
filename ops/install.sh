@@ -70,7 +70,7 @@ if [ "$INDIETRO" -eq 1 ]; then  # FR-OPS-005 [H29]: torna all'ultima release ins
   mv "$OPT/sovereignctl.precedente" "$OPT/sovereignctl"
   mv "$OPT/sovereignctl.scambio" "$OPT/sovereignctl.precedente"
   echo "install.sh: tornato alla release precedente; quella lasciata e' in $OPT/sovereignctl.precedente (un secondo --rollback la rimette)."
-  echo "Prossimo passo: sovereignctl reconcile --config $ETC/server.toml"
+  echo "Poi: sovereignctl reconcile --config $ETC/server.toml"
   exit 0
 fi
 
