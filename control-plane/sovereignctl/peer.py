@@ -12,10 +12,11 @@ import base64, binascii, datetime, ipaddress, json, os, sqlite3, sys, unicodedat
 from . import preflight, registro
 from .preflight import InputNonValido
 
-VERSIONE_SCHEMA_DB = 3
+VERSIONE_SCHEMA_DB = 4
 # Migrazioni esplicite (cap. 8): da versione -> istruzioni per passare alla successiva; prima si salva il registro.
 MIGRAZIONI = {1: ["ALTER TABLE peer ADD COLUMN rotte TEXT"],
-              2: ["ALTER TABLE peer ADD COLUMN politica_dns TEXT"]}  # 2 -> 3: DNS per peer, NULL = interno  # 1 -> 2: rotte per peer (FR-PEER-008), NULL = full-tunnel
+              2: ["ALTER TABLE peer ADD COLUMN politica_dns TEXT"],
+              3: ["ALTER TABLE peer ADD COLUMN quota_byte INTEGER", "ALTER TABLE peer ADD COLUMN quota_usati INTEGER"]}  # 3 -> 4: quota [H35]  # 2 -> 3: DNS per peer, NULL = interno  # 1 -> 2: rotte per peer (FR-PEER-008), NULL = full-tunnel
 DB_PREDEFINITO = "/var/lib/sovereignvpn/registro.sqlite3"   # [H12] la cartella 0700 la crea l'installer
 TTL_MASSIMO_GIORNI = 365                                    # [H10] ANC-0240 vuole un massimo configurabile
 STATI = ("PENDING", "ACTIVE", "SUSPENDED", "EXPIRED", "REVOKED", "ERROR")   # FR-PEER-003, per intero
@@ -56,6 +57,29 @@ def valida_chiave(chiave):
     if len(grezza) != 32 or base64.b64encode(grezza).decode() != chiave:
         raise InputNonValido("--public-key: una chiave pubblica WireGuard e' di 32 byte in base64 (44 caratteri)")
     return chiave
+
+
+def quote(db, vive=None, salva=False):
+    """[H35] (indirizzo, byte, usati) dei peer non revocati con quota; usati = max(registro, tabella viva). Con salva,
+    i byte usati si scrivono nel registro: cosi' sopravvivono al reconcile e al riavvio."""
+    if not os.path.exists(db):
+        return []
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        righe = con.execute("SELECT indirizzo, quota_byte, quota_usati FROM peer WHERE quota_byte IS NOT NULL AND stato != 'REVOKED' ORDER BY indirizzo").fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        con.close()
+    vive = (vive() if callable(vive) else vive) if righe and vive else {}  # nft solo se c'e' una quota
+    esito = [(ind, tot, max(usati or 0, vive.get(ind, 0))) for ind, tot, usati in righe]
+    if salva and esito:
+        con = sqlite3.connect(db)
+        try:
+            con.executemany("UPDATE peer SET quota_usati = ? WHERE indirizzo = ?", [(u, i) for i, _, u in esito]); con.commit()
+        finally:
+            con.close()
+    return esito
 
 
 def dns_liberi(db):
@@ -107,7 +131,7 @@ class Archivio:
                     chiave_pubblica TEXT NOT NULL UNIQUE, indirizzo TEXT NOT NULL UNIQUE,
                     stato TEXT NOT NULL CHECK (stato IN ('PENDING','ACTIVE','SUSPENDED','EXPIRED','REVOKED','ERROR')),
                     saga TEXT NOT NULL CHECK (saga IN ('PENDING_APPLY','APPLIED','ROLLBACK_REQUIRED','ERROR')),
-                    creato TEXT NOT NULL, scade TEXT, revocato TEXT, sospeso TEXT, rotte TEXT, politica_dns TEXT)""")
+                    creato TEXT NOT NULL, scade TEXT, revocato TEXT, sospeso TEXT, rotte TEXT, politica_dns TEXT, quota_byte INTEGER, quota_usati INTEGER)""")
                 c.execute("CREATE TABLE id_usati (id TEXT PRIMARY KEY)")  # ANC-0237: un UUID non si riusa mai
                 c.execute("CREATE TABLE audit (n INTEGER PRIMARY KEY AUTOINCREMENT, evento TEXT NOT NULL)")
             elif v[0] != VERSIONE_SCHEMA_DB:
@@ -171,10 +195,12 @@ class Archivio:
             raise InputNonValido("--routes: da 1 a 32 reti")
         return sorted(set(rotte))
 
-    def aggiungi(self, nome, chiave, rete, ttl_giorni=None, rotte=None, politica_dns=None):
+    def aggiungi(self, nome, chiave, rete, ttl_giorni=None, rotte=None, politica_dns=None, quota_mb=None):
         nome, nome_chiave = normalizza_nome(nome)
         chiave = valida_chiave(chiave)
         rotte = self.valida_rotte(rotte, rete)
+        if quota_mb is not None and not 1 <= quota_mb <= 10_000_000:
+            raise InputNonValido("--quota-mb: da 1 a 10.000.000 MB (FR-PEER-008) [H35]")
         if politica_dns not in (None, "interno", "libero"):
             raise InputNonValido("--dns-policy: interno (di base, solo il resolver interno) o libero (anche DNS esterni) [H34]")
         if ttl_giorni is not None and not 1 <= ttl_giorni <= TTL_MASSIMO_GIORNI:
@@ -204,10 +230,11 @@ class Archivio:
             adesso = datetime.datetime.now(datetime.timezone.utc)
             scade = None if ttl_giorni is None else (adesso + datetime.timedelta(days=ttl_giorni)).isoformat(timespec="seconds").replace("+00:00", "Z")
             c.execute("INSERT INTO id_usati VALUES (?)", (nuovo,))
-            c.execute("INSERT INTO peer (id, nome, nome_chiave, chiave_pubblica, indirizzo, stato, saga, creato, scade, rotte, politica_dns) "
-                      "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            c.execute("INSERT INTO peer (id, nome, nome_chiave, chiave_pubblica, indirizzo, stato, saga, creato, scade, rotte, politica_dns, quota_byte) "
+                      "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                       (nuovo, nome, nome_chiave, chiave, libero, "PENDING", "PENDING_APPLY", ora(), scade,
-                       json.dumps(rotte) if rotte else None, politica_dns if politica_dns == "libero" else None))
+                       json.dumps(rotte) if rotte else None, politica_dns if politica_dns == "libero" else None,
+                       quota_mb * 1024 * 1024 if quota_mb else None))
             self.audit(c, "peer.add", "success", nuovo)
         return self.mostra(nuovo)
 
@@ -282,7 +309,8 @@ def esegui_firewall(a):
         ruleset = firewall.componi(cfg.get("subnet") or preflight.CANDIDATE_VPN[0], a.wg_interface, cfg.get("wg_port", 51820),
                                    a.wan_interface or cfg.get("wan_interface"), cfg.get("admin_port", 8443),
                                    cfg["ssh_port"], cfg["admin_ssh_sources"], cfg.get("mtu", 1420),
-                                   cfg.get("dns_block_dot", True), limiti_rotte(a.db), dns_liberi(a.db))
+                                   cfg.get("dns_block_dot", True), limiti_rotte(a.db), dns_liberi(a.db),
+                                   quote(a.db, firewall.quote_usate, salva=True))
         if a.azione == "plan":  # solo testo: niente nft, niente host toccato
             print(json.dumps({"ruleset": ruleset, "mutazioni_eseguite": 0}, ensure_ascii=False, indent=1) if a.json else ruleset, end="" if not a.json else "\n")
             return 0
@@ -335,6 +363,7 @@ def aggiungi_parser(sotto, classe):
         if nome == "add":
             s.add_argument("--name", required=True); s.add_argument("--public-key", required=True)
             s.add_argument("--ttl-days", type=int); s.add_argument("--config")
+            s.add_argument("--quota-mb", type=int, help="traffico massimo del peer in MB; oltre, fermo (FR-PEER-008)")
             s.add_argument("--dns-policy", choices=("interno", "libero"), help="interno (di base) o libero: DNS esterni ammessi per questo peer (FR-PEER-008)")
             s.add_argument("--routes", help="split tunnel: CIDR,CIDR verso cui il peer esce (FR-PEER-008); senza, full-tunnel")
         if nome in ("show", "suspend", "resume", "revoke"):
@@ -351,7 +380,7 @@ def esegui(a):
             from . import configurazione
             cfg = configurazione.leggi(a.config) if a.config else {}
             rete = cfg.get("subnet") or preflight.CANDIDATE_VPN[0]  # [H6] senza configurazione, la prima candidata
-            esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days, a.routes, a.dns_policy)
+            esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days, a.routes, a.dns_policy, a.quota_mb)
         elif a.azione == "reconcile":
             from . import runtime
             try:

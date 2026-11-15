@@ -27,7 +27,7 @@ def _rete(nome, v, versione=None):
     return r
 
 
-def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ssh_port=22, ssh_sorgenti=None, mtu=1420, blocca_dot=True, limiti=(), dns_liberi=()):
+def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ssh_port=22, ssh_sorgenti=None, mtu=1420, blocca_dot=True, limiti=(), dns_liberi=(), quote=()):
     for nome, v in (("--wg-interface", wg_if), ("--wan-interface", wan_if)):
         if not isinstance(v, str) or not INTERFACCIA.match(v):
             raise InputNonValido(f"{nome}: nome di interfaccia Linux di 1-15 caratteri (ANC-0174: la WAN si dichiara, mai eth0 presunta)")
@@ -39,7 +39,9 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
     sorgenti = [_rete(f"admin_ssh_sources[{i}]", s) for i, s in enumerate(ssh_sorgenti)]
     v4 = ", ".join(str(s) for s in sorgenti if s.version == 4)
     v6 = ", ".join(str(s) for s in sorgenti if s.version == 6)
-    r = [f"table inet {TABELLA}", f"delete table inet {TABELLA}", f"table inet {TABELLA} {{",
+    # FR-PEER-008 [H35]: un oggetto quota per peer, coi byte gia' usati (il reconcile sostituisce la tabella ogni minuto)
+    oggetti = [f"  quota {_nome_quota(ind)} {{ over {int(tot)} bytes used {int(usati or 0)} bytes }}" for ind, tot, usati in quote]
+    r = [f"table inet {TABELLA}", f"delete table inet {TABELLA}", f"table inet {TABELLA} {{", *oggetti,
          "  chain input {",
          "    type filter hook input priority filter; policy drop;",
          '    iif "lo" accept',
@@ -64,6 +66,9 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
           f'    iifname "{wg_if}" oifname "{wan_if}" tcp flags syn / syn,rst tcp option maxseg size > {int(mtu) - 40} '
           f"tcp option maxseg size set {int(mtu) - 40}",
           f'    iifname "{wan_if}" oifname "{wg_if}" tcp flags syn / syn,rst tcp option maxseg size set rt mtu',
+          # la quota conta i due versi e sta prima di ct established: dopo, i pacchetti delle connessioni aperte non passano di qui
+          *[x for ind, _, _ in quote for x in (f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} quota name "{_nome_quota(ind)}" drop',
+                                               f'    oifname "{wg_if}" ip daddr {ipaddress.ip_address(ind)} quota name "{_nome_quota(ind)}" drop')],
           "    ct state established,related accept",
           "    ct state invalid drop",
           f'    iifname "{wg_if}" oifname "{wg_if}" drop',
@@ -102,6 +107,26 @@ def applica(ruleset):
     if codice != 0:
         raise RuntimeError(f"nft -f non riuscito, il batch e' atomico: vale la tabella di prima ({registro.redigi(errore.strip())[:200]})")
     return leggi()
+
+
+def _nome_quota(ind):
+    return "q_" + str(ipaddress.ip_address(ind)).replace(".", "_")
+
+
+def quote_usate():
+    """{indirizzo: byte usati} dalle quote della tabella viva, prima di sostituirla; tabella assente = {}."""
+    try:
+        codice, uscita, _ = _nft("-j", "list", "table", "inet", TABELLA)
+    except OSError:
+        return {}  # nft assente: nessuna tabella viva
+    if codice != 0:
+        return {}
+    usate = {}
+    for o in json.loads(uscita)["nftables"]:
+        q = o.get("quota")
+        if q and str(q.get("name", "")).startswith("q_"):
+            usate[q["name"][2:].replace("_", ".")] = int(q.get("used", 0))
+    return usate
 
 
 def leggi():

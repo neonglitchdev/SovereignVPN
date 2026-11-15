@@ -199,6 +199,22 @@ arriva "$D/dns5353.txt" controllo-6c || rosso "controllo: la 5353 non arriva, la
 if grep -qF dns-di-nuovo-interno "$D/dns53.txt"; then rosso "senza DNS libero il peer 1 raggiunge ancora il DNS esterno"; fi
 echo "OK: DNS policy per peer, libero raggiunge il DNS esterno, interno no (la 5353 accanto passa)"
 
+# 6d. quota per peer (FR-PEER-008, H35): 100 kB al peer 1 nel registro; la risposta da 300000 byte si ferma; dopo un
+#     altro firewall apply (come il reconcile di ogni minuto) una connessione piccola resta ferma: la quota non riparte
+#     da zero; tolta la quota il peer torna a passare
+quota_peer1() { python3 -c 'import sqlite3,sys; d=sqlite3.connect(sys.argv[1]); d.execute(sys.argv[2]); d.commit()' "$D/r.db" "$1"; }
+fw_vero() { ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interface ens3 --db "$D/r.db" >/dev/null; }
+quota_peer1 "UPDATE peer SET quota_byte = 100000 WHERE nome = 'uno'"
+fw_vero
+ascolta tinet tcp 192.0.2.80 8082 "$D/quota.txt" 300000
+if ns tp1 python3 tests/rete_finta.py scarica 192.0.2.80 8082 300000; then rosso "oltre la quota di 100 kB la risposta da 300000 byte arriva"; fi
+fw_vero
+if passa tp1 192.0.2.80 8080; then rosso "dopo un altro firewall apply la quota e' ripartita da zero"; fi
+quota_peer1 "UPDATE peer SET quota_byte = NULL, quota_usati = NULL WHERE nome = 'uno'"
+fw_vero
+passa tp1 192.0.2.80 8080 || rosso "tolta la quota il peer 1 non passa piu'"
+echo "OK: quota per peer, oltre 100 kB il peer si ferma, un firewall apply non la azzera, tolta la quota passa"
+
 # 7. revoca: il peer revocato non passa piu', l'altro si'
 peer revoke --db "$D/r.db" "$ID1" >/dev/null
 ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" >/dev/null

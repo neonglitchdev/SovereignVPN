@@ -294,5 +294,14 @@ class PoliticaDns(Base):
         with self.assertRaises(peer.InputNonValido):  # anche chi chiama l'Archivio senza la CLI
             peer.Archivio(self.db).aggiungi("diretto", chiave(), "10.66.0.0/24", politica_dns="tutto")
 
+
+class Quota(Base):
+    def test_byte_usati_presi_al_massimo_e_salvati(self):
+        _, p, _ = self.add("limitato", None, "--quota-mb", "1")
+        self.assertEqual(peer.quote(self.db), [(p["indirizzo"], 1048576, 0)])
+        self.assertEqual(peer.quote(self.db, {p["indirizzo"]: 500}, salva=True), [(p["indirizzo"], 1048576, 500)])
+        self.assertEqual(peer.quote(self.db, {p["indirizzo"]: 100}), [(p["indirizzo"], 1048576, 500)])  # mai indietro
+        self.assertEqual(self.add("troppo", None, "--quota-mb", "0")[0], 2)
+
 if __name__ == "__main__":
     unittest.main()
