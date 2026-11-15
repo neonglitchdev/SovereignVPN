@@ -63,6 +63,11 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "status non conta le regole del firewall": ("stato.py", 'ok = t["verificato"] and dichiarate in (None, t["regole"])', 'ok = t["verificato"]'),
     "status senza security gate sulla chiave": ("stato.py", "    if esposta:\n        return 3\n", ""),
     "status non guarda la porta": ("stato.py", "    elif ascolto != porta:", "    elif False:"),
+    "il backup tralascia la chiave del server": ("backup.py", '                           ("etc/sovereignvpn/wg-server.key", runtime.CHIAVE_SERVER),\n', ""),
+    "backup leggibile da altri": ("backup.py", "        os.chmod(tmp, 0o600)", "        os.chmod(tmp, 0o644)"),
+    "manifest del backup senza checksum": ("backup.py", '"sha256": hashlib.sha256(b).hexdigest()', '"sha256": ""'),
+    "backup verso un destinatario qualunque": ("backup.py", 'if not configurazione.DESTINATARIO_AGE.match(destinatario or ""):', "if not destinatario:"),
+    "registro nel backup col flag WAL": ("backup.py", "    dati[18] = dati[19] = 1", "    pass"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }

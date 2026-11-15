@@ -47,6 +47,10 @@ jobs:
           echo "OK: unita' installata, abilitata, verificata; quella senza ExecStart e' rifiutata"
       - name: init --apply vero in un network namespace (sei passi, idempotente, chiave guasta, WAN rifiutata, riavvio)
         run: sudo bash control-plane/tests/prova_init_vero.sh
+      - name: Backup vero con age (decifrato con la chiave giusta, non con un'altra, non se manomesso)
+        run: |
+          sudo apt-get install -y -qq age >/dev/null
+          sudo bash control-plane/tests/prova_backup_vero.sh
       - name: Traffico vero fra due peer WireGuard e una internet finta (isolamento, DNS, SSH, amministrazione, revoca)
         run: sudo bash control-plane/tests/prova_traffico_vero.sh
       - name: Banco dei mutanti (guasti presi, innocui vivi)

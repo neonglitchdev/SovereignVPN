@@ -12,10 +12,12 @@ VERSIONE_SCHEMA = 1
 NOME_HOST = re.compile(r"^(?=.{1,253}$)(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*$", re.I)
 INTERFACCIA = re.compile(r"^[A-Za-z0-9_.-]{1,15}$")       # IFNAMSIZ di Linux: 15 caratteri
 HASH_TOKEN = re.compile(r"^(scrypt|pbkdf2_sha256|argon2id)\$\S{20,}$")
+DESTINATARIO_AGE = re.compile(r"^age1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{58}$")
 OPZIONALI = ("tor", "multihop", "wstunnel", "udp2raw")      # fuori dalla 1.0 finche' non hanno un gate (ANC-0110)
 SEGRETI = re.compile(r"token|password|secret|private|psk", re.I)
 CAMPI = {"schema_version", "endpoint", "wg_port", "admin_port", "subnet", "subnet6", "dns", "mtu", "wan_interface",
-         "tls_domain", "firewall_profile", "admin_token_hash", "flags", "admin_ssh_sources", "ssh_port"}
+         "tls_domain", "firewall_profile", "admin_token_hash", "flags", "admin_ssh_sources", "ssh_port",
+         "backup_recipient"}
 
 
 def _errore(campo, motivo):
@@ -78,6 +80,10 @@ def valida(dati):
         if not isinstance(dati["tls_domain"], str) or not NOME_HOST.match(dati["tls_domain"]):
             raise _errore("tls_domain", "deve essere un nome host valido")
         imp["tls_domain"] = dati["tls_domain"].lower()
+    if "backup_recipient" in dati:  # [H20] una chiave PUBBLICA age: decifrare si fa altrove, mai sul server
+        if not isinstance(dati["backup_recipient"], str) or not DESTINATARIO_AGE.match(dati["backup_recipient"]):
+            raise _errore("backup_recipient", "deve essere una chiave pubblica age (age1 seguito da 58 caratteri bech32)")
+        imp["backup_recipient"] = dati["backup_recipient"]
     profilo = dati.get("firewall_profile", "nftables")
     if profilo != "nftables":
         raise _errore("firewall_profile", "nella 1.0 vale solo «nftables» (ADR-005, ANC-0372)")
