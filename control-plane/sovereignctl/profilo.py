@@ -9,13 +9,26 @@ Il file si scrive 0600 in una cartella 0700, solo su richiesta e con --conferma;
 mai il contenuto, e nell'audit solo l'evento. Un peer revocato o scaduto non si esporta: serve un provisioning nuovo.
 PersistentKeepalive e' spento salvo --keepalive (FR-WG-005).
 """
-import hashlib, ipaddress, json, os, sys
+import hashlib, io, ipaddress, json, os, sys, tarfile
 
-from . import VERSIONE, configurazione, manifest, peer, registro, runtime
+from . import VERSIONE, backup, configurazione, manifest, peer, registro, runtime
 from .preflight import InputNonValido
 
 CARTELLA = "/var/lib/sovereignvpn/export"
 SEGNAPOSTO = "<CHIAVE_PRIVATA_DEL_DISPOSITIVO>"
+LEGGIMI = """SovereignVPN {versione} — bundle di onboarding del peer {id} (FR-PEER-009) [H45]
+Contenuto: {conf} (il profilo), manifest.json (sha256 di ogni file) e questo file. Nessun segreto, nessun altro peer.
+
+1. Prima di importare: al posto di {segnaposto} va la chiave privata nata su questo dispositivo [H2].
+2. Importare {conf} col client WireGuard ufficiale: Linux `wg-quick up`; macOS, iOS, Android, Windows «Importa da file».
+3. Verificare: il tunnel si collega, il DNS e' quello del profilo; nel full-tunnel un sito IPv6 fallisce subito [H38].
+
+Limiti, dichiarati (FR-APPLE-003, FR-APPLE-004):
+- Il profilo non e' un kill switch di sistema: a tunnel spento il dispositivo esce dalla sua rete.
+- «Connect On Demand» delle app Apple non e' Always-On VPN: Always-On vuole IKEv2 su dispositivi supervisionati via
+  MDM, che la 1.0 non fornisce.
+- La protezione dipende dal client, dalla versione del sistema e dalle sue impostazioni: il server non la impone.
+"""
 
 
 def componi(p, cfg, chiave_server_pubblica, keepalive=None):
@@ -48,7 +61,23 @@ def componi(p, cfg, chiave_server_pubblica, keepalive=None):
     return "\n".join(righe) + "\n"
 
 
-def esporta(archivio, id_peer, cfg, chiave_server, keepalive=None, cartella=None):
+def _bundle(p, testo):
+    """FR-PEER-009 [H45]: tar.gz col solo profilo di questo peer, le istruzioni e il manifest con gli sha256."""
+    conf = f"{p['id']}.conf"
+    file = {conf: testo.encode(), "LEGGIMI.txt": LEGGIMI.format(versione=VERSIONE, id=p["id"], conf=conf, segnaposto=SEGNAPOSTO).encode()}
+    m = {"peer": p["id"], "sovereignvpn": VERSIONE, "segreti": False,
+         "file": [{"nome": n, "sha256": hashlib.sha256(b).hexdigest(), "byte": len(b)} for n, b in sorted(file.items())]}
+    file["manifest.json"] = (json.dumps(m, ensure_ascii=False, indent=1) + "\n").encode()
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for nome, dati in sorted(file.items()):
+            info = tarfile.TarInfo(nome)
+            info.size, info.mode = len(dati), 0o600
+            tar.addfile(info, io.BytesIO(dati))
+    return buf.getvalue(), len(file)
+
+
+def esporta(archivio, id_peer, cfg, chiave_server, keepalive=None, cartella=None, bundle=False):
     cartella = cartella or CARTELLA
     p = archivio.mostra(id_peer)
     if p["stato"] in ("REVOKED", "EXPIRED"):
@@ -56,12 +85,18 @@ def esporta(archivio, id_peer, cfg, chiave_server, keepalive=None, cartella=None
     testo = componi(p, cfg, runtime.chiave_pubblica(chiave_server), keepalive)
     os.makedirs(cartella, mode=0o700, exist_ok=True)
     os.chmod(cartella, 0o700)
-    percorso = os.path.join(cartella, f"{p['id']}.conf")  # l'UUID, mai il nome, come percorso (ANC-0238)
-    manifest.scrivi_testo(percorso, testo, 0o600)
+    if bundle:
+        dati, n = _bundle(p, testo)
+        percorso = os.path.join(cartella, f"{p['id']}.tar.gz")
+        backup._scrivi(percorso, dati)  # atomico, 0600
+        somma = hashlib.sha256(dati).hexdigest()
+    else:
+        percorso, n = os.path.join(cartella, f"{p['id']}.conf"), 1  # l'UUID, mai il nome, come percorso (ANC-0238)
+        manifest.scrivi_testo(percorso, testo, 0o600)
+        somma = hashlib.sha256(testo.encode()).hexdigest()
     with archivio.transazione() as c:
         archivio.audit(c, "profile.export", "success", p["id"])
-    return {"peer": p["id"], "percorso": percorso, "checksum": "sha256:" + hashlib.sha256(testo.encode()).hexdigest(),
-            "segreti": False, "keepalive": keepalive}
+    return {"peer": p["id"], "percorso": percorso, "checksum": "sha256:" + somma, "segreti": False, "keepalive": keepalive, "file": n}
 
 
 def esegui(a):
@@ -72,7 +107,7 @@ def esegui(a):
         cfg = configurazione.leggi(a.config)
         if not os.path.exists(a.db):
             raise RuntimeError(f"registro dei peer assente in {a.db}")
-        esito = esporta(peer.Archivio(a.db), a.id, cfg, a.server_key, a.keepalive, a.out)
+        esito = esporta(peer.Archivio(a.db), a.id, cfg, a.server_key, a.keepalive, a.out, a.bundle)
     except InputNonValido as e:
         print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
         return 2

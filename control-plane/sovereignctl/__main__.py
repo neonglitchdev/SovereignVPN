@@ -70,6 +70,7 @@ def main(argv=None):
     ex.add_argument("id", help="UUID del peer")
     ex.add_argument("--conferma", action="store_true", help="autorizzazione esplicita all'export (FR-PEER-007)")
     ex.add_argument("--keepalive", type=int, help="PersistentKeepalive in secondi; senza, spento (FR-WG-005)")
+    ex.add_argument("--bundle", action="store_true", help="tar.gz di onboarding: profilo, istruzioni e manifest (FR-PEER-009)")
     ex.add_argument("--config", default="/etc/sovereignvpn/server.toml")
     ex.add_argument("--db", default=peer.DB_PREDEFINITO)
     ex.add_argument("--server-key", default="/etc/sovereignvpn/wg-server.key")
