@@ -193,11 +193,28 @@ class Installer(unittest.TestCase):
                 self.assertEqual(codice, 2)
                 self.assertIn(voce, err)
 
+    def test_lucchetto_orfano_si_toglie_quello_vivo_no(self):
+        lucchetto = os.path.join(self.radice, "opt", ".sovereignvpn-install.lock")
+        morto = subprocess.Popen(["true"]); morto.wait()  # un PID che non c'e' piu'
+        os.makedirs(lucchetto); pathlib.Path(lucchetto, "pid").write_text(f"{morto.pid}\n")
+        codice, _, err = lancia("--radice", self.radice)
+        self.assertEqual(codice, 0, err)
+        self.assertIn("lucchetto orfano tolto", err)
+        self.assertFalse(os.path.exists(lucchetto))  # e quello nuovo, preso e lasciato, non resta
+        self.assertFalse([n for n in os.listdir(os.path.join(self.radice, "opt")) if ".orfano." in n])
+        os.makedirs(lucchetto); pathlib.Path(lucchetto, "pid").write_text(f"{os.getpid()}\n")  # vivo: questo processo
+        prima = albero(self.radice)
+        codice, _, err = lancia("--radice", self.radice, "--uninstall")
+        self.assertEqual(codice, 1)
+        self.assertIn("un'altra installazione", err)
+        self.assertEqual(albero(self.radice), prima)
+
     def test_lucchetto_ferma_la_seconda_installazione(self):
         os.makedirs(os.path.join(self.radice, "opt", ".sovereignvpn-install.lock"))
         codice, _, err = lancia("--radice", self.radice)
         self.assertEqual(codice, 1)
         self.assertIn("un'altra installazione", err)
+        self.assertIn("senza PID", err)  # di una versione di prima: si dice come toglierlo, non si toglie
         self.assertTrue(os.path.isdir(os.path.join(self.radice, "opt", ".sovereignvpn-install.lock")))  # non e' suo: resta
 
 

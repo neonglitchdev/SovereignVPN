@@ -8,7 +8,7 @@ from sovereignctl import __main__ as cli, preflight
 BUONI = {"os": ("debian", "12"), "architettura": "x86_64", "kernel": "6.1.0-26-amd64", "docker": "27.3.1",
          "compose": "2.29.7", "wireguard": True, "disco_libero": 40 * 1024 ** 3, "ntp": True,
          "porte_libere": {"udp/51820": True, "tcp/8443": True}, "reti_host": ["192.168.1.0/24", "172.17.0.0/16"],
-         "installato": False, "porta_di_wg0": None}
+         "installato": False, "porta_di_wg0": None, "ascolto_53": []}
 
 
 def esegui(argv, fatti=None):
@@ -30,7 +30,7 @@ class Preflight(unittest.TestCase):
     def test_host_conforme_esce_0_col_piano(self):
         codice, out, _ = esegui(["init", "--check"], BUONI)
         self.assertEqual(codice, 0)
-        self.assertIn("Controlli eseguiti: 11 su 11; superati: 11; falliti: 0", out)
+        self.assertIn("Controlli eseguiti: 12 su 12; superati: 12; falliti: 0", out)
         self.assertIn("Piano (da approvare", out)
         self.assertIn("10.66.0.0/24", out)
 
@@ -160,6 +160,41 @@ class DryRun(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 preflight.raccogli({})
         self.assertEqual(tentativi, ["/tmp/sovereign-prova-negativa"])
+
+
+class Loopback53(unittest.TestCase):
+    """[H49] 127.0.0.1:53 deve essere libera, o del Pi-hole di questa installazione: un altro resolver fa cadere Pi-hole."""
+    def esito(self, **cambi):
+        return {c["id"]: c for c in preflight.valuta(con(**cambi), preflight.leggi_impostazioni())[0]}["dns-loopback"]
+
+    def test_libera_o_nostra(self):
+        self.assertEqual(self.esito(ascolto_53=[])["esito"], "OK")
+        self.assertEqual(self.esito(ascolto_53=["pihole-FTL"], installato=True)["esito"], "OK")
+
+    def test_occupata_da_altri_o_non_verificabile(self):
+        for cambi in ({"ascolto_53": ["dnsmasq"]}, {"ascolto_53": ["pihole-FTL"], "installato": False},
+                      {"ascolto_53": ["dnsmasq", "pihole-FTL"], "installato": True}, {"ascolto_53": None}):
+            with self.subTest(**cambi):
+                c = self.esito(**cambi)
+                self.assertEqual(c["esito"], "FALLITO"); self.assertIn("except-interface=lo", c["rimedio"])
+        self.assertIn("dnsmasq", self.esito(ascolto_53=["dnsmasq"])["dettaglio"])
+
+    def test_si_legge_da_ss(self):
+        ss = ("udp   UNCONN 0 0 127.0.0.53%lo:53 0.0.0.0:* users:((\"systemd-resolve\",pid=1,fd=13))\n"
+              "udp   UNCONN 0 0 127.0.0.1:53 0.0.0.0:* users:((\"dnsmasq\",pid=2,fd=6))\n"
+              "tcp   LISTEN 0 32 127.0.0.1:53 0.0.0.0:* users:((\"dnsmasq\",pid=2,fd=7))\n"
+              "udp   UNCONN 0 0 10.66.0.1:53 0.0.0.0:* users:((\"pihole-FTL\",pid=3,fd=21))")
+        with mock.patch.object(preflight, "_comando", lambda *a, **k: (0, ss)):
+            self.assertEqual(preflight._ascolto_53_loopback(), ["dnsmasq"])  # resolved su 127.0.0.53 non conta
+        with mock.patch.object(preflight, "_comando", lambda *a, **k: (0, ss.replace("127.0.0.1:53", "127.0.0.1:5353"))):
+            self.assertEqual(preflight._ascolto_53_loopback(), [])
+        with mock.patch.object(preflight, "_comando", lambda *a, **k: (None, "")):
+            self.assertIsNone(preflight._ascolto_53_loopback())
+        anonimo = "udp   UNCONN 0 0 127.0.0.1:53 0.0.0.0:*"  # da utente normale ss non mostra users:((...))
+        with mock.patch.object(preflight, "_comando", lambda *a, **k: (0, anonimo)):
+            chi = preflight._ascolto_53_loopback()
+        self.assertEqual(len(chi), 1); self.assertIn("rifare il preflight da root", chi[0])
+        self.assertEqual(self.esito(ascolto_53=chi)["esito"], "FALLITO")  # non si sa chi: non si da' per buono
 
 
 class Reinstallazione(unittest.TestCase):

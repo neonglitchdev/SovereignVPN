@@ -19,7 +19,28 @@ ELIMINA=0
 CONFERMA=0
 RADICE=""
 LUCCHETTO=""
-pulizia() { [ -n "$LUCCHETTO" ] && rmdir "$LUCCHETTO" 2>/dev/null || true; }
+pulizia() { [ -n "$LUCCHETTO" ] && { rm -f "$LUCCHETTO/pid"; rmdir "$LUCCHETTO"; } 2>/dev/null || true; }
+# Il lucchetto porta il PID di chi lo tiene. Se quel processo non c'e' piu' (installazione uccisa o Mac/server riavviato)
+# e' orfano: si toglie con un mv atomico e si ricontrolla il PID, cosi' due recuperi insieme non rubano un lucchetto
+# vivo. Con un PID vivo, o senza PID (lucchetto di una versione di prima), si rifiuta e si dice come toglierlo a mano.
+prendi_lucchetto() {
+  local l="$RADICE/opt/.sovereignvpn-install.lock" vecchio
+  mkdir -p "$RADICE/opt"
+  if ! mkdir "$l" 2>/dev/null; then
+    vecchio="$(cat "$l/pid" 2>/dev/null || true)"
+    if [[ "$vecchio" =~ ^[0-9]+$ ]] && ! ps -p "$vecchio" >/dev/null 2>&1 && mv "$l" "$l.orfano.$$" 2>/dev/null; then
+      if [ "$(cat "$l.orfano.$$/pid" 2>/dev/null)" != "$vecchio" ]; then mv "$l.orfano.$$" "$l"; echo "install.sh: un'altra installazione e' in corso (lucchetto presente)" >&2; exit 1; fi
+      rm -rf "$l.orfano.$$"
+      echo "install.sh: lucchetto orfano tolto (il processo $vecchio che lo teneva non c'e' piu')" >&2
+      mkdir "$l" 2>/dev/null || { echo "install.sh: un'altra installazione e' in corso (lucchetto presente)" >&2; exit 1; }
+    else
+      echo "install.sh: un'altra installazione e' in corso (lucchetto presente$([ -z "$vecchio" ] && echo "; senza PID: se nessuna installazione gira, toglierlo a mano con rm -r $l"))" >&2
+      exit 1
+    fi
+  fi
+  LUCCHETTO="$l"
+  echo "$$" > "$l/pid"
+}
 trap pulizia EXIT
 trap 'echo "install.sh: errore runtime alla riga $LINENO; nessun valore stampato, nessun passo successivo eseguito" >&2' ERR
 invalido() { echo "install.sh: input non valido: $1" >&2; exit 2; }
@@ -78,8 +99,7 @@ if [ "$INDIETRO" -eq 1 ]; then  # FR-OPS-005 [H29]: torna all'ultima release ins
     echo "install.sh --rollback --dry-run: nessuna mutazione. Piano: scambiare $OPT/sovereignctl con $OPT/sovereignctl.precedente"
     exit 0
   fi
-  mkdir "$RADICE/opt/.sovereignvpn-install.lock" 2>/dev/null || { echo "install.sh: un'altra installazione e' in corso (lucchetto presente)" >&2; exit 1; }
-  LUCCHETTO="$RADICE/opt/.sovereignvpn-install.lock"
+  prendi_lucchetto
   rm -rf "$OPT/sovereignctl.scambio"
   mv "$OPT/sovereignctl" "$OPT/sovereignctl.scambio"  # shortcut: per un istante la cartella manca; mv --exchange vuole coreutils 9.5
   mv "$OPT/sovereignctl.precedente" "$OPT/sovereignctl"
@@ -107,9 +127,7 @@ if [ "$VIA" -eq 1 ]; then  # FR-OPS-007 [H40]: solo cio' che il prodotto ha crea
     n=1; for p in "${PIANO[@]}"; do echo "  $n. $p"; n=$((n + 1)); done
     exit 0
   fi
-  mkdir -p "$RADICE/opt"
-  LUCCHETTO="$RADICE/opt/.sovereignvpn-install.lock"
-  mkdir "$LUCCHETTO" 2>/dev/null || { LUCCHETTO=""; echo "install.sh: un'altra installazione e' in corso (lucchetto presente)" >&2; exit 1; }
+  prendi_lucchetto
   VERO=0
   if [ -z "$RADICE" ]; then VERO=1; fi
   if [ "$VERO" -eq 1 ] && [ -d /run/systemd/system ]; then
@@ -158,9 +176,7 @@ if [ "$DRY" -eq 1 ]; then
   exit 0
 fi
 
-mkdir -p "$RADICE/opt"
-LUCCHETTO="$RADICE/opt/.sovereignvpn-install.lock"
-mkdir "$LUCCHETTO" 2>/dev/null || { LUCCHETTO=""; echo "install.sh: un'altra installazione e' in corso (lucchetto presente)" >&2; exit 1; }
+prendi_lucchetto
 
 # 1. control plane: copia accanto, poi rinomina (mai una cartella a meta')
 install -d -m 0755 "$OPT"
