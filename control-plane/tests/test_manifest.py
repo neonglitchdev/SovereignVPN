@@ -28,7 +28,7 @@ class Componi(unittest.TestCase):
         with self.assertRaises(manifest.ManifestNonValido):
             manifest.componi(BUONI, immagini=[{"nome": "https://utente:password@registro.example/wg", "digest": DIGEST}])
         with self.assertRaises(manifest.ManifestNonValido):
-            manifest.componi(con(kernel="6.1 token=abc123segreto"))
+            manifest.componi(con(kernel="6.1 token=abc123segreto"))  # gitleaks:allow — segreto finto di prova (T-025)
 
 
 class Scrivi(unittest.TestCase):
