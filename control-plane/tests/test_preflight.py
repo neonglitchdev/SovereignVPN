@@ -1,13 +1,14 @@
 """Prove di `sovereignctl init --check` (FR-BOOT-001/003/004, T-003, T-004, codici di uscita ANC-0255).
 Uso, da control-plane/: python3 -m unittest discover -s tests"""
-import builtins, contextlib, io, os, shutil, subprocess, unittest
+import builtins, contextlib, io, json, os, shutil, subprocess, unittest
 from unittest import mock
 
 from sovereignctl import __main__ as cli, preflight
 
 BUONI = {"os": ("debian", "12"), "architettura": "x86_64", "kernel": "6.1.0-26-amd64", "docker": "27.3.1",
          "compose": "2.29.7", "wireguard": True, "disco_libero": 40 * 1024 ** 3, "ntp": True,
-         "porte_libere": {"udp/51820": True, "tcp/8443": True}, "reti_host": ["192.168.1.0/24", "172.17.0.0/16"]}
+         "porte_libere": {"udp/51820": True, "tcp/8443": True}, "reti_host": ["192.168.1.0/24", "172.17.0.0/16"],
+         "installato": False, "porta_di_wg0": None}
 
 
 def esegui(argv, fatti=None):
@@ -103,6 +104,18 @@ class DryRun(unittest.TestCase):
 
     MUTANTI = {"nft", "iptables", "ip6tables", "sysctl", "systemctl", "wg", "wg-quick", "modprobe", "ufw"}
 
+    def muta(self, args):
+        """Un comando che puo' mutare. `wg show` legge soltanto: e' l'unico `wg` ammesso (la porta di wg0)."""
+        if args[:2] == ["wg", "show"] or tuple(args[:2]) == ("wg", "show"):
+            return False
+        return os.path.basename(args[0]) in self.MUTANTI or list(args[:2]) in (["ip", "link"], ["ip", "route"]) and len(args) > 2 and args[2] in ("add", "del", "set", "replace")
+
+    def test_il_divieto_vede_ancora_i_comandi_che_mutano(self):  # controllo negativo della guardia qui sopra
+        for args in (["wg", "set", "wg0", "listen-port", "1"], ["wg", "setconf", "wg0", "/dev/stdin"], ["nft", "-f", "-"],
+                     ["ip", "link", "add", "wg0", "type", "wireguard"]):
+            self.assertTrue(self.muta(args), args)
+        self.assertFalse(self.muta(["wg", "show", "wg0", "listen-port"]))
+
     def test_nessuna_mutazione(self):
         tentativi = []
         apri = builtins.open
@@ -114,7 +127,7 @@ class DryRun(unittest.TestCase):
             return apri(f, mode, *a, **k)
 
         def run_controllato(args, *a, **k):
-            if os.path.basename(args[0]) in self.MUTANTI or args[:2] in (["ip", "link"], ["ip", "route"]) and len(args) > 2 and args[2] in ("add", "del", "set", "replace"):
+            if self.muta(args):
                 tentativi.append(("comando", args)); raise PermissionError("comando che muta, vietato nel dry-run")
             return esegui_vero(args, *a, **k)
 
@@ -147,6 +160,37 @@ class DryRun(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 preflight.raccogli({})
         self.assertEqual(tentativi, ["/tmp/sovereign-prova-negativa"])
+
+
+class Reinstallazione(unittest.TestCase):
+    """Su un host gia' installato (manifest presente) la porta e la rete di wg0 sono sue, non un conflitto."""
+    def esiti(self, **cambi):
+        return {c["id"]: c for c in preflight.valuta(con(**cambi), preflight.leggi_impostazioni())[0]}
+
+    def test_la_porta_di_wg0_su_un_host_installato_e_ok(self):
+        c = self.esiti(porte_libere={"udp/51820": False, "tcp/8443": True}, installato=True, porta_di_wg0=51820)["porta-udp-51820"]
+        self.assertEqual(c["esito"], "OK")
+        self.assertIn("wg0", c["dettaglio"])
+
+    def test_porta_occupata_resta_fallita_se_non_e_di_questa_installazione(self):
+        for cambi in ({"installato": False, "porta_di_wg0": 51820}, {"installato": True, "porta_di_wg0": 51821},
+                      {"installato": True, "porta_di_wg0": None}):
+            with self.subTest(**cambi):
+                c = self.esiti(porte_libere={"udp/51820": False, "tcp/8443": True}, **cambi)["porta-udp-51820"]
+                self.assertEqual(c["esito"], "FALLITO")
+
+    def test_la_tcp_occupata_resta_fallita_anche_su_un_host_installato(self):
+        c = self.esiti(porte_libere={"udp/51820": True, "tcp/8443": False}, installato=True, porta_di_wg0=8443)["porta-tcp-8443"]
+        self.assertEqual(c["esito"], "FALLITO")
+
+    def test_la_rete_di_wg0_si_esclude_solo_se_chiesto(self):
+        ip = json.dumps([{"ifname": "lo", "addr_info": [{"family": "inet", "local": "127.0.0.1", "prefixlen": 8}]},
+                         {"ifname": "wg0", "addr_info": [{"family": "inet", "local": "10.66.0.1", "prefixlen": 24}]},
+                         {"ifname": "eth0", "addr_info": [{"family": "inet", "local": "192.168.1.10", "prefixlen": 24}]}])
+        finto = lambda *a, **k: (0, ip) if a == ("ip", "-j", "addr") else (1, "")
+        with mock.patch.object(preflight, "_comando", finto):
+            self.assertEqual(preflight._reti_host(escludi="wg0"), ["127.0.0.0/8", "192.168.1.0/24"])
+            self.assertIn("10.66.0.0/24", preflight._reti_host())  # senza esclusione la rete di wg0 c'e'
 
 
 if __name__ == "__main__":
