@@ -58,6 +58,11 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "al riavvio gira il preflight": ("__main__.py", "        passi, errore = bootstrap.ripristina(cfg, wan)\n", "        preflight.raccogli({})\n        passi, errore = bootstrap.ripristina(cfg, wan)\n"),
     "chiave esposta trattata come un guasto qualunque": ("__main__.py", "return 3 if isinstance(errore, runtime.ChiaveEsposta) else", "return 4 if isinstance(errore, runtime.ChiaveEsposta) else"),
     "init --apply ignora le verifiche": ("bootstrap.py", "    if ok is not True:", "    if False:"),
+    "status dice sempre OK": ("stato.py", "    return 0 if superati == len(controlli) else 1", "    return 0"),
+    "status non confronta i peer": ("stato.py", 'esito("peer", diverse == 0,', 'esito("peer", True,'),
+    "status non conta le regole del firewall": ("stato.py", 'ok = t["verificato"] and dichiarate in (None, t["regole"])', 'ok = t["verificato"]'),
+    "status senza security gate sulla chiave": ("stato.py", "    if esposta:\n        return 3\n", ""),
+    "status non guarda la porta": ("stato.py", "    elif ascolto != porta:", "    elif False:"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }

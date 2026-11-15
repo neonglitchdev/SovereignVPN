@@ -153,6 +153,20 @@ ORDINE="$(sed -n 's/^  \[OK\] \([a-z]*\):.*/\1/p' <<<"$R5" | tr '\n' ' ')"
 [ "$(stato)" = "$PRIMA" ] || rosso "dopo il ripristino lo stato non e' quello di prima del riavvio"
 echo "OK: giro 5, dopo il riavvio simulato firewall, sysctl, wg0 e il peer tornano identici, col firewall per primo"
 
+# 5b. status sullo stato ripristinato: tutto OK; tolta a mano la tabella del firewall, GUASTO il solo firewall e codice 1
+STATUS=(/usr/local/bin/sovereignctl status --config /etc/sovereignvpn/server.toml --json)
+guasti() { python3 -c 'import json,sys; r=json.loads(sys.argv[1]); print(r["superati"], r["controlli_eseguiti"], " ".join(c["nome"] for c in r["controlli"] if c["esito"] != "OK"))' "$1"; }
+set +e; S1="$(dentro "${STATUS[@]}")"; CS1=$?; set -e
+echo "status: codice $CS1, $(guasti "$S1")"
+[ "$CS1" -eq 0 ] || { echo "$S1"; rosso "status sullo stato ripristinato esce con $CS1"; }
+dentro nft delete table inet sovereignvpn
+set +e; S2="$(dentro "${STATUS[@]}")"; CS2=$?; set -e
+G2="$(guasti "$S2")"
+[ "$CS2" -eq 1 ] && [ "$G2" = "6 7 firewall" ] || { echo "$S2"; rosso "senza tabella: codice $CS2 e «$G2», attesi 1 e «6 7 firewall»"; }
+if grep -qF "$(cat "$CHIAVE")" <<<"$S1$S2"; then rosso "la chiave del server e' nello status"; fi
+dentro "${ESEGUI[@]}" >/dev/null
+echo "OK: status 7 su 7 sullo stato ripristinato; tolta la tabella, 6 su 7 col solo firewall GUASTO e codice 1"
+
 # 6. chiave assente al riavvio: firewall e rete tornano, la chiave NON si rigenera (cambierebbe l'identita' del server)
 mv "$CHIAVE" "$D/chiave6"
 perdi

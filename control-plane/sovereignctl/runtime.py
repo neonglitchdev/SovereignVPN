@@ -64,12 +64,17 @@ def leggi_runtime(interfaccia):
     return vivi
 
 
+def nel_runtime(righe):
+    """Chiave pubblica -> AllowedIPs attesi nel runtime, da righe (chiave_pubblica, indirizzo, stato) del registro."""
+    return {k: ind + "/32" for k, ind, stato in righe if stato in NEL_RUNTIME}
+
+
 def riconcilia(archivio, interfaccia=INTERFACCIA, percorso_chiave=CHIAVE_SERVER, porta=51820):
     t0 = time.monotonic()
     chiave = leggi_chiave_server(percorso_chiave)
     letti = archivio.db.execute("SELECT id, chiave_pubblica, indirizzo, stato, saga FROM peer").fetchall()
     attesi_peer = [{"chiave_pubblica": k, "indirizzo": ind} for _, k, ind, stato, _ in letti if stato in NEL_RUNTIME]
-    attesi = {p["chiave_pubblica"]: p["indirizzo"] + "/32" for p in attesi_peer}
+    attesi = nel_runtime((k, ind, stato) for _, k, ind, stato, _ in letti)
     codice, _, errore = _wg("syncconf", interfaccia, "/dev/stdin", ingresso=configurazione(chiave, porta, attesi_peer))
     if codice != 0:  # niente applicato: la saga resta PENDING_APPLY e il giro si puo' ripetere
         raise RuntimeError(f"wg syncconf non riuscito su {interfaccia} ({registro.redigi(errore.strip())[:160]})")
