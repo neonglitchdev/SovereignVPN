@@ -79,6 +79,7 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "uscita: dopo i peer nel reconcile": ("bootstrap.py", '"interfaccia", "uscita", "riconciliazione")', '"interfaccia", "riconciliazione", "uscita")'),
     "uscita: regole tolte per sola priorita'": ("uscite.py", '            if _cmd("ip", "rule", "del", *regola, tollera=True)[0] != 0:', '            if _cmd("ip", "rule", "del", "priority", regola[-1], tollera=True)[0] != 0:'),
     "install.sh: lucchetto vivo preso per orfano": ("ops/install.sh", '! ps -p "$vecchio" >/dev/null 2>&1', 'true'),
+    "permesso negato lasciato al traceback": ("__main__.py", "    except PermissionError as e:\n", "    except ZeroDivisionError as e:\n"),
     "uscita: IPv6 del provider nel tunnel": ("uscite.py", '"AllowedIPs = 0.0.0.0/0", ', '"AllowedIPs = 0.0.0.0/0, ::/0", '),
     "Pi-hole con tutte le capability": ("dns.py", 'VINCOLI_PIHOLE = ("--cap-drop", "ALL", ', 'VINCOLI_PIHOLE = ('),
     "bundle con un file senza checksum": ("profilo.py", 'for n, b in sorted(file.items())]}\n    file["manifest.json"]', 'for n, b in sorted(file.items())[:1]]}\n    file["manifest.json"]'),
