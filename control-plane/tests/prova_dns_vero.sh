@@ -25,7 +25,10 @@ if docker run --rm -v "$D/rotta.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-
   rosso "unbound-checkconf accetta una configurazione rotta: il controllo non vede"
 fi
 echo "OK: immagine costruita, configurazione accettata da unbound-checkconf, quella rotta rifiutata"
-docker run -d --name "$NOME" --network host -v "$D/unbound.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-unbound:prova >/dev/null
+mapfile -t VINCOLI_UB < <(python3 -c 'from sovereignctl import dns; print("\n".join(dns.VINCOLI_UNBOUND))')
+docker run -d --name "$NOME" --network host "${VINCOLI_UB[@]}" -v "$D/unbound.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-unbound:prova >/dev/null
+vincoli() { python3 -c 'import json,sys; from sovereignctl import audit, dns; print(json.dumps(audit.vincoli_mancanti(sys.argv[1], getattr(dns, sys.argv[2]))))' "$@"; }
+[ "$(vincoli "$NOME" VINCOLI_UNBOUND)" = "[]" ] || rosso "Unbound acceso senza i vincoli dichiarati: $(vincoli "$NOME" VINCOLI_UNBOUND)"
 chiedi() { dig +dnssec +timeout=5 +tries=2 @127.0.0.1 -p 5335 "$@"; }
 for _ in $(seq 30); do chiedi . NS >/dev/null 2>&1 && break; sleep 1; done
 BUONO="$(chiedi isc.org A)"
@@ -58,11 +61,18 @@ IMMAGINE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["imm
 mapfile -t AMBIENTE < <(python3 -c 'import json,sys; [print(f"{k}={v}") for k, v in json.load(open(sys.argv[1]))["ambiente"].items()]' "$D/pihole.json")
 ARGS=(); for e in "${AMBIENTE[@]}"; do ARGS+=(-e "$e"); done
 mkdir -m 0755 "$D/liste"
-docker run -d --name "$PIHOLE" --network host "${ARGS[@]}" -v "$D/pw:/run/secrets/pihole_webpasswd:ro" -v "$D/liste:/etc/pihole/sovereignvpn:ro" "$IMMAGINE" >/dev/null
+mapfile -t VINCOLI_PH < <(python3 -c 'from sovereignctl import dns; print("\n".join(dns.VINCOLI_PIHOLE))')
+docker run -d --name "$PIHOLE" --network host "${VINCOLI_PH[@]}" "${ARGS[@]}" -v "$D/pw:/run/secrets/pihole_webpasswd:ro" -v "$D/liste:/etc/pihole/sovereignvpn:ro" "$IMMAGINE" >/dev/null
 chiedi_vpn() { ns dig +timeout=3 +tries=1 @10.98.0.1 "$@"; }
+[ "$(vincoli "$PIHOLE" VINCOLI_PIHOLE)" = "[]" ] || rosso "Pi-hole acceso senza i vincoli dichiarati: $(vincoli "$PIHOLE" VINCOLI_PIHOLE)"
 for _ in $(seq 90); do chiedi_vpn isc.org A 2>/dev/null | contiene "status: NOERROR" && break; sleep 1; done
 BUONO="$(chiedi_vpn isc.org A || true)"
-grep -q "status: NOERROR" <<<"$BUONO" || { echo "$BUONO"; docker logs "$PIHOLE" 2>&1 | tail -20; rosso "dal tunnel Pi-hole non risolve isc.org"; }
+grep -q "status: NOERROR" <<<"$BUONO" || { echo "$BUONO"; docker logs "$PIHOLE" 2>&1 | tail -20; docker exec "$PIHOLE" grep -E "WARNING|CRIT|ERROR" /var/log/pihole/FTL.log | tail -10; rosso "dal tunnel Pi-hole non risolve isc.org"; }
+# [H44] la capability per la 53 si misura sul processo: dove l'host abbassa ip_unprivileged_port_start (colima) la 53 si
+# apre anche senza, e la risposta qui sopra non basta a dirlo
+CAPEFF="$(docker exec "$PIHOLE" sh -c 'grep CapEff /proc/$(pidof pihole-FTL)/status' | awk '{print $2}')"
+(( 0x${CAPEFF:-0} & 0x400 )) || rosso "pihole-FTL senza NET_BIND_SERVICE effettiva (CapEff ${CAPEFF:-assente}): la 53 si apre solo dove l'host abbassa le porte privilegiate"
+echo "OK: pihole-FTL ha NET_BIND_SERVICE effettiva (CapEff $CAPEFF)"
 ROTTO="$(chiedi_vpn dnssec-failed.org A || true)"
 grep -q "status: SERVFAIL" <<<"$ROTTO" || { echo "$ROTTO"; rosso "dnssec-failed.org attraverso Pi-hole non da' SERVFAIL"; }
 echo "OK: dal tunnel Pi-hole risolve isc.org (via Unbound) e passa il SERVFAIL di dnssec-failed.org"
@@ -98,6 +108,8 @@ chmod 0644 "$D/largo.conf"
 docker run -d --name "$NOME-largo" --network host -v "$D/largo.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-unbound:prova >/dev/null
 for _ in $(seq 20); do ss -H -lnup | contiene ":5336 " && break; sleep 1; done
 FUORI="$(python3 -c 'from sovereignctl import configurazione, runtime, stato; print(" ".join(stato.porte_fuori_inventario("10.98.0.1", str(runtime.indirizzo6(configurazione.SUBNET6, "10.98.0.1")))))')"
+LARGO="$(vincoli "$NOME-largo" VINCOLI_UNBOUND)"  # controllo negativo: senza vincoli il controllo deve vederli mancare
+contiene -F '"read-only"' <<<"$LARGO" && contiene -F '"security-opt no-new-privileges"' <<<"$LARGO" || rosso "l'Unbound senza vincoli passa il controllo dei vincoli ($LARGO)"
 docker rm -f "$NOME-largo" >/dev/null
 grep -q "unbound 0.0.0.0:5336" <<<"$FUORI" || rosso "un Unbound su 0.0.0.0:5336 non e' stato trovato fuori inventario (trovato: «$FUORI»)"
 echo "OK: inventario delle porte, nessun ascolto fuori dal dichiarato; un Unbound su 0.0.0.0:5336 viene trovato"
