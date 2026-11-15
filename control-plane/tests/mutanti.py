@@ -24,21 +24,26 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "il manifest accetta segreti e URL": ("manifest.py", "    if redigi(testo) != testo:", "    if False:"),
     "il manifest accetta il tag latest": ("manifest.py", "        if nome.endswith(\":latest\"):", "        if False:"),
     "scrittura diretta sul file vero, non atomica": ("manifest.py", "fd, tmp = tempfile.mkstemp(prefix=\".manifest-\", dir=cartella)", "fd, tmp = os.open(percorso, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644), percorso"),
+    "il dry-run dell'installer muta": ("ops/install.sh", 'if [ "$DRY" -eq 1 ]; then', "if false; then"),
+    "l'installer ignora il lucchetto": ("ops/install.sh", 'mkdir "$LUCCHETTO" 2>/dev/null ||', 'mkdir -p "$LUCCHETTO" 2>/dev/null ||'),
+    "configurazione leggibile da tutti": ("ops/install.sh", 'chmod 0700 "$ETC" "$VAR"', 'chmod 0755 "$ETC" "$VAR"'),
+    "input non valido dell'installer esce con 1": ("ops/install.sh", 'echo "install.sh: input non valido: $1" >&2; exit 2; }', 'echo "install.sh: input non valido: $1" >&2; exit 1; }'),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
     "un rimedio detto con altre parole": ("preflight.py", "\"Liberare spazio: servono almeno", "\"Fare spazio: servono almeno"),
     "un segnaposto detto con altre parole": ("registro.py", "\"[URL REDATTO]\"", "\"[INDIRIZZO WEB REDATTO]\""),
+    "un messaggio dell'installer detto con altre parole": ("ops/install.sh", "Prossimo passo:", "Passo successivo:"),
     "una variabile locale rinominata": ("preflight.py", "    gib = fatti[\"disco_libero\"] / 1024 ** 3\n", "    giga = fatti[\"disco_libero\"] / 1024 ** 3\n    gib = giga\n"),
 }
 
 
 def prova(file, da, a):
     with tempfile.TemporaryDirectory(prefix="mutante-") as t:
-        copia = pathlib.Path(t) / "control-plane"
-        shutil.copytree(QUI, copia, ignore=shutil.ignore_patterns("__pycache__"))
-        shutil.copytree(QUI.parent / "config", pathlib.Path(t) / "config")
-        f = copia / "sovereignctl" / file
+        repo = pathlib.Path(t) / "repo"  # tutta la repo senza .git: i mutanti possono toccare anche ops/ e config/
+        shutil.copytree(QUI.parent, repo, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        copia = repo / "control-plane"
+        f = repo / file if "/" in file else copia / "sovereignctl" / file
         testo = f.read_text(encoding="utf-8")
         if testo.count(da) != 1:
             sys.exit(f"GUASTO DEL BANCO: punto di mutazione non univoco in {file}: {da[:60]!r}")
