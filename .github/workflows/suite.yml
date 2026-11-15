@@ -13,6 +13,8 @@ jobs:
           cat corpus/profilo.json
       - name: Prove del control plane
         run: cd control-plane && python3 -m unittest discover -s tests -v
+      - name: Banco dei mutanti (guasti presi, innocui vivi)
+        run: cd control-plane && python3 tests/mutanti.py
       - name: Preflight vero sul runner, in dry-run
         run: |
           cd control-plane
