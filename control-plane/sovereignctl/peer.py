@@ -200,7 +200,7 @@ def esegui_firewall(a):
         cfg = configurazione.leggi(a.config)
         ruleset = firewall.componi(cfg.get("subnet") or preflight.CANDIDATE_VPN[0], a.wg_interface, cfg.get("wg_port", 51820),
                                    a.wan_interface or cfg.get("wan_interface"), cfg.get("admin_port", 8443),
-                                   cfg["ssh_port"], cfg["admin_ssh_sources"])
+                                   cfg["ssh_port"], cfg["admin_ssh_sources"], cfg.get("mtu", 1420))
         if a.azione == "plan":  # solo testo: niente nft, niente host toccato
             print(json.dumps({"ruleset": ruleset, "mutazioni_eseguite": 0}, ensure_ascii=False, indent=1) if a.json else ruleset, end="" if not a.json else "\n")
             return 0
