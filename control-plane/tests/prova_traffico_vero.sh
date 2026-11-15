@@ -21,7 +21,9 @@ D="$(mktemp -d)"
 PIDS=()
 pulizia() {
   for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done
-  for n in "${NSS[@]}"; do ip netns del "$n" 2>/dev/null || true; done
+  # kill $! colpisce la subshell di bash, non il processo dentro il namespace, e ip netns del non uccide nessuno:
+  # si uccide ogni processo del namespace prima di toglierlo (prima restavano vivi gli ascoltatori)
+  for n in "${NSS[@]}"; do ip netns pids "$n" 2>/dev/null | xargs -r kill 2>/dev/null || true; ip netns del "$n" 2>/dev/null || true; done
   rm -rf "$D"
 }
 trap pulizia EXIT
