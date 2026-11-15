@@ -169,6 +169,13 @@ def controlla(cfg, db=None, wg_if=runtime.INTERFACCIA):
                   else "in ascolto fuori dall'inventario: " + ", ".join(fuori))
         except RuntimeError as e:
             esito("porte", False, registro.redigi(e))
+    from . import uscite
+    st = uscite.stato()
+    if st["attiva"]:  # [H48] solo dove un'uscita e' scelta
+        eta, viva = uscite.eta_handshake(), uscite.viva()
+        esito("uscita", viva and eta is not None and eta < uscite.HANDSHAKE_MASSIMO,
+              f"{st['attiva']} (scelta {st['scelta']}): " + ("kill switch, regola dei peer e wgx0 presenti" if viva else "manca una parte: la ripara `exit tick`")
+              + ", handshake " + (f"{eta} s fa" if eta is not None else "mai"))
     return c, esposta
 
 

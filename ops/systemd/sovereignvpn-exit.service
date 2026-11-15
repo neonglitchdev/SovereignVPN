@@ -1,0 +1,14 @@
+# SovereignVPN — uscite per paese (FR-NET-008, H48). La lancia sovereignvpn-exit.timer ogni minuto: rotazione allo
+# scadere dei minuti scelti, failover all'uscita successiva dello stesso paese se quella attiva non fa handshake da
+# 3 minuti, riparazione se manca una parte (kill switch, regola dei peer, wgx0). Senza un'uscita scelta non fa niente.
+[Unit]
+Description=SovereignVPN: rotazione, failover e riparazione dell'uscita per paese
+After=sovereignvpn-reconcile.service
+ConditionPathExists=/var/lib/sovereignvpn/uscite/stato.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/sovereignctl exit tick --config /etc/sovereignvpn/server.toml
+UMask=0077
+NoNewPrivileges=yes
+ProtectHome=yes

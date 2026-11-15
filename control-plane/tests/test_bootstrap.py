@@ -144,7 +144,7 @@ class Riavvio(unittest.TestCase):
     def test_firewall_per_primo_niente_chiave_ne_manifest(self):
         codice, out, err = self.rec("--wan-interface", "ens3", "--json")
         self.assertEqual(codice, 0, err)
-        self.assertEqual([p["passo"] for p in json.loads(out)["passi"]], ["firewall", "sysctl", "interfaccia", "riconciliazione"])
+        self.assertEqual([p["passo"] for p in json.loads(out)["passi"]], ["firewall", "sysctl", "interfaccia", "uscita", "riconciliazione"])
         self.assertNotIn(("wg", "genkey"), self.comandi)
         self.assertFalse(self.chiave.exists())
         self.assertFalse(self.manifest.exists())
@@ -159,7 +159,7 @@ class Riavvio(unittest.TestCase):
         with mock.patch.object(bootstrap.runtime, "riconcilia", side_effect=RuntimeError("chiave del server assente")):
             codice, out, _ = self.rec("--wan-interface", "ens3", "--json")
         self.assertEqual(codice, 4)
-        self.assertEqual([p["passo"] for p in json.loads(out)["passi"]], ["firewall", "sysctl", "interfaccia"])
+        self.assertEqual([p["passo"] for p in json.loads(out)["passi"]], ["firewall", "sysctl", "interfaccia", "uscita"])
         self.assertNotIn(("wg", "genkey"), self.comandi)
 
     def test_registro_illeggibile_firewall_in_recupero_e_si_ferma(self):
@@ -170,7 +170,7 @@ class Riavvio(unittest.TestCase):
         with mock.patch.object(bootstrap.firewall, "applica", lambda r: applicate.append(r) or {"verificato": True}), \
                 mock.patch.object(bootstrap.runtime, "riconcilia", side_effect=AssertionError("riconciliazione da un registro rotto")):
             passi, errore = bootstrap.ripristina({"admin_ssh_sources": ["198.51.100.0/24"], "subnet6": "fd00::/64"}, "ens3", db=str(rotto))
-        self.assertEqual([p for p, _ in passi], ["firewall", "sysctl", "interfaccia"])
+        self.assertEqual([p for p, _ in passi], ["firewall", "sysctl", "interfaccia", "uscita"])
         self.assertIn("in recupero", passi[0][1])
         self.assertIn("NEEDS_RECOVERY", str(errore))
         righe = [x.strip() for x in applicate[0].splitlines()]

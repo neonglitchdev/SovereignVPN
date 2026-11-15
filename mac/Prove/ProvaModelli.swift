@@ -7,7 +7,7 @@ import Foundation
             do { _ = try JSONDecoder().decode(tipo, from: Data(contentsOf: URL(fileURLWithPath: file))); print("decodificato: \(file)"); return true }
             catch { print("NON decodificato: \(file): \(error)"); return false }
         }
-        let ok = [prova([Peer].self, a[1]), prova(RapportoStatus.self, a[2]), prova(RapportoAudit.self, a[3])]
+        let ok = [prova([Peer].self, a[1]), prova(RapportoStatus.self, a[2]), prova(RapportoAudit.self, a[3]), prova(RapportoUscite.self, a[4])]
         exit(ok.allSatisfy { $0 } ? 0 : 1)
     }
 }

@@ -51,6 +51,7 @@ SORGENTE="$(cd "$(dirname "$0")/.." && pwd)/control-plane/sovereignctl"
 SORGENTE_UNITA="$(cd "$(dirname "$0")" && pwd)/systemd"
 SORGENTE_DNS="$(cd "$(dirname "$0")" && pwd)/dns"
 UNITA_NOMI=(sovereignvpn-reconcile.service sovereignvpn-expire.service sovereignvpn-expire.timer
+            sovereignvpn-exit.service sovereignvpn-exit.timer
             sovereignvpn-unbound.service sovereignvpn-pihole.service)
 OPT="$RADICE/opt/sovereignvpn"
 ETC="$RADICE/etc/sovereignvpn"
@@ -94,6 +95,7 @@ if [ "$VIA" -eq 1 ]; then  # FR-OPS-007 [H40]: solo cio' che il prodotto ha crea
     "togliere il comando $BIN/sovereignctl e il control plane $OPT (release precedente compresa)"
     "togliere i container sovereignvpn-pihole e sovereignvpn-unbound e l'immagine sovereignvpn-unbound:14.0.0"
     "togliere la tabella nft inet sovereignvpn, $SYSCTL, e wg0 solo se il manifest in $VAR dice che e' nostra"
+    "togliere l'uscita per paese: tabella nft inet sovereignvpn_uscita, le sue due regole (riconosciute dalla firma completa), la tabella di rotte 51888, e wgx0 solo se il manifest dice che e' nostra"
   )
   if [ "$ELIMINA" -eq 1 ]; then
     PIANO+=("CANCELLARE i dati: $ETC (configurazione, chiave del server), $VAR (registro, manifest, export, backup) e il volume Docker sovereignvpn-pihole")
@@ -125,6 +127,13 @@ if [ "$VIA" -eq 1 ]; then  # FR-OPS-007 [H40]: solo cio' che il prodotto ha crea
     fi
     if command -v nft >/dev/null 2>&1; then nft delete table inet sovereignvpn 2>/dev/null || true; fi
     if [ -f "$VAR/manifest.json" ] && ip link show wg0 >/dev/null 2>&1; then ip link del wg0; fi  # [H19] nostra solo se installata
+    # [H48] l'uscita per paese: il kill switch e la tabella di rotte per nome, le regole per firma completa (una regola
+    # d'altri alla stessa priorita' resta), wgx0 come wg0 (solo se installata), o resterebbe acceso il tunnel del provider
+    if command -v nft >/dev/null 2>&1; then nft delete table inet sovereignvpn_uscita 2>/dev/null || true; fi
+    while ip rule del fwmark 0x5e48 lookup main priority 5198 2>/dev/null; do :; done
+    while ip rule del iif wg0 lookup 51888 priority 5199 2>/dev/null; do :; done
+    ip route flush table 51888 2>/dev/null || true
+    if [ -f "$VAR/manifest.json" ] && ip link show wgx0 >/dev/null 2>&1; then ip link del wgx0; fi
   fi
   rm -f "$SYSCTL"
   if [ "$ELIMINA" -eq 1 ]; then
@@ -184,7 +193,7 @@ for u in "${UNITA_NOMI[@]}"; do
 done
 if [ -z "$RADICE" ] && [ -d /run/systemd/system ]; then
   systemctl daemon-reload
-  systemctl enable --quiet sovereignvpn-reconcile.service sovereignvpn-expire.timer sovereignvpn-unbound.service sovereignvpn-pihole.service
+  systemctl enable --quiet sovereignvpn-reconcile.service sovereignvpn-expire.timer sovereignvpn-exit.timer sovereignvpn-unbound.service sovereignvpn-pihole.service
 fi
 
 # 6. immagine di Unbound, costruita dalla base pin-nata per digest (Pi-hole si scarica per digest al primo avvio)

@@ -7,8 +7,9 @@ controllo), poi `nft -f -`; se il controllo fallisce non si applica niente e la 
 - PREROUTING: l'IPv6 dei peer rifiutato con ICMPv6 admin-prohibited, prima dell'instradamento: con l'inoltro IPv6
   spento non arriverebbe mai al FORWARD, e cadrebbe in silenzio; cosi' fallisce subito e in modo esplicito (T-013, H38).
 - FORWARD drop: niente fra peer (FR-NET-002); il DNS dei peer verso l'esterno bloccato (FR-DNS-005, va ai resolver
-  interni); i peer escono solo dalla WAN, e solo in IPv4 (ANC-0045, ANC-0186).
-- NAT: masquerade della subnet VPN verso la WAN.
+  interni); i peer escono solo dalla WAN, e solo in IPv4 (ANC-0045, ANC-0186), o dall'uscita wgx0 quando c'e'
+  (FR-NET-008 [H48]: il kill switch e le rotte dell'uscita stanno in uscite.py, in una tabella nft loro).
+- NAT: masquerade della subnet VPN verso la WAN e verso wgx0.
 """
 import ipaddress, json, os, re, subprocess
 
@@ -16,6 +17,7 @@ from . import registro
 from .preflight import InputNonValido
 
 TABELLA = "sovereignvpn"
+INTERFACCIA_USCITA = "wgx0"  # [H48] l'uscita per paese; senza uscita scelta non esiste, e le sue regole non toccano niente
 INTERFACCIA = re.compile(r"^[A-Za-z0-9_.-]{1,15}$")
 
 
@@ -74,6 +76,9 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
           f'    iifname "{wg_if}" oifname "{wan_if}" tcp flags syn / syn,rst tcp option maxseg size > {int(mtu) - 40} '
           f"tcp option maxseg size set {int(mtu) - 40}",
           f'    iifname "{wan_if}" oifname "{wg_if}" tcp flags syn / syn,rst tcp option maxseg size set rt mtu',
+          # [H48] verso l'uscita la strozzatura e' wgx0 stessa (la MTU del provider): basta rt mtu nei due versi
+          f'    iifname "{wg_if}" oifname "{INTERFACCIA_USCITA}" tcp flags syn / syn,rst tcp option maxseg size set rt mtu',
+          f'    iifname "{INTERFACCIA_USCITA}" oifname "{wg_if}" tcp flags syn / syn,rst tcp option maxseg size set rt mtu',
           # la quota conta i due versi e sta prima di ct established: dopo, i pacchetti delle connessioni aperte non passano di qui
           *[x for ind, _, _ in quote for x in (f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} quota name "{_nome_quota(ind)}" drop',
                                                f'    oifname "{wg_if}" ip daddr {ipaddress.ip_address(ind)} quota name "{_nome_quota(ind)}" drop')],
@@ -90,10 +95,12 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
           *[f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} ip daddr != {{ {vpn}, '
             + ", ".join(str(ipaddress.ip_network(r)) for r in rotte) + " } drop" for ind, rotte in limiti],
           f'    iifname "{wg_if}" ip saddr {vpn} oifname "{wan_if}" accept',
+          f'    iifname "{wg_if}" ip saddr {vpn} oifname "{INTERFACCIA_USCITA}" accept',
           "  }",
           "  chain postrouting {",
           "    type nat hook postrouting priority srcnat; policy accept;",
           f'    ip saddr {vpn} oifname "{wan_if}" masquerade',
+          f'    ip saddr {vpn} oifname "{INTERFACCIA_USCITA}" masquerade',
           "  }",
           "}"]
     return "\n".join(r) + "\n"
@@ -114,6 +121,14 @@ def applica(ruleset):
     if codice != 0:
         raise RuntimeError(f"nft -f non riuscito, il batch e' atomico: vale la tabella di prima ({registro.redigi(errore.strip())[:200]})")
     return leggi()
+
+
+def applica_tabella(ruleset):
+    """Una tabella nft d'appoggio (il kill switch dell'uscita): controllo, poi batch atomico, come la principale."""
+    for argomenti in (("-c", "-f", "-"), ("-f", "-")):
+        codice, _, errore = _nft(*argomenti, ingresso=ruleset)
+        if codice != 0:
+            raise RuntimeError(f"nft {' '.join(argomenti)} ha rifiutato la tabella d'appoggio, nulla cambiato ({registro.redigi(errore.strip())[:200]})")
 
 
 def _nome_quota(ind):
