@@ -27,7 +27,7 @@ def _rete(nome, v, versione=None):
     return r
 
 
-def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ssh_port=22, ssh_sorgenti=None, mtu=1420, blocca_dot=True, limiti=(), dns_liberi=()):
+def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ssh_port=22, ssh_sorgenti=None, mtu=1420, blocca_dot=True, limiti=(), dns_liberi=(), quote=()):
     for nome, v in (("--wg-interface", wg_if), ("--wan-interface", wan_if)):
         if not isinstance(v, str) or not INTERFACCIA.match(v):
             raise InputNonValido(f"{nome}: nome di interfaccia Linux di 1-15 caratteri (ANC-0174: la WAN si dichiara, mai eth0 presunta)")
@@ -67,6 +67,9 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
           "    ct state established,related accept",
           "    ct state invalid drop",
           f'    iifname "{wg_if}" oifname "{wg_if}" drop',
+          # FR-PEER-008 [H35]: la quota del peer, coi byte gia' usati (il reconcile sostituisce la tabella ogni minuto)
+          *[f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} quota over {int(tot)} bytes used {int(usati or 0)} bytes drop'
+            f' comment "quota {ipaddress.ip_address(ind)}"' for ind, tot, usati in quote],
           # FR-PEER-008 [H34]: i peer con DNS libero passano prima del blocco del DNS esterno
           *[f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} meta l4proto {{ tcp, udp }} th dport 53 accept' for ind in dns_liberi],
           f'    iifname "{wg_if}" meta l4proto {{ tcp, udp }} th dport 53 drop',
@@ -102,6 +105,21 @@ def applica(ruleset):
     if codice != 0:
         raise RuntimeError(f"nft -f non riuscito, il batch e' atomico: vale la tabella di prima ({registro.redigi(errore.strip())[:200]})")
     return leggi()
+
+
+def quote_usate():
+    """{indirizzo: byte usati} dalle quote della tabella viva, prima di sostituirla; tabella assente = {}."""
+    codice, uscita, _ = _nft("-j", "list", "table", "inet", TABELLA)
+    if codice != 0:
+        return {}
+    usate = {}
+    for o in json.loads(uscita)["nftables"]:
+        r = o.get("rule")
+        if r and str(r.get("comment", "")).startswith("quota "):
+            for e in r.get("expr", []):
+                if "quota" in e:
+                    usate[r["comment"].split(" ", 1)[1]] = int(e["quota"].get("used", 0))
+    return usate
 
 
 def leggi():

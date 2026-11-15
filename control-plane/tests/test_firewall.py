@@ -71,6 +71,20 @@ class Ruleset(unittest.TestCase):
         self.assertLess(r.index(eccezione), r.index('iifname "wg0" meta l4proto { tcp, udp } th dport 53 drop'))
         self.assertFalse(any("ip saddr 10.66.0.7" in x for x in righe()))
 
+    def test_quota_per_peer_coi_byte_gia_usati(self):
+        r = righe(quote=[("10.66.0.9", 104857600, 5000)])
+        q = 'iifname "wg0" ip saddr 10.66.0.9 quota over 104857600 bytes used 5000 bytes drop comment "quota 10.66.0.9"'
+        self.assertLess(r.index(q), r.index('iifname "wg0" ip saddr 10.66.0.0/24 oifname "ens3" accept'))
+        self.assertFalse(any("quota over" in x for x in righe()))
+
+    def test_quote_usate_lette_dalla_tabella_viva(self):
+        viva = json.dumps({"nftables": [{"rule": {"comment": "quota 10.66.0.9", "expr": [{"quota": {"val": 100, "used": 4321, "inv": True}}]}},
+                                        {"rule": {"expr": [{"accept": None}]}}]})
+        with mock.patch.object(firewall, "_nft", lambda *a, **k: (0, viva, "")):
+            self.assertEqual(firewall.quote_usate(), {"10.66.0.9": 4321})
+        with mock.patch.object(firewall, "_nft", lambda *a, **k: (1, "", "no table")):
+            self.assertEqual(firewall.quote_usate(), {})
+
     def test_ordine_del_forward(self):
         """Isolamento fra peer e DNS esterno bloccati PRIMA dell'uscita verso la WAN: dopo non servirebbero a niente."""
         r = righe()

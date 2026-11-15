@@ -117,6 +117,7 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "rotte del peer non applicate al firewall": ("firewall.py", ' } drop" for ind, rotte in limiti],', ' } drop" for ind, rotte in ()],'),
     "DNS libero ignorato dal firewall": ("firewall.py", "th dport 53 accept' for ind in dns_liberi],", "th dport 53 accept' for ind in ()],"),
     "politica DNS qualunque accettata": ("peer.py", '        if politica_dns not in (None, "interno", "libero"):', "        if False:"),
+    "quota che riparte da zero a ogni reconcile": ("firewall.py", "bytes used {int(usati or 0)} bytes drop", "bytes used 0 bytes drop"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
