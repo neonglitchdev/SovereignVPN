@@ -29,8 +29,8 @@ rosso() { echo "ROSSO: $*"; exit 1; }
 ns() { local n="$1"; shift; ip netns exec "$n" "$@"; }
 passa() { ns "$1" python3 tests/rete_finta.py tcp "${@:2}"; }  # ns indirizzo porta [sorgente]
 manda() { ns "$1" python3 tests/rete_finta.py udp "$2" "$3" "$4"; }
-ascolta() {  # ns proto indirizzo porta file
-  ns "$1" python3 tests/rete_finta.py ascolta "$2" "$3" "$4" "$5" &
+ascolta() {  # ns proto indirizzo porta file [byte della risposta]
+  ns "$1" python3 tests/rete_finta.py ascolta "${@:2}" &
   PIDS+=("$!")
   for _ in $(seq 50); do [ -e "$5" ] && return 0; sleep 0.1; done
   rosso "l'ascoltatore $2 $3:$4 in $1 non parte"
