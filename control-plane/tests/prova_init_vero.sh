@@ -169,6 +169,24 @@ falliti() { python3 -c 'import json,sys; r=json.loads(sys.argv[1]); print(r["con
 set +e; A1="$(dentro "${AUDIT[@]}")"; CA1=$?; set -e
 echo "audit: codice $CA1, $(falliti "$A1")"
 [ "$CA1" -eq 0 ] || { echo "$A1"; rosso "audit sullo stato ripristinato esce con $CA1"; }
+# diagnostica (ANC-0312, T-025): bundle minimal ed extended sullo stato vero; nessun segreto dentro, ne' per noi ne' per
+# gitleaks, che a sua volta deve vedere un segreto piantato apposta (o il suo «niente» non varrebbe niente)
+DIAG="$D/diagnostica"
+dentro /usr/local/bin/sovereignctl diagnostics collect --config /etc/sovereignvpn/server.toml --out "$DIAG" >/dev/null
+dentro /usr/local/bin/sovereignctl diagnostics collect --extended --conferma --config /etc/sovereignvpn/server.toml --out "$DIAG" >/dev/null
+[ "$(find "$DIAG" -name 'diagnostica-*.tar.gz' -perm 600 | wc -l | tr -d ' ')" = 2 ] || rosso "attesi due bundle 0600 in $DIAG"
+for b in "$DIAG"/*.tar.gz; do mkdir -p "$D/estratto/$(basename "$b" .tar.gz)"; tar -xzf "$b" -C "$D/estratto/$(basename "$b" .tar.gz)"; done
+[ -f "$D/estratto/$(basename "$(ls "$DIAG"/*extended*.tar.gz)" .tar.gz)/log-unita.txt" ] || rosso "il bundle extended non ha i log delle unita'"
+if grep -rqF "$(cat "$CHIAVE")" "$D/estratto"; then rosso "la chiave del server e' nel bundle di diagnostica"; fi
+GITLEAKS=../gitleaks
+if [ -x "$GITLEAKS" ]; then
+  "$GITLEAKS" detect --no-git --source "$D/estratto" --no-banner --redact >/dev/null 2>&1 || rosso "gitleaks trova un segreto nel bundle di diagnostica"
+  mkdir "$D/piantato"; printf 'wireguard_private_key = "%s"\n' "$(wg genkey)" > "$D/piantato/peer.conf"
+  if "$GITLEAKS" detect --no-git --source "$D/piantato" --no-banner --redact >/dev/null 2>&1; then rosso "gitleaks non vede una chiave piantata: lo scan del bundle sarebbe cieco"; fi
+  echo "OK: diagnostica minimal ed extended, 0600, senza la chiave del server; gitleaks pulito sul bundle e rosso sulla chiave piantata (T-025)"
+else
+  echo "DICHIARATO: gitleaks assente qui (lo scarica il CI): scan esterno del bundle saltato; la chiave del server non c'e'"
+fi
 dentro nft delete table inet sovereignvpn
 set +e; S2="$(dentro "${STATUS[@]}")"; CS2=$?; set -e
 G2="$(guasti "$S2")"

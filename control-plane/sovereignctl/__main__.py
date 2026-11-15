@@ -7,6 +7,7 @@ Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [
      python3 -m sovereignctl reconcile --config server.toml [--wan-interface IF] [--json]   (a ogni avvio, FR-NET-007)
      python3 -m sovereignctl status [--config server.toml] [--db FILE] [--json]           (solo letture)
      python3 -m sovereignctl audit run [--config server.toml] [--db FILE] [--json]        (security audit, ANC-0307)
+     python3 -m sovereignctl diagnostics collect [--extended --conferma] [--out DIR] [--json]  (bundle senza segreti)
 """
 import argparse, json, sys
 
@@ -84,6 +85,15 @@ def main(argv=None):
     ar.add_argument("--config", default="/etc/sovereignvpn/server.toml")
     ar.add_argument("--db", default=peer.DB_PREDEFINITO)
     ar.add_argument("--json", action="store_true", help="rapporto in JSON")
+    dg = sotto.add_parser("diagnostics", help="bundle di diagnostica sanitizzato (ANC-0312)")
+    da = dg.add_subparsers(dest="azione", required=True, parser_class=_Parser)
+    dc = da.add_parser("collect", help="minimal di base; --extended aggiunge i log dell'host e vuole --conferma")
+    dc.add_argument("--extended", action="store_true", help="anche i log delle unita' e la tabella nft, redatti")
+    dc.add_argument("--conferma", action="store_true", help="consenso esplicito per --extended (ANC-0312)")
+    dc.add_argument("--config", default="/etc/sovereignvpn/server.toml")
+    dc.add_argument("--db", default=peer.DB_PREDEFINITO)
+    dc.add_argument("--out", help="cartella di destinazione (0700); di base /var/lib/sovereignvpn/diagnostica")
+    dc.add_argument("--json", action="store_true")
     bk = sotto.add_parser("backup", help="backup cifrato con age (FR-OPS-001)")
     ba = bk.add_subparsers(dest="azione", required=True, parser_class=_Parser)
     bc = ba.add_parser("create", help="archivio cifrato con manifest e checksum; a schermo percorso e checksum")
@@ -129,6 +139,9 @@ def main(argv=None):
     if a.comando == "audit":
         from . import audit
         return audit.esegui(a)
+    if a.comando == "diagnostics":
+        from . import diagnostica
+        return diagnostica.esegui(a)
     try:
         cfg = configurazione.leggi(a.config) if a.config else {}
         valori, nomi = {}, {}
