@@ -19,4 +19,7 @@ baseline RFC-2026-APEX-13. Ogni artefatto porta questo pin.
   si scrive si rilegge.
 - Push sul remoto del progetto: sempre, a ogni rilascio, senza chiedere; si chiede solo per
   force-push su ramo altrui o verso remoto pubblico/di terzi.
+- Temporanei: ogni prova scrive in una cartella temporanea propria (`tempfile`), tolta alla fine; mai /tmp fissi, mai file
+  di prova nella repo. Il preflight vero sul runner è una prova informativa, non un cancello: dipende dall'ambiente.
+- Le prove valgono col banco dei mutanti: `cd control-plane && python3 tests/mutanti.py` (guasti presi, innocui vivi).
 - Un punto alla volta; niente «fatto» non visto; una domanda per messaggio.
