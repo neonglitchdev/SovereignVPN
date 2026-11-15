@@ -231,7 +231,7 @@ class Migrazione(Base):
     def test_registro_nuovo_e_gia_alla_versione_2(self):
         peer.Archivio(self.db).db.close()
         db = sqlite3.connect(self.db)
-        self.assertEqual(db.execute("SELECT versione FROM schema").fetchone()[0], 2)
+        self.assertEqual(db.execute("SELECT versione FROM schema").fetchone()[0], peer.VERSIONE_SCHEMA_DB)
         self.assertIn("rotte", [r[1] for r in db.execute("PRAGMA table_info(peer)")])
         self.assertFalse(os.path.exists(self.db + ".schema1.bak"))
 
@@ -243,7 +243,8 @@ class Migrazione(Base):
         a = peer.Archivio(self.db)
         p = a.mostra("3f2a7d9e-0000-4000-8000-000000000001")
         self.assertEqual((p["nome"], p["stato"], p["rotte"]), ("vecchio", "ACTIVE", None))
-        self.assertEqual(a.db.execute("SELECT versione FROM schema").fetchone()[0], 2)
+        self.assertEqual(a.db.execute("SELECT versione FROM schema").fetchone()[0], peer.VERSIONE_SCHEMA_DB)
+        self.assertIsNone(p["politica_dns"])  # tutti i passi applicati, fino all'ultimo
         copia = self.db + ".schema1.bak"
         self.assertEqual(oct(os.stat(copia).st_mode & 0o777), "0o600")
         vecchia = sqlite3.connect(copia)
@@ -257,7 +258,7 @@ class Migrazione(Base):
 
     def test_schema_piu_nuovo_rifiutato(self):
         peer.Archivio(self.db).db.close()
-        db = sqlite3.connect(self.db); db.execute("UPDATE schema SET versione = 3"); db.commit(); db.close()
+        db = sqlite3.connect(self.db); db.execute("UPDATE schema SET versione = ?", (peer.VERSIONE_SCHEMA_DB + 1,)); db.commit(); db.close()
         with self.assertRaises(RuntimeError):
             peer.Archivio(self.db)
 
@@ -278,6 +279,18 @@ class Rotte(Base):
             with self.subTest(sbagliate=sbagliate[:30]):
                 self.assertEqual(self.add("x" + str(abs(hash(sbagliate)) % 1000), None, "--routes", sbagliate)[0], 2)
 
+
+
+class PoliticaDns(Base):
+    def test_interno_di_base_libero_letto_dal_firewall_e_il_resto_rifiutato(self):
+        _, p, _ = self.add("libero", None, "--dns-policy", "libero")
+        _, q, _ = self.add("interno", None, "--dns-policy", "interno")
+        self.assertEqual((p["politica_dns"], q["politica_dns"]), ("libero", None))
+        self.assertEqual(peer.dns_liberi(self.db), [p["indirizzo"]])
+        self.forza(p["id"], "REVOKED")
+        self.assertEqual(peer.dns_liberi(self.db), [])
+        with self.assertRaises(SystemExit):
+            self.add("altro", None, "--dns-policy", "tutto")
 
 if __name__ == "__main__":
     unittest.main()

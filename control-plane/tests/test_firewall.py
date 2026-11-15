@@ -65,6 +65,12 @@ class Ruleset(unittest.TestCase):
         self.assertLess(r.index(regola), r.index('iifname "wg0" ip saddr 10.66.0.0/24 oifname "ens3" accept'))
         self.assertFalse(any("ip daddr !=" in x for x in righe()))  # senza limiti, nessuna regola per peer
 
+    def test_dns_libero_per_peer_prima_del_blocco(self):
+        r = righe(dns_liberi=["10.66.0.7"])
+        eccezione = 'iifname "wg0" ip saddr 10.66.0.7 meta l4proto { tcp, udp } th dport 53 accept'
+        self.assertLess(r.index(eccezione), r.index('iifname "wg0" meta l4proto { tcp, udp } th dport 53 drop'))
+        self.assertFalse(any("ip saddr 10.66.0.7" in x for x in righe()))
+
     def test_ordine_del_forward(self):
         """Isolamento fra peer e DNS esterno bloccati PRIMA dell'uscita verso la WAN: dopo non servirebbero a niente."""
         r = righe()
