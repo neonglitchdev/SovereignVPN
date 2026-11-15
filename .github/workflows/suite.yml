@@ -47,6 +47,8 @@ jobs:
           echo "OK: unita' installata, abilitata, verificata; quella senza ExecStart e' rifiutata"
       - name: init --apply vero in un network namespace (sei passi, idempotente, chiave guasta, WAN rifiutata, riavvio)
         run: sudo bash control-plane/tests/prova_init_vero.sh
+      - name: Traffico vero fra due peer WireGuard e una internet finta (isolamento, DNS, SSH, amministrazione, revoca)
+        run: sudo bash control-plane/tests/prova_traffico_vero.sh
       - name: Banco dei mutanti (guasti presi, innocui vivi)
         run: cd control-plane && python3 tests/mutanti.py
       - name: Preflight vero sul runner, in dry-run
