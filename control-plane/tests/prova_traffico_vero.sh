@@ -242,8 +242,9 @@ import sys
 from sovereignctl import configurazione, firewall
 c = configurazione.leggi(sys.argv[1])
 t = firewall.componi(c["subnet"], "wg0", c["wg_port"], "ens3", c["admin_port"], c["ssh_port"], c["admin_ssh_sources"], c.get("mtu", 1420))
-senza = "".join(r + "\n" for r in t.splitlines() if "maxseg" not in r)
-assert t.count("maxseg") == 3 and senza.count("\n") == t.count("\n") - 2, "le regole MSS da togliere non sono due"
+mss = [r for r in t.splitlines() if "maxseg" in r and firewall.INTERFACCIA_USCITA not in r]  # quelle della WAN: wgx0 qui non c'e' [H48]
+senza = "".join(r + "\n" for r in t.splitlines() if r not in mss)
+assert len(mss) == 2 and sum(r.count("maxseg") for r in mss) == 3, "le regole MSS da togliere non sono due"
 firewall.applica(senza)
 PY
 if scarica tp2 192.0.2.80 8081 200000; then rosso "senza le regole MSS la risposta grande arriva lo stesso: la prova non distingue"; fi
