@@ -36,8 +36,14 @@ def applica(radice=""):
     codice, _, errore = _sysctl("-p", percorso)
     if codice != 0:
         raise RuntimeError(f"sysctl -p {percorso} non riuscito ({registro.redigi(errore.strip())[:200]})")
+    letti = leggi()
+    return {"file": percorso, "attivato": True, "letti": letti, "verificato": letti == VALORI}
+
+
+def leggi():
+    """I tre valori come sono adesso nel kernel (None se non leggibili)."""
     letti = {}
     for chiave in VALORI:
         codice, uscita, _ = _sysctl("-n", chiave)
         letti[chiave] = uscita.strip() if codice == 0 else None
-    return {"file": percorso, "attivato": True, "letti": letti, "verificato": letti == VALORI}
+    return letti
