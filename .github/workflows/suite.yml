@@ -53,8 +53,8 @@ jobs:
           sudo bash control-plane/tests/prova_backup_vero.sh
       - name: Traffico vero fra due peer WireGuard e una internet finta (isolamento, DNS, SSH, amministrazione, revoca)
         run: sudo bash control-plane/tests/prova_traffico_vero.sh
-      - name: Unbound vero (immagine pin-nata, DNSSEC positivo e negativo, nessun nome nei log)
-        run: bash control-plane/tests/prova_dns_vero.sh
+      - name: DNS vero, Unbound e Pi-hole (DNSSEC, solo nel tunnel, deny, nessun nome nei log)
+        run: sudo bash control-plane/tests/prova_dns_vero.sh
       - name: Banco dei mutanti (guasti presi, innocui vivi)
         run: cd control-plane && python3 tests/mutanti.py
       - name: Preflight vero sul runner, in dry-run

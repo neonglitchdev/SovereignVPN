@@ -83,6 +83,9 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "Unbound che registra le query": ("dns.py", '"  log-queries: no"', '"  log-queries: yes"'),
     "Unbound in ascolto ovunque": ("dns.py", 'f"  interface: 127.0.0.1@{porta}"', 'f"  interface: 0.0.0.0@{porta}"'),
     "immagine con un tag mobile": ("ops/dns/unbound/Dockerfile", "FROM debian:12-slim@sha256:", "FROM debian:latest\n# era debian:12-slim@sha256:"),
+    "Pi-hole in ascolto su tutte le interfacce": ("dns.py", '"FTLCONF_dns_listeningMode": "BIND"', '"FTLCONF_dns_listeningMode": "ALL"'),
+    "Pi-hole che registra le query": ("dns.py", '"FTLCONF_dns_queryLogging": "false"', '"FTLCONF_dns_queryLogging": "true"'),
+    "Pi-hole con un upstream pubblico": ("dns.py", 'f"127.0.0.1#{porta_unbound}"', 'f"127.0.0.1#{porta_unbound};1.1.1.1"'),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }

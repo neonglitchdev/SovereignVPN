@@ -9,6 +9,7 @@ L'immagine e' nostra (ops/dns/unbound/Dockerfile): debian:12-slim pin-nata per d
 import json, sys
 
 PORTA_UNBOUND = 5335
+IMMAGINE_PIHOLE = "pihole/pihole:2026.10.1@sha256:30f803ad5dd60ff96cc0a63008a2e9271af481c1b0399a182192b2e91152c1f9"
 
 
 def unbound_conf(porta=PORTA_UNBOUND):
@@ -29,11 +30,27 @@ def unbound_conf(porta=PORTA_UNBOUND):
     return "\n".join(righe) + "\n"
 
 
+def pihole_env(wg_if="wg0", porta_unbound=PORTA_UNBOUND):
+    """Pi-hole 6 davanti a Unbound [H23]. Socket SOLO sull'indirizzo di wg0 (listeningMode BIND: nemmeno un ascolto sulla
+    WAN, e nessuno scontro con systemd-resolved); unico upstream Unbound in locale (cap. 6: niente forwarder pubblici);
+    nessuna query nel pihole.log ne' nel database, privacy al massimo nelle statistiche (FR-DNS-004, FR-DNS-009);
+    pannello solo su 127.0.0.1 (ADR-006). La password del pannello la legge da un file segreto (WEBPASSWORD_FILE),
+    altrimenti Pi-hole ne inventa una e la stampa nel log."""
+    return {"TZ": "UTC",
+            "FTLCONF_dns_upstreams": f"127.0.0.1#{porta_unbound}",
+            "FTLCONF_dns_listeningMode": "BIND", "FTLCONF_dns_interface": wg_if,
+            "FTLCONF_dns_queryLogging": "false", "FTLCONF_database_maxDBdays": "0", "FTLCONF_misc_privacylevel": "3",
+            "FTLCONF_webserver_port": "127.0.0.1:8081o",
+            "WEBPASSWORD_FILE": "pihole_webpasswd"}
+
+
 def aggiungi_parser(sotto, classe):
     dns = sotto.add_parser("dns", help="DNS interno: Unbound (FR-DNS-003/004)")
     az = dns.add_subparsers(dest="azione", required=True, parser_class=classe)
-    pl = az.add_parser("plan", help="la configurazione di Unbound, solo testo")
-    pl.add_argument("--porta", type=int, default=PORTA_UNBOUND)
+    pl = az.add_parser("plan", help="configurazione di Unbound o ambiente di Pi-hole, solo testo")
+    pl.add_argument("--servizio", choices=("unbound", "pihole"), default="unbound")
+    pl.add_argument("--porta", type=int, default=PORTA_UNBOUND, help="porta di Unbound su 127.0.0.1")
+    pl.add_argument("--interfaccia", default="wg0", help="l'interfaccia WireGuard su cui ascolta Pi-hole")
     pl.add_argument("--json", action="store_true")
 
 
@@ -41,6 +58,15 @@ def esegui(a):
     if not 1024 <= a.porta <= 65535:
         print("sovereignctl: input non valido: --porta da 1024 a 65535 (le porte basse sono di Pi-hole)", file=sys.stderr)
         return 2
+    if a.servizio == "pihole":
+        from .configurazione import INTERFACCIA
+        if not INTERFACCIA.match(a.interfaccia):
+            print("sovereignctl: input non valido: --interfaccia: nome di interfaccia Linux di 1-15 caratteri", file=sys.stderr)
+            return 2
+        env = pihole_env(a.interfaccia, a.porta)
+        print(json.dumps({"immagine": IMMAGINE_PIHOLE, "ambiente": env, "mutazioni_eseguite": 0}, ensure_ascii=False, indent=1)
+              if a.json else "".join(f"{k}={v}\n" for k, v in env.items()), end="" if not a.json else "\n")
+        return 0
     testo = unbound_conf(a.porta)
     print(json.dumps({"unbound.conf": testo, "mutazioni_eseguite": 0}, ensure_ascii=False, indent=1) if a.json else testo, end="" if not a.json else "\n")
     return 0
