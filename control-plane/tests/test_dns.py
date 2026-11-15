@@ -119,7 +119,7 @@ class AvvioDns(unittest.TestCase):
         self.assertNotIn("no-new-privileges", dns.VINCOLI_PIHOLE)
         self.assertNotIn("no-new-privileges", pihole)
         etichetta = re.search(r"(sovereignvpn-unbound:[\w.]+)", unbound).group(1)
-        self.assertIn(f"docker build -q -t {etichetta} ", (ops / "install.sh").read_text())
+        self.assertIn(f"docker build --network host -q -t {etichetta} ", (ops / "install.sh").read_text())
 
 
 if __name__ == "__main__":

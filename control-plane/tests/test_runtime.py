@@ -127,6 +127,18 @@ class Riconciliazione(Base):
         self.assertEqual(self.cli("reconcile", "--server-key", str(self.file_chiave), "--config", "/non/esiste.toml")[0], 2)
 
 
+class WgAssente(unittest.TestCase):
+    def test_wg_assente_errore_leggibile_e_status_guasto(self):
+        """Su un host senza wireguard-tools: niente traceback, ne' dalla riconciliazione ne' dallo status."""
+        from sovereignctl import runtime
+        with mock.patch.object(runtime.subprocess, "run", side_effect=FileNotFoundError(2, "No such file", "wg")):
+            codice, _, errore = runtime._wg("show", "wg0", "dump")
+            self.assertEqual(codice, 127)
+            self.assertIn("wireguard-tools", errore)
+            with self.assertRaises(RuntimeError):
+                runtime.leggi_runtime("wg0")
+
+
 class Confronto(unittest.TestCase):
     def test_l_ordine_degli_allowedips_nel_kernel_non_conta(self):
         """`wg show dump` li elenca nell'ordine del kernel: lo stesso insieme in un altro ordine non e' una differenza."""
