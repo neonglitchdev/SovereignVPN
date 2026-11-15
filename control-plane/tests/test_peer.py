@@ -105,6 +105,56 @@ ATTESE = {("PENDING", "revoke"): "REVOKED", ("ACTIVE", "suspend"): "SUSPENDED", 
           ("ERROR", "revoke"): "REVOKED"}
 
 
+class Rinomina(Base):
+    """FR-PEER-002 [H39]: il nome visualizzato cambia, l'identita' crittografica no."""
+
+    def riga(self, id_peer):
+        db = sqlite3.connect(self.db)
+        cur = db.execute("SELECT * FROM peer WHERE id = ?", (id_peer,))
+        return dict(zip([x[0] for x in cur.description], cur.fetchone()))
+
+    def test_cambia_solo_il_nome_e_il_runtime_resta_identico(self):
+        from sovereignctl import runtime
+        _, p, _ = self.add("telefono di Anna")
+        self.forza(p["id"], "ACTIVE")
+        prima = self.riga(p["id"])
+        conf = lambda: runtime.configurazione("CHIAVE", 51820, [self.riga(p["id"])], "fd00::/64")
+        conf_prima = conf()
+        codice, out, err = self.cli("rename", p["id"], "--name", "Telefono  di   Anna, nuovo".replace(",", ""), "--json")
+        self.assertEqual(codice, 0, err)
+        dopo = self.riga(p["id"])
+        self.assertEqual((dopo["nome"], dopo["nome_chiave"]), ("Telefono di Anna nuovo", "telefono di anna nuovo"))
+        for campo in ("id", "chiave_pubblica", "indirizzo", "stato", "saga", "creato", "scade"):
+            self.assertEqual(dopo[campo], prima[campo], campo)
+        self.assertEqual(conf(), conf_prima)  # quello che va in WireGuard non cambia: nessuna riconciliazione
+        ultimo = self.audit()[-1]
+        self.assertEqual((ultimo["action"], ultimo["outcome"], ultimo["target"]), ("peer.rename", "success", p["id"]))
+        self.assertNotIn("Anna", json.dumps(self.audit()))  # nell'audit l'UUID, mai il nome
+
+    def test_nome_di_un_altro_peer_respinto_e_registrato(self):
+        _, a, _ = self.add("portatile")
+        _, b, _ = self.add("tablet")
+        codice, _, err = self.cli("rename", b["id"], "--name", "PORTATILE")
+        self.assertEqual(codice, 2, err)
+        self.assertIn("--name", err)
+        self.assertEqual(self.riga(b["id"])["nome"], "tablet")
+        ultimo = self.audit()[-1]
+        self.assertEqual((ultimo["action"], ultimo["outcome"], ultimo["reason"]), ("peer.rename", "denied", "--name"))
+
+    def test_lo_stesso_nome_con_altre_maiuscole_si_puo(self):
+        _, p, _ = self.add("router di casa")
+        codice, _, err = self.cli("rename", p["id"], "--name", "Router di Casa")
+        self.assertEqual(codice, 0, err)
+        self.assertEqual(self.riga(p["id"])["nome"], "Router di Casa")
+
+    def test_input_non_validi(self):
+        _, p, _ = self.add("uno")
+        self.assertEqual(self.cli("rename", p["id"], "--name", "../etc")[0], 2)
+        self.assertEqual(self.cli("rename", p["id"], "--name", "")[0], 2)
+        self.assertEqual(self.cli("rename", "non-un-uuid", "--name", "due")[0], 2)
+        self.assertEqual(self.riga(p["id"])["nome"], "uno")
+
+
 class Stati(Base):
     def test_matrice_completa_delle_transizioni(self):
         """Ogni (stato, azione) fuori da TRANSIZIONI e' respinta e lascia un evento denied; quelle dentro passano."""

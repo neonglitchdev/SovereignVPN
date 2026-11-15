@@ -273,6 +273,23 @@ class Archivio:
         d["chiave_privata_sul_server"] = False  # [H2]: non esiste, quindi non si puo' mostrare (ANC-0246)
         return d
 
+    def rinomina(self, id_peer, nome):
+        """FR-PEER-002 [H39]: cambia solo il nome visualizzato, con le regole di add (ANC-0238). UUID, chiave pubblica,
+        indirizzo, stato e saga restano: nel runtime WireGuard il nome non c'e', quindi niente riconciliazione."""
+        p = self.mostra(id_peer)
+        nome, nome_chiave = normalizza_nome(nome)
+        rifiuto = None
+        with self.transazione() as c:
+            if c.execute("SELECT 1 FROM peer WHERE nome_chiave = ? AND id != ?", (nome_chiave, p["id"])).fetchone():
+                rifiuto = Conflitto(f"--name: «{nome}» e' gia' in uso")
+                self.audit(c, "peer.rename", "denied", p["id"], "--name")  # il motivo e' il campo, mai il nome
+            else:
+                c.execute("UPDATE peer SET nome = ?, nome_chiave = ? WHERE id = ?", (nome, nome_chiave, p["id"]))
+                self.audit(c, "peer.rename", "success", p["id"])
+        if rifiuto:
+            raise rifiuto
+        return self.mostra(p["id"])
+
     def transizione(self, id_peer, azione):
         p = self.mostra(id_peer)
         with self.transazione() as c:
@@ -356,7 +373,7 @@ def esegui_host(a):
 def aggiungi_parser(sotto, classe):
     peer = sotto.add_parser("peer", help="registro dei peer")
     az = peer.add_subparsers(dest="azione", required=True, parser_class=classe)
-    for nome in ("add", "list", "show", "suspend", "resume", "revoke", "reconcile", "expire-sweep"):
+    for nome in ("add", "list", "show", "suspend", "resume", "revoke", "rename", "reconcile", "expire-sweep"):
         s = az.add_parser(nome)
         s.add_argument("--db", default=DB_PREDEFINITO)
         s.add_argument("--json", action="store_true")
@@ -366,8 +383,10 @@ def aggiungi_parser(sotto, classe):
             s.add_argument("--quota-mb", type=int, help="traffico massimo del peer in MB; oltre, fermo (FR-PEER-008)")
             s.add_argument("--dns-policy", choices=("interno", "libero"), help="interno (di base) o libero: DNS esterni ammessi per questo peer (FR-PEER-008)")
             s.add_argument("--routes", help="split tunnel: CIDR,CIDR verso cui il peer esce (FR-PEER-008); senza, full-tunnel")
-        if nome in ("show", "suspend", "resume", "revoke"):
+        if nome in ("show", "suspend", "resume", "revoke", "rename"):
             s.add_argument("id")
+        if nome == "rename":  # FR-PEER-002: solo il nome visualizzato
+            s.add_argument("--name", required=True)
         if nome == "reconcile":  # dal registro al runtime WireGuard (ANC-0276/0277)
             s.add_argument("--interface", default="wg0"); s.add_argument("--server-key", default="/etc/sovereignvpn/wg-server.key")
             s.add_argument("--port", type=int, default=51820)
@@ -408,6 +427,8 @@ def esegui(a):
             esito = archivio.elenco()
         elif a.azione == "show":
             esito = archivio.mostra(a.id)
+        elif a.azione == "rename":
+            esito = archivio.rinomina(a.id, a.name)
         else:
             esito = archivio.transizione(a.id, a.azione)
     except InputNonValido as e:
