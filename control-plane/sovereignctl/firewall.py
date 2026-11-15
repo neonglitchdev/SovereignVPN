@@ -128,7 +128,7 @@ def applica_tabella(ruleset):
     for argomenti in (("-c", "-f", "-"), ("-f", "-")):
         codice, _, errore = _nft(*argomenti, ingresso=ruleset)
         if codice != 0:
-            raise RuntimeError(f"nft {' '.join(argomenti)} ha rifiutato la tabella, niente applicato ({registro.redigi(errore.strip())[:200]})")
+            raise RuntimeError(f"nft {' '.join(argomenti)} ha rifiutato la tabella d'appoggio, nulla cambiato ({registro.redigi(errore.strip())[:200]})")
 
 
 def _nome_quota(ind):
