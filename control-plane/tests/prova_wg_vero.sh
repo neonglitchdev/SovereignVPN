@@ -34,3 +34,24 @@ python3 -c "import sys; sys.exit(0 if $T1 - $T0 < 5 else 1)" || { echo "ROSSO: r
 STATO="$(peer show --db "$D/r.db" "$ID1" --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["stato"], d["saga"])')"
 [ "$STATO" = "REVOKED APPLIED" ] || { echo "ROSSO: registro $STATO, atteso REVOKED APPLIED"; exit 1; }
 echo "OK: revoca effettiva in $SEC s (soglia 5 s), chiave fuori dal runtime, registro REVOKED APPLIED"
+# scadenza (FR-PEER-005): l'orologio si controlla spostando nel passato la scadenza scritta nel registro
+K3="$(wg genkey | wg pubkey)"
+ID3="$(peer add --db "$D/r.db" --name tre --public-key "$K3" --ttl-days 1 --json | id_di)"
+peer reconcile --db "$D/r.db" --interface "$IF" --server-key "$D/server.key" >/dev/null
+wg show "$IF" peers | grep -qxF "$K3" || { echo "ROSSO: il peer col TTL non e' entrato nel runtime"; exit 1; }
+NONSCAD="$(peer expire-sweep --db "$D/r.db" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["scaduti"])')"
+[ "$NONSCAD" = "0" ] || { echo "ROSSO: col TTL di un giorno sono scaduti $NONSCAD peer adesso, attesi 0"; exit 1; }
+python3 - "$D/r.db" "$ID3" <<'PY'
+import sqlite3, sys
+db = sqlite3.connect(sys.argv[1])
+db.execute("UPDATE peer SET scade = '2000-01-01T00:00:00Z' WHERE id = ?", (sys.argv[2],))
+db.commit()
+PY
+SCAD="$(peer expire-sweep --db "$D/r.db" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["scaduti"])')"
+[ "$SCAD" = "1" ] || { echo "ROSSO: scaduti $SCAD, atteso 1"; exit 1; }
+peer reconcile --db "$D/r.db" --interface "$IF" --server-key "$D/server.key" >/dev/null
+if wg show "$IF" peers | grep -qxF "$K3"; then echo "ROSSO: la chiave scaduta e' ancora nel runtime"; exit 1; fi
+wg show "$IF" peers | grep -qxF "$K2" || { echo "ROSSO: la riconciliazione ha tolto anche il peer non scaduto"; exit 1; }
+STATO3="$(peer show --db "$D/r.db" "$ID3" --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["stato"], d["saga"])')"
+[ "$STATO3" = "EXPIRED APPLIED" ] || { echo "ROSSO: registro $STATO3, atteso EXPIRED APPLIED"; exit 1; }
+echo "OK: scadenza, 0 peer scaduti col TTL in corso, 1 col TTL passato; chiave fuori dal runtime, l'altro peer resta, EXPIRED APPLIED"
