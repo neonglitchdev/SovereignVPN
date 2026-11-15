@@ -101,6 +101,15 @@ class Rifiuti(unittest.TestCase):
         err = self.rifiuto(BASE + f'admin_token = "{segreto}"\n', "config.admin_token")
         self.assertNotIn(segreto, err)
 
+    def test_lo_schema_da_solo_non_ripete_il_segreto(self):
+        """Il primo strato, senza la CLI che redige davanti: un guasto qui non deve restare coperto dal secondo."""
+        from sovereignctl import configurazione
+        segreto = "SegretoMoltoRiconoscibile-7f3a9"
+        with self.assertRaises(preflight.InputNonValido) as e:
+            configurazione.valida({"schema_version": 1, "endpoint": "vpn.example.org", "admin_token": segreto})
+        self.assertIn("config.admin_token", str(e.exception))
+        self.assertNotIn(segreto, str(e.exception))
+
     def test_hash_malformato_non_ripete_il_valore(self):
         valore = "plaintext-che-non-e-un-hash-91c2"
         err = self.rifiuto(BASE + f'admin_token_hash = "{valore}"\n', "config.admin_token_hash")
