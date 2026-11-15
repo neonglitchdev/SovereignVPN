@@ -26,8 +26,9 @@ def non_applicati():
 def inventario(server):
     """FR-NET-004 [H26]: le porte dei container del DNS, dichiarate. Sono in rete host e non pubblicano porte: si
     verifica chi ascolta, e dove. Unbound solo su 127.0.0.1:5335; Pi-hole solo sull'indirizzo del server in VPN, porta
-    53, e il pannello su 127.0.0.1:8081 (ADR-006)."""
-    return {"unbound": {("127.0.0.1", dns.PORTA_UNBOUND)}, "pihole-FTL": {(server, 53), ("127.0.0.1", 8081)}}
+    53, il loopback sulla 53 (BIND lo apre sempre, dalla rete non si raggiunge) e il pannello su 127.0.0.1:8081 (ADR-006)."""
+    return {"unbound": {("127.0.0.1", dns.PORTA_UNBOUND)},
+            "pihole-FTL": {(server, 53), ("127.0.0.1", 53), ("::1", 53), ("127.0.0.1", 8081)}}  # loopback: mai dalla rete
 
 
 def porte_fuori_inventario(server):

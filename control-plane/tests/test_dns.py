@@ -55,6 +55,8 @@ class PiHole(unittest.TestCase):
         self.assertTrue(e["FTLCONF_webserver_port"].startswith("127.0.0.1:"))
         self.assertEqual(e["WEBPASSWORD_FILE"], "pihole_webpasswd")
         self.assertNotIn("FTLCONF_webserver_api_password", e)  # mai la password nell'ambiente
+        self.assertEqual([e[k] for k in ("FTLCONF_ntp_ipv4_active", "FTLCONF_ntp_ipv6_active", "FTLCONF_ntp_sync_active")],
+                         ["false"] * 3)  # nessun server NTP su 0.0.0.0:123, nessuna sincronizzazione verso fuori
 
     def test_immagine_pin_nata_per_digest(self):
         self.assertRegex(dns.IMMAGINE_PIHOLE, r"^pihole/pihole:\d{4}\.\d{2}\.\d+@sha256:[0-9a-f]{64}$")

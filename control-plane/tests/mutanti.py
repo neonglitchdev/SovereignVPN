@@ -101,6 +101,7 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "lista invalida attivata lo stesso": ("liste.py", "    if errori or not domini:", "    if not domini:"),
     "indirizzi IP accettati come domini": ("liste.py", "            ipaddress.ip_address(r)\n", "            raise ValueError\n"),
     "rollback che non torna indietro": ("liste.py", 'return _attiva(cartella, vecchio["attiva"],', 'return _attiva(cartella, prima["attiva"],'),
+    "Pi-hole con il server NTP acceso": ("dns.py", '"FTLCONF_ntp_ipv4_active": "false"', '"FTLCONF_ntp_ipv4_active": "true"'),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
