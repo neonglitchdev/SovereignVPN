@@ -195,6 +195,33 @@ def esegui_firewall(a):
     return 0 if esito["verificato"] else 4
 
 
+def aggiungi_parser_host(sotto, classe):
+    h = sotto.add_parser("host", help="sysctl dell'host (inoltro IPv4 acceso, IPv6 spento)")
+    az = h.add_subparsers(dest="azione", required=True, parser_class=classe)
+    for nome in ("plan", "apply"):
+        s = az.add_parser(nome)
+        s.add_argument("--radice", default=""); s.add_argument("--json", action="store_true")
+
+
+def esegui_host(a):
+    from . import host
+    if a.azione == "plan":
+        print(json.dumps({"file": "/" + host.FILE, "contenuto": host.componi(), "mutazioni_eseguite": 0}, ensure_ascii=False, indent=1)
+              if a.json else host.componi(), end="" if not a.json else "\n")
+        return 0
+    if a.radice and not os.path.isdir(a.radice):
+        print(f"sovereignctl: input non valido: --radice: la cartella «{a.radice}» non esiste", file=sys.stderr)
+        return 2
+    try:
+        esito = host.applica(a.radice)
+    except (RuntimeError, OSError) as e:
+        print(f"sovereignctl: errore dei sysctl: {registro.redigi(e)}", file=sys.stderr)
+        return 1
+    print(json.dumps(esito, ensure_ascii=False, indent=1) if a.json else
+          f"Sysctl scritti in {esito['file']}" + (f"; attivati e riletti: {esito['letti']}" if esito["attivato"] else "; non attivati (radice di prova)"))
+    return 4 if esito["verificato"] is False else 0
+
+
 def aggiungi_parser(sotto, classe):
     peer = sotto.add_parser("peer", help="registro dei peer")
     az = peer.add_subparsers(dest="azione", required=True, parser_class=classe)

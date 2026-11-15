@@ -26,11 +26,14 @@ def main(argv=None):
     init.add_argument("--json", action="store_true", help="rapporto in JSON")
     peer.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser_firewall(sotto, _Parser)
+    peer.aggiungi_parser_host(sotto, _Parser)
     a = p.parse_args(argv)
     if a.comando == "peer":
         return peer.esegui(a)
     if a.comando == "firewall":
         return peer.esegui_firewall(a)
+    if a.comando == "host":
+        return peer.esegui_host(a)
     try:
         cfg = configurazione.leggi(a.config) if a.config else {}
         valori, nomi = {}, {}
