@@ -20,6 +20,12 @@ BASE_UNBOUND = "debian:12-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2
 # privilegi; misurato che risponde cosi'. Ascolta sopra la 1024 e non scrive niente (pidfile spento).
 VINCOLI_UNBOUND = ("--read-only", "--cap-drop", "ALL", "--cap-add", "SETUID", "--cap-add", "SETGID",
                    "--security-opt", "no-new-privileges")
+# Pi-hole: capability minime e mai nuovi privilegi, misurati: con queste risponde; senza SETFCAP non imposta le
+# capability di pihole-FTL e non parte; senza DAC_OVERRIDE non legge pihole.toml; NET_RAW non serve. La sola lettura
+# NON e' compatibile: all'avvio scrive in / (macvendor.db, crontab); NFR-SEC-003 la vuole «quando compatibile».
+VINCOLI_PIHOLE = ("--cap-drop", "ALL", "--cap-add", "CHOWN", "--cap-add", "SETUID", "--cap-add", "SETGID",
+                  "--cap-add", "NET_BIND_SERVICE", "--cap-add", "DAC_OVERRIDE", "--cap-add", "FOWNER", "--cap-add", "SETFCAP",
+                  "--security-opt", "no-new-privileges")
 
 
 def immagini():

@@ -61,8 +61,10 @@ IMMAGINE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["imm
 mapfile -t AMBIENTE < <(python3 -c 'import json,sys; [print(f"{k}={v}") for k, v in json.load(open(sys.argv[1]))["ambiente"].items()]' "$D/pihole.json")
 ARGS=(); for e in "${AMBIENTE[@]}"; do ARGS+=(-e "$e"); done
 mkdir -m 0755 "$D/liste"
-docker run -d --name "$PIHOLE" --network host "${ARGS[@]}" -v "$D/pw:/run/secrets/pihole_webpasswd:ro" -v "$D/liste:/etc/pihole/sovereignvpn:ro" "$IMMAGINE" >/dev/null
+mapfile -t VINCOLI_PH < <(python3 -c 'from sovereignctl import dns; print("\n".join(dns.VINCOLI_PIHOLE))')
+docker run -d --name "$PIHOLE" --network host "${VINCOLI_PH[@]}" "${ARGS[@]}" -v "$D/pw:/run/secrets/pihole_webpasswd:ro" -v "$D/liste:/etc/pihole/sovereignvpn:ro" "$IMMAGINE" >/dev/null
 chiedi_vpn() { ns dig +timeout=3 +tries=1 @10.98.0.1 "$@"; }
+[ "$(vincoli "$PIHOLE" VINCOLI_PIHOLE)" = "[]" ] || rosso "Pi-hole acceso senza i vincoli dichiarati: $(vincoli "$PIHOLE" VINCOLI_PIHOLE)"
 for _ in $(seq 90); do chiedi_vpn isc.org A 2>/dev/null | contiene "status: NOERROR" && break; sleep 1; done
 BUONO="$(chiedi_vpn isc.org A || true)"
 grep -q "status: NOERROR" <<<"$BUONO" || { echo "$BUONO"; docker logs "$PIHOLE" 2>&1 | tail -20; rosso "dal tunnel Pi-hole non risolve isc.org"; }

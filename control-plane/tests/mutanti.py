@@ -70,6 +70,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "Unbound col pidfile": ("dns.py", """'  chroot: ""', '  pidfile: ""',""", """'  chroot: ""',"""),
     "vincoli: sola lettura non controllata": ("audit.py", 'mancano = (["read-only"] if "--read-only" in attesi and not hc.get("ReadonlyRootfs") else [])', "mancano = []"),
     "vincoli: capability in piu' non viste": ("audit.py", """    mancano += [f"cap-add {c} in piu'" for c in sorted(cap(hc.get("CapAdd")) - cap(voluti["cap-add"]))]\n""", ""),
+    "Pi-hole senza no-new-privileges": ("dns.py", '"--cap-add", "SETFCAP",\n                  "--security-opt", "no-new-privileges")', '"--cap-add", "SETFCAP")'),
+    "Pi-hole con tutte le capability": ("dns.py", 'VINCOLI_PIHOLE = ("--cap-drop", "ALL", ', 'VINCOLI_PIHOLE = ('),
     "transizione respinta senza audit": ("peer.py", 'self.audit(c, f"peer.{azione}", "denied", p["id"], f"transizione non valida da {stato}")', "pass"),
     "il sospeso resta nel runtime": ("runtime.py", 'NEL_RUNTIME = ("PENDING", "ACTIVE")', 'NEL_RUNTIME = ("PENDING", "ACTIVE", "SUSPENDED")'),
     "chiave del server leggibile accettata": ("runtime.py", "    if modo & 0o077:", "    if False:"),

@@ -195,7 +195,7 @@ def vincoli_mancanti(nome, attesi):
 
 def _vincoli():
     accesi, male = 0, []
-    for nome, attesi in (("sovereignvpn-unbound", dns.VINCOLI_UNBOUND),):
+    for nome, attesi in (("sovereignvpn-unbound", dns.VINCOLI_UNBOUND), ("sovereignvpn-pihole", dns.VINCOLI_PIHOLE)):
         m = vincoli_mancanti(nome, attesi)
         if m is not None:
             accesi += 1

@@ -161,9 +161,15 @@ class Vincoli(unittest.TestCase):
     """[H44] I vincoli dei container letti da docker inspect, contro quelli dichiarati in dns."""
     CONFORME = {"ReadonlyRootfs": True, "CapDrop": ["ALL"], "CapAdd": ["CAP_SETUID", "CAP_SETGID"], "SecurityOpt": ["no-new-privileges"]}
 
-    def ispeziona(self, hc):
-        risposta = (0, json.dumps(hc)) if hc is not None else (1, "")
-        return mock.patch.object(stato, "_leggi", lambda *a, **k: risposta)
+    PIHOLE = {"ReadonlyRootfs": False, "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges"],
+              "CapAdd": ["CAP_CHOWN", "CAP_SETUID", "CAP_SETGID", "CAP_NET_BIND_SERVICE", "CAP_DAC_OVERRIDE", "CAP_FOWNER", "CAP_SETFCAP"]}
+
+    def ispeziona(self, hc, pihole=None):
+        """hc per Unbound (e per ogni nome, se pihole e' None), pihole per sovereignvpn-pihole."""
+        def leggi(*a, **k):
+            scelto = pihole if pihole is not None and a[-1] == "sovereignvpn-pihole" else hc
+            return (0, json.dumps(scelto)) if scelto is not None else (1, "")
+        return mock.patch.object(stato, "_leggi", leggi)
 
     def test_conforme_senza_vincoli_e_con_una_capability_in_piu(self):
         with self.ispeziona(self.CONFORME):
@@ -176,9 +182,11 @@ class Vincoli(unittest.TestCase):
             self.assertIsNone(audit.vincoli_mancanti("x", dns.VINCOLI_UNBOUND))
 
     def test_il_controllo_dell_audit(self):
-        with self.ispeziona(self.CONFORME):
+        with self.ispeziona(self.CONFORME, self.PIHOLE):
             self.assertEqual(audit._vincoli()[0], "PASS")
-        with self.ispeziona({**self.CONFORME, "ReadonlyRootfs": False}):
+        with self.ispeziona(self.CONFORME, {**self.PIHOLE, "SecurityOpt": []}):
+            self.assertIn("sovereignvpn-pihole: security-opt no-new-privileges", audit._vincoli()[1])
+        with self.ispeziona({**self.CONFORME, "ReadonlyRootfs": False}, self.PIHOLE):
             stato_, evidenza, rimedio = audit._vincoli()
             self.assertEqual(stato_, "FAIL"); self.assertIn("read-only", evidenza); self.assertTrue(rimedio)
         with self.ispeziona(None):
