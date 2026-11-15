@@ -182,6 +182,23 @@ ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interfac
 passa tp1 192.0.2.80 8080 || rosso "col firewall senza limiti il peer 1 non raggiunge piu' il sito"
 echo "OK: rotte per peer, col limite il peer esce solo verso 192.0.2.53/32; senza, il sito torna raggiungibile"
 
+# 6c. DNS policy per peer (FR-PEER-008, H34): col DNS libero il peer 1 raggiunge il DNS esterno, senza no
+ns tsrv python3 - "$CONFIG" <<'PY'
+import sys
+from sovereignctl import configurazione, firewall
+c = configurazione.leggi(sys.argv[1])
+firewall.applica(firewall.componi(c["subnet"], "wg0", c["wg_port"], "ens3", c["admin_port"], c["ssh_port"], c["admin_ssh_sources"],
+                                  c.get("mtu", 1420), True, (), ["10.66.0.2"]))
+PY
+manda tp1 192.0.2.53 53 dns-libero
+arriva "$D/dns53.txt" dns-libero || rosso "col DNS libero il peer 1 non raggiunge il DNS esterno"
+ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interface ens3 --db "$D/r.db" >/dev/null
+manda tp1 192.0.2.53 53 dns-di-nuovo-interno
+manda tp1 192.0.2.53 5353 controllo-6c
+arriva "$D/dns5353.txt" controllo-6c || rosso "controllo: la 5353 non arriva, la prova non distinguerebbe"
+if grep -qF dns-di-nuovo-interno "$D/dns53.txt"; then rosso "senza DNS libero il peer 1 raggiunge ancora il DNS esterno"; fi
+echo "OK: DNS policy per peer, libero raggiunge il DNS esterno, interno no (la 5353 accanto passa)"
+
 # 7. revoca: il peer revocato non passa piu', l'altro si'
 peer revoke --db "$D/r.db" "$ID1" >/dev/null
 ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" >/dev/null
