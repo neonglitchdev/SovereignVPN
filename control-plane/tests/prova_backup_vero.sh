@@ -22,7 +22,7 @@ DEST="$(age-keygen -y "$D/identita.txt")"
 R="$(python3 -m sovereignctl backup create --config /etc/sovereignvpn/server.toml --recipient "$DEST" --out "$D/backup" --json)"
 FILE="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["percorso"])' "$R")"
 MAN="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["manifest"])' "$R")"
-[ "$(stat -c '%a %a' "$FILE" "$MAN")" = "600 600" ] || rosso "backup o manifest non 0600"
+[ "$(stat -c '%a' "$FILE" "$MAN" | tr '\n' ' ')" = "600 600 " ] || rosso "backup o manifest non 0600"
 [ "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["checksum"])' "$R")" = "sha256:$(sha256sum "$FILE" | cut -d' ' -f1)" ] || rosso "checksum stampato diverso dal file"
 if grep -qF "$(cat "$CHIAVE")" "$MAN" - <<<"$R"; then rosso "la chiave del server e' nel manifest o a schermo"; fi
 if grep -qaF "$(cat "$CHIAVE")" "$FILE"; then rosso "la chiave del server si legge in chiaro nel file cifrato"; fi
