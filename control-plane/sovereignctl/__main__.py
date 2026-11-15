@@ -5,6 +5,7 @@ Codici di uscita (ANC-0255): 0 successo; 1 errore runtime/sistema (anche un prer
 Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [--admin-port N] [--subnet CIDR] [--json]
      python3 -m sovereignctl init --apply --config server.toml --wan-interface IF [--json]
      python3 -m sovereignctl reconcile --config server.toml [--wan-interface IF] [--json]   (a ogni avvio, FR-NET-007)
+     python3 -m sovereignctl status [--config server.toml] [--db FILE] [--json]           (solo letture)
 """
 import argparse, json, sys
 
@@ -72,6 +73,10 @@ def main(argv=None):
     ex.add_argument("--server-key", default="/etc/sovereignvpn/wg-server.key")
     ex.add_argument("--out", help="cartella di destinazione (0700); di base /var/lib/sovereignvpn/export")
     ex.add_argument("--json", action="store_true")
+    st = sotto.add_parser("status", help="release e salute, solo letture e sanitizzato (NFR-AVL-002)")
+    st.add_argument("--config", default="/etc/sovereignvpn/server.toml", help="configurazione (porta, subnet, WAN)")
+    st.add_argument("--db", default=peer.DB_PREDEFINITO)
+    st.add_argument("--json", action="store_true", help="rapporto in JSON")
     peer.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser_firewall(sotto, _Parser)
     peer.aggiungi_parser_host(sotto, _Parser)
@@ -87,6 +92,9 @@ def main(argv=None):
     if a.comando == "profile":
         from . import profilo
         return profilo.esegui(a)
+    if a.comando == "status":
+        from . import stato
+        return stato.esegui(a)
     try:
         cfg = configurazione.leggi(a.config) if a.config else {}
         valori, nomi = {}, {}
