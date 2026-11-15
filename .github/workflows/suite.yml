@@ -11,3 +11,11 @@ jobs:
         run: |
           python3 estrai_corpus.py sorgente/SovereignVPN_PRD_RFC_14.0.docx corpus/
           cat corpus/profilo.json
+      - name: Prove del control plane
+        run: cd control-plane && python3 -m unittest discover -s tests -v
+      - name: Preflight vero sul runner, in dry-run
+        run: |
+          cd control-plane
+          set +e; python3 -m sovereignctl init --check; c=$?; set -e
+          echo "codice di uscita: $c (0 host conforme, 1 prerequisito mancante)"
+          [ "$c" -le 1 ]
