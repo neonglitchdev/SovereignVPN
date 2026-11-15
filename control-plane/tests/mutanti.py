@@ -21,6 +21,9 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "la CLI ignora il file di configurazione": ("__main__.py", "if da_cli is None and campo in cfg:", "if False:"),
     "le chiavi WireGuard non vengono redatte": ("registro.py", "    t = _CHIAVE_WG.sub(\"[CHIAVE REDATTA]\", t)\n", ""),
     "il filtro lascia passare gli argomenti": ("registro.py", "        record.msg = redigi(record.getMessage())\n        record.args = ()\n", ""),
+    "il manifest accetta segreti e URL": ("manifest.py", "    if redigi(testo) != testo:", "    if False:"),
+    "il manifest accetta il tag latest": ("manifest.py", "        if nome.endswith(\":latest\"):", "        if False:"),
+    "scrittura diretta sul file vero, non atomica": ("manifest.py", "fd, tmp = tempfile.mkstemp(prefix=\".manifest-\", dir=cartella)", "fd, tmp = os.open(percorso, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644), percorso"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
