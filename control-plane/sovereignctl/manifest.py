@@ -44,15 +44,19 @@ def componi(fatti, percorso_config=None, id_installazione=None, immagini=()):
 
 
 def scrivi(percorso, manifest):
+    return scrivi_testo(percorso, json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
+
+
+def scrivi_testo(percorso, testo, modo=0o644):
+    """Scrittura atomica di un testo (ANC-0244, ANC-0344): la usano il manifest e i file di sistema."""
     cartella = os.path.dirname(os.path.abspath(percorso))
     fd, tmp = tempfile.mkstemp(prefix=".manifest-", dir=cartella)  # stessa filesystem: os.replace e' atomico
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(manifest, f, ensure_ascii=False, indent=1, sort_keys=True)
-            f.write("\n")
+            f.write(testo)
             f.flush()
             os.fsync(f.fileno())
-        os.chmod(tmp, 0o644)
+        os.chmod(tmp, modo)
         os.replace(tmp, percorso)
     except BaseException:
         if os.path.exists(tmp):

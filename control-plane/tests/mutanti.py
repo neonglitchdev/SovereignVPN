@@ -42,6 +42,9 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "SSH aperto a tutti": ("firewall.py", 'r.append(f"    ip saddr {{ {v4} }} tcp dport {int(ssh_port)} accept")', 'r.append(f"    ip saddr {{ 0.0.0.0/0 }} tcp dport {int(ssh_port)} accept")'),
     "IPv6 dei peer non respinto": ("firewall.py", "meta nfproto ipv6 reject with icmpv6 type admin-prohibited", "meta nfproto ipv6 accept"),
     "DNS esterno dei peer non bloccato": ("firewall.py", 'meta l4proto {{ tcp, udp }} th dport 53 drop', 'meta l4proto {{ tcp, udp }} th dport 53 accept'),
+    "rp_filter imposto globalmente": ("host.py", '"net.ipv6.conf.default.forwarding": "0"}', '"net.ipv6.conf.default.forwarding": "0", "net.ipv4.conf.all.rp_filter": "1"}'),
+    "inoltro IPv6 acceso": ("host.py", '"net.ipv6.conf.all.forwarding": "0"', '"net.ipv6.conf.all.forwarding": "1"'),
+    "verifica dei sysctl che dice sempre si'": ("host.py", '"verificato": letti == VALORI}', '"verificato": True}'),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
