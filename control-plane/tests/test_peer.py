@@ -291,6 +291,8 @@ class PoliticaDns(Base):
         self.assertEqual(peer.dns_liberi(self.db), [])
         with self.assertRaises(SystemExit):
             self.add("altro", None, "--dns-policy", "tutto")
+        with self.assertRaises(peer.InputNonValido):  # anche chi chiama l'Archivio senza la CLI
+            peer.Archivio(self.db).aggiungi("diretto", chiave(), "10.66.0.0/24", politica_dns="tutto")
 
 if __name__ == "__main__":
     unittest.main()
