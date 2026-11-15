@@ -59,6 +59,12 @@ def valida_chiave(chiave):
     return chiave
 
 
+def _schema_vecchio(e):
+    """[H41] Colonna o tabella che manca (SQLITE_ERROR): registro di schema vecchio, quindi nessun limite. Il resto
+    (occupato, bloccato, illeggibile) NON e' «nessun limite»: sale, e chi compone il firewall va in recupero."""
+    return getattr(e, "sqlite_errorname", "") == "SQLITE_ERROR"
+
+
 def quote(db, vive=None, salva=False):
     """[H35] (indirizzo, byte, usati) dei peer non revocati con quota; usati = max(registro, tabella viva). Con salva,
     i byte usati si scrivono nel registro: cosi' sopravvivono al reconcile e al riavvio."""
@@ -67,8 +73,10 @@ def quote(db, vive=None, salva=False):
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
         righe = con.execute("SELECT indirizzo, quota_byte, quota_usati FROM peer WHERE quota_byte IS NOT NULL AND stato != 'REVOKED' ORDER BY indirizzo").fetchall()
-    except sqlite3.OperationalError:
-        return []
+    except sqlite3.OperationalError as e:
+        if _schema_vecchio(e):
+            return []
+        raise
     finally:
         con.close()
     vive = (vive() if callable(vive) else vive) if righe and vive else {}  # nft solo se c'e' una quota
@@ -89,8 +97,10 @@ def dns_liberi(db):
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
         return [r[0] for r in con.execute("SELECT indirizzo FROM peer WHERE politica_dns = 'libero' AND stato != 'REVOKED' ORDER BY indirizzo")]
-    except sqlite3.OperationalError:
-        return []
+    except sqlite3.OperationalError as e:
+        if _schema_vecchio(e):
+            return []
+        raise
     finally:
         con.close()
 
@@ -103,8 +113,10 @@ def limiti_rotte(db):
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
         righe = con.execute("SELECT indirizzo, rotte FROM peer WHERE rotte IS NOT NULL AND stato != 'REVOKED' ORDER BY indirizzo").fetchall()
-    except sqlite3.OperationalError:
-        return []
+    except sqlite3.OperationalError as e:
+        if _schema_vecchio(e):
+            return []
+        raise
     finally:
         con.close()
     return [(ind, json.loads(r)) for ind, r in righe]
@@ -335,8 +347,8 @@ def esegui_firewall(a):
     except InputNonValido as e:
         print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
         return 2
-    except (RuntimeError, OSError) as e:
-        print(f"sovereignctl: errore del firewall: {registro.redigi(e)}", file=sys.stderr)
+    except (RuntimeError, OSError, sqlite3.Error) as e:  # registro illeggibile: niente applicato, la tabella viva resta [H41]
+        print(f"sovereignctl: errore del firewall ({type(e).__name__}): {registro.redigi(e)}", file=sys.stderr)
         return 1
     print(json.dumps(esito, ensure_ascii=False, indent=1) if a.json else
           f"Firewall applicato: tabella {esito['tabella']}, {esito['regole']} regole, policy {esito['catene']}")

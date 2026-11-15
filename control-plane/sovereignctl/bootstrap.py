@@ -6,7 +6,7 @@ interfaccia WireGuard col primo host della subnet, sysctl, firewall, riconciliaz
 fatti: un errore dopo almeno un passo esce col codice 4 (applicato in parte, serve recovery, ANC-0255), prima con 1.
 `reconcile` (ripristina) rifa' a ogni avvio i passi di rete, col firewall per primo (FR-NET-007).
 """
-import ipaddress, json, os, subprocess, uuid
+import ipaddress, json, os, sqlite3, subprocess, uuid
 
 from . import dns, firewall, host, manifest, peer, registro, runtime
 
@@ -85,14 +85,26 @@ def _passi_di_rete(cfg, wan_if, wg_if, db):
     """I passi comuni a init e al ripristino. Un input non valido (WAN, sorgenti SSH, subnet) solleva InputNonValido
     QUI, prima di toccare l'host: le regole si compongono subito, e comporle non muta niente (ANC-0255: 2, non 4)."""
     rete, porta = cfg.get("subnet") or "10.66.0.0/24", cfg.get("wg_port", 51820)
-    regole = firewall.componi(rete, wg_if, porta, wan_if, cfg.get("admin_port", 8443), cfg.get("ssh_port", 22), cfg.get("admin_ssh_sources"), cfg.get("mtu", 1420), cfg.get("dns_block_dot", True), peer.limiti_rotte(db), peer.dns_liberi(db),
-                              peer.quote(db, firewall.quote_usate, salva=True))
+    try:  # T-026 [H41]: registro illeggibile = firewall in recupero (nessun traffico dei peer), poi ci si ferma
+        per_peer, recupero = (peer.limiti_rotte(db), peer.dns_liberi(db), peer.quote(db, firewall.quote_usate, salva=True)), False
+    except sqlite3.Error:
+        per_peer, recupero = ((), (), ()), True
+    regole = firewall.componi(rete, wg_if, porta, wan_if, cfg.get("admin_port", 8443), cfg.get("ssh_port", 22), cfg.get("admin_ssh_sources"), cfg.get("mtu", 1420), cfg.get("dns_block_dot", True), *per_peer,
+                              recupero=recupero)
+
+    def _firewall():
+        ok = _verificato("firewall", firewall.applica(regole)["verificato"])
+        return "in recupero: registro dei peer illeggibile, nessun traffico dei peer (T-026)" if recupero else ok
+
+    def _riconciliazione():
+        if recupero:  # mai un peer dal registro rotto: si ferma qui, codice 4, e il runtime non si tocca
+            raise RuntimeError("registro dei peer illeggibile (T-026): NEEDS_RECOVERY, serve `sovereignctl backup restore`")
+        return _verificato("riconciliazione", runtime.riconcilia(peer.Archivio(db), wg_if, runtime.CHIAVE_SERVER, porta, cfg["subnet6"])["coincide"])
     return {
-        "firewall": lambda: _verificato("firewall", firewall.applica(regole)["verificato"]),
+        "firewall": _firewall,
         "sysctl": lambda: _verificato("sysctl", host.applica()["verificato"]),
         "interfaccia": lambda: f"{wg_if} {interfaccia(wg_if, rete, cfg['subnet6'])}",
-        "riconciliazione": lambda: _verificato("riconciliazione", runtime.riconcilia(
-            peer.Archivio(db), wg_if, runtime.CHIAVE_SERVER, porta, cfg["subnet6"])["coincide"]),
+        "riconciliazione": _riconciliazione,
     }
 
 
