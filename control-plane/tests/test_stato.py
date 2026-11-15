@@ -109,6 +109,19 @@ class Status(unittest.TestCase):
         self.chiave.chmod(0o644)
         self.assertEqual(self.status()[0], 3)
 
+    def test_col_dns_applicato_contano_unbound_e_pihole(self):
+        (pathlib.Path(self._t.name) / "dns").mkdir()
+        (pathlib.Path(self._t.name) / "dns/unbound.conf").write_text("server:\n")
+        risposte = {("127.0.0.1", 5335): True, ("10.66.0.1", 53): True}
+        with mock.patch.object(stato.dns, "CARTELLA_DNS", str(pathlib.Path(self._t.name) / "dns")), \
+                mock.patch.object(stato, "_dns_risponde", lambda i, p: risposte[(i, p)]):
+            codice, r, testo = self.status()
+            self.assertEqual((codice, r["superati"], r["controlli_eseguiti"], r["non_consegnati"]), (0, 9, 9, []), testo)
+            risposte[("10.66.0.1", 53)] = False
+            codice, r, _ = self.status()
+        self.assertEqual(codice, 1)
+        self.assertEqual([n for n, e in self.esiti(r).items() if e != "OK"], ["pihole"])
+
     def test_solo_letture(self):
         prima = hashlib.sha256(pathlib.Path(self.db).read_bytes()).hexdigest()
         self.status()

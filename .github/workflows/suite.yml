@@ -64,7 +64,11 @@ jobs:
           R="$(dig +dnssec +timeout=5 @127.0.0.1 -p 5335 isc.org A)"
           grep -q "status: NOERROR" <<<"$R" && grep -qE "flags:[^;]* ad[ ;]" <<<"$R" || { echo "$R"; echo "ROSSO: Unbound dell'unita' non risolve con DNSSEC"; exit 1; }
           systemctl is-active sovereignvpn-unbound.service
+          esito_unbound() { sudo /usr/local/bin/sovereignctl status --config /etc/sovereignvpn/server.toml --json | python3 -c 'import json,sys; print({c["nome"]: c["esito"] for c in json.load(sys.stdin)["controlli"]}.get("unbound"))'; }
+          [ "$(esito_unbound)" = "OK" ] || { echo "ROSSO: status non vede Unbound acceso"; exit 1; }
           sudo systemctl stop sovereignvpn-unbound.service
+          [ "$(esito_unbound)" = "GUASTO" ] || { echo "ROSSO: status non vede Unbound spento"; exit 1; }
+          echo "OK: status vede Unbound acceso (OK) e spento (GUASTO)"
           echo "OK: unita' verificate; Unbound avviato da systemd risolve isc.org col flag AD"
       - name: Banco dei mutanti (guasti presi, innocui vivi)
         run: cd control-plane && python3 tests/mutanti.py
