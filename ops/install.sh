@@ -5,11 +5,13 @@
 #
 #   sudo ops/install.sh [--dry-run]          installa sotto /
 #   ops/install.sh --radice DIR [--dry-run]  installa sotto DIR (prove, immagini, chroot)
+#   sudo ops/install.sh --rollback [--dry-run]  torna alla release installata prima di questa (FR-OPS-005)
 set -Eeuo pipefail
 IFS=$'\n\t'
 umask 077
 
 DRY=0
+INDIETRO=0
 RADICE=""
 LUCCHETTO=""
 pulizia() { [ -n "$LUCCHETTO" ] && rmdir "$LUCCHETTO" 2>/dev/null || true; }
@@ -20,8 +22,9 @@ invalido() { echo "install.sh: input non valido: $1" >&2; exit 2; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1 ;;
+    --rollback) INDIETRO=1 ;;
     --radice) [ $# -ge 2 ] || invalido "--radice senza cartella"; RADICE="$2"; shift ;;
-    -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
     *) invalido "opzione sconosciuta «${1}»" ;;
   esac
   shift
@@ -53,8 +56,26 @@ if [ -z "$RADICE" ] && [ "$DRY" -eq 0 ] && [ "$(id -u)" -ne 0 ]; then
   echo "install.sh: per installare sotto / serve root; per vedere il piano: --dry-run" >&2; exit 1
 fi
 
+if [ "$INDIETRO" -eq 1 ]; then  # FR-OPS-005 [H29]: torna all'ultima release installata prima di questa
+  [ -d "$OPT/sovereignctl.precedente/" ] && [ -f "$OPT/sovereignctl.precedente/__main__.py" ] \
+    || { echo "install.sh: nessuna release precedente in $OPT/sovereignctl.precedente: niente da fare" >&2; exit 1; }
+  if [ "$DRY" = 1 ]; then
+    echo "install.sh --rollback --dry-run: nessuna mutazione. Piano: scambiare $OPT/sovereignctl con $OPT/sovereignctl.precedente"
+    exit 0
+  fi
+  mkdir "$RADICE/opt/.sovereignvpn-install.lock" 2>/dev/null || { echo "install.sh: un'altra installazione e' in corso (lucchetto presente)" >&2; exit 1; }
+  LUCCHETTO="$RADICE/opt/.sovereignvpn-install.lock"
+  rm -rf "$OPT/sovereignctl.scambio"
+  mv "$OPT/sovereignctl" "$OPT/sovereignctl.scambio"  # shortcut: per un istante la cartella manca; mv --exchange vuole coreutils 9.5
+  mv "$OPT/sovereignctl.precedente" "$OPT/sovereignctl"
+  mv "$OPT/sovereignctl.scambio" "$OPT/sovereignctl.precedente"
+  echo "install.sh: tornato alla release precedente; quella lasciata e' in $OPT/sovereignctl.precedente (un secondo --rollback la rimette)."
+  echo "Prossimo passo: sovereignctl reconcile --config $ETC/server.toml"
+  exit 0
+fi
+
 PASSI=(
-  "copiare il control plane in $OPT/sovereignctl (0755), sostituendo per rinomina la versione precedente"
+  "copiare il control plane in $OPT/sovereignctl (0755) per rinomina, tenendo la release di prima per --rollback"
   "creare $ETC (0700) per la configurazione"
   "creare $VAR (0700) per lo stato e il manifest"
   "scrivere il comando $BIN/sovereignctl (0755)"
@@ -72,13 +93,15 @@ mkdir "$LUCCHETTO" 2>/dev/null || { LUCCHETTO=""; echo "install.sh: un'altra ins
 
 # 1. control plane: copia accanto, poi rinomina (mai una cartella a meta')
 install -d -m 0755 "$OPT"
-rm -rf "$OPT/sovereignctl.nuovo" "$OPT/sovereignctl.vecchio"
+rm -rf "$OPT/sovereignctl.nuovo"
 cp -R "$SORGENTE" "$OPT/sovereignctl.nuovo"
 find "$OPT/sovereignctl.nuovo" -name __pycache__ -type d -prune -exec rm -rf {} +
 chmod -R u=rwX,go=rX "$OPT/sovereignctl.nuovo"
-[ -d "$OPT/sovereignctl" ] && mv "$OPT/sovereignctl" "$OPT/sovereignctl.vecchio"
+if [ -d "$OPT/sovereignctl" ]; then  # la release di prima resta, per --rollback (FR-OPS-005)
+  rm -rf "$OPT/sovereignctl.precedente"
+  mv "$OPT/sovereignctl" "$OPT/sovereignctl.precedente"
+fi
 mv "$OPT/sovereignctl.nuovo" "$OPT/sovereignctl"
-rm -rf "$OPT/sovereignctl.vecchio"
 
 # 2-3. configurazione e stato, solo il proprietario
 install -d -m 0700 "$ETC" "$VAR"
