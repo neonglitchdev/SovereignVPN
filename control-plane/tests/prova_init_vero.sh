@@ -183,6 +183,22 @@ dentro ip link show wg0 >/dev/null 2>&1 || rosso "con la chiave assente wg0 non 
 mv "$D/chiave6" "$CHIAVE"
 echo "OK: giro 6, chiave assente: firewall e wg0 tornano, nessuna chiave nuova, codice 4"
 
+# 6b. registro illeggibile al riavvio (T-026, H41): firewall in recupero (nessun traffico dei peer), wg0 senza peer,
+#     codice 4; rimesso il registro, il recupero sparisce e il ripristino torna a 0
+cp "$REGISTRO" "$D/registro6b"
+head -c 4096 /dev/urandom > "$REGISTRO"
+perdi
+set +e; R6B="$(dentro "${ESEGUI[@]}" 2>&1)"; C6B=$?; set -e
+echo "giro 6b, codice $C6B:"; echo "$R6B"
+[ "$C6B" -eq 4 ] || rosso "registro illeggibile al riavvio: codice $C6B, atteso 4 (NEEDS_RECOVERY)"
+AVANTI="$(dentro nft list chain inet sovereignvpn forward)"
+contiene -F 'iifname "wg0" drop' <<<"$AVANTI" || rosso "registro illeggibile: il firewall non e' in recupero"
+[ -z "$(dentro wg show wg0 peers)" ] || rosso "registro illeggibile: wg0 ha dei peer"
+cp "$D/registro6b" "$REGISTRO"
+dentro "${ESEGUI[@]}" >/dev/null || rosso "rimesso il registro, il ripristino non torna a 0"
+if dentro nft list chain inet sovereignvpn forward | contiene -F 'iifname "wg0" drop'; then rosso "rimesso il registro, il firewall resta in recupero"; fi
+echo "OK: giro 6b, registro illeggibile: firewall in recupero, wg0 senza peer, codice 4; rimesso il registro, tutto torna"
+
 # 7. preflight su un host gia' installato: la porta e la rete di wg0 sono di questa installazione, non un conflitto
 dentro "${ESEGUI[@]}" >/dev/null
 dentro python3 - "$CONFIG" <<'PY'

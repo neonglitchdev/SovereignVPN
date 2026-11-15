@@ -162,6 +162,30 @@ class Riavvio(unittest.TestCase):
         self.assertEqual([p["passo"] for p in json.loads(out)["passi"]], ["firewall", "sysctl", "interfaccia"])
         self.assertNotIn(("wg", "genkey"), self.comandi)
 
+    def test_registro_illeggibile_firewall_in_recupero_e_si_ferma(self):
+        """T-026 [H41]: col registro corrotto il firewall sale lo stesso ma chiuso ai peer, il runtime non si tocca, codice 4."""
+        rotto = pathlib.Path(self._t.name) / "registro.sqlite3"
+        rotto.write_bytes(os.urandom(4096))
+        applicate = []
+        with mock.patch.object(bootstrap.firewall, "applica", lambda r: applicate.append(r) or {"verificato": True}), \
+                mock.patch.object(bootstrap.runtime, "riconcilia", side_effect=AssertionError("riconciliazione da un registro rotto")):
+            passi, errore = bootstrap.ripristina({"admin_ssh_sources": ["198.51.100.0/24"], "subnet6": "fd00::/64"}, "ens3", db=str(rotto))
+        self.assertEqual([p for p, _ in passi], ["firewall", "sysctl", "interfaccia"])
+        self.assertIn("in recupero", passi[0][1])
+        self.assertIn("NEEDS_RECOVERY", str(errore))
+        righe = [x.strip() for x in applicate[0].splitlines()]
+        avanti = righe.index("type filter hook forward priority filter; policy drop;")
+        self.assertEqual(righe[avanti + 1:avanti + 3], ['iifname "wg0" drop', 'oifname "wg0" drop'])  # prima di ogni accept
+
+    def test_registro_leggibile_nessun_recupero(self):
+        applicate = []
+        with mock.patch.object(bootstrap.firewall, "applica", lambda r: applicate.append(r) or {"verificato": True}):
+            passi, errore = bootstrap.ripristina({"admin_ssh_sources": ["198.51.100.0/24"], "subnet6": "fd00::/64"}, "ens3",
+                                                 db=str(pathlib.Path(self._t.name) / "assente.sqlite3"))
+        self.assertIsNone(errore)
+        self.assertEqual(passi[0], ("firewall", True))
+        self.assertNotIn('iifname "wg0" drop', [x.strip() for x in applicate[0].splitlines()])
+
     def test_chiave_esposta_esce_con_3(self):
         with mock.patch.object(bootstrap.runtime, "riconcilia", side_effect=bootstrap.runtime.ChiaveEsposta("permessi 0o644")):
             codice, _, _ = self.rec("--wan-interface", "ens3")

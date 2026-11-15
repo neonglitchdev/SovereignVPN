@@ -29,7 +29,7 @@ def _rete(nome, v, versione=None):
     return r
 
 
-def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ssh_port=22, ssh_sorgenti=None, mtu=1420, blocca_dot=True, limiti=(), dns_liberi=(), quote=()):
+def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ssh_port=22, ssh_sorgenti=None, mtu=1420, blocca_dot=True, limiti=(), dns_liberi=(), quote=(), recupero=False):
     for nome, v in (("--wg-interface", wg_if), ("--wan-interface", wan_if)):
         if not isinstance(v, str) or not INTERFACCIA.match(v):
             raise InputNonValido(f"{nome}: nome di interfaccia Linux di 1-15 caratteri (ANC-0174: la WAN si dichiara, mai eth0 presunta)")
@@ -66,6 +66,8 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
           "  }",
           "  chain forward {",
           "    type filter hook forward priority filter; policy drop;",
+          # T-026 [H41]: registro illeggibile = nessuno sa chi e' revocato o limitato: niente traffico dei peer
+          *([f'    iifname "{wg_if}" drop', f'    oifname "{wg_if}" drop'] if recupero else []),
           # FR-WG-006, solo dove serve: i SYN fra wg0 e la WAN, prima di ct established (il SYN-ACK e' gia' «established»).
           # Verso la WAN la MSS annunciata dal peer scende a MTU del tunnel - 40, e solo se e' piu' alta: rt mtu qui
           # direbbe 1500, la MTU di ens3, mentre la strozzatura e' wg0. Verso il peer basta rt mtu, che e' quella di wg0.

@@ -147,7 +147,7 @@ def controlla(cfg, db=None, wg_if=runtime.INTERFACCIA):
         ok = t["verificato"] and dichiarate in (None, t["regole"])
         esito("firewall", ok, f"tabella {t['tabella']}, policy " + " ".join(f"{k}={v}" for k, v in t["catene"].items())
               + f", {t['regole']} regole" + ("" if dichiarate is None else f" su {dichiarate} dichiarate"))
-    except (RuntimeError, ValueError, KeyError) as e:
+    except (RuntimeError, ValueError, KeyError, sqlite3.Error) as e:  # [H41] registro illeggibile: GUASTO, non un crash
         esito("firewall", False, registro.redigi(e))
 
     letti = host.leggi()

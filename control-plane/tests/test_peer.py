@@ -1,6 +1,7 @@
 """Prove del registro dei peer (FR-PEER-001/002/003/006, ANC-0237/0238/0244/0288, H1, H2).
 Uso, da control-plane/: python3 -m unittest discover -s tests"""
 import base64, datetime, json, os, pathlib, sqlite3, stat, subprocess, sys, tempfile, unittest
+from unittest import mock
 
 from sovereignctl import peer
 from test_preflight import esegui
@@ -153,6 +154,40 @@ class Rinomina(Base):
         self.assertEqual(self.cli("rename", p["id"], "--name", "")[0], 2)
         self.assertEqual(self.cli("rename", "non-un-uuid", "--name", "due")[0], 2)
         self.assertEqual(self.riga(p["id"])["nome"], "uno")
+
+
+class LettureDelFirewall(Base):
+    """[H41] Le letture per il firewall dicono «nessun limite» solo per un registro di schema vecchio; un registro
+    occupato o illeggibile solleva, cosi' il reconcile non ricompone il firewall senza limiti (fail-open)."""
+
+    def finto(self, nome):
+        e = sqlite3.OperationalError("simulato"); e.sqlite_errorname = nome
+
+        class Connessione:
+            def execute(self, *a):
+                raise e
+
+            def close(self):
+                pass
+        return lambda *a, **k: Connessione()
+
+    def test_schema_vecchio_nessun_limite_occupato_solleva(self):
+        open(self.db, "w").close()
+        for funzione in (peer.limiti_rotte, peer.dns_liberi, peer.quote):
+            with self.subTest(funzione=funzione.__name__):
+                with mock.patch.object(peer.sqlite3, "connect", self.finto("SQLITE_ERROR")):
+                    self.assertEqual(funzione(self.db), [])
+                with mock.patch.object(peer.sqlite3, "connect", self.finto("SQLITE_BUSY")), self.assertRaises(sqlite3.OperationalError):
+                    funzione(self.db)
+
+    def test_registro_corrotto_solleva_e_firewall_apply_non_applica(self):
+        pathlib.Path(self.db).write_bytes(os.urandom(4096))
+        with self.assertRaises(sqlite3.DatabaseError):
+            peer.limiti_rotte(self.db)
+        codice, _, err = esegui(["firewall", "apply", "--config", str(QUI.parent / "config/examples/server.toml"),
+                                 "--wan-interface", "ens3", "--db", self.db])
+        self.assertEqual(codice, 1)
+        self.assertIn("DatabaseError", err)
 
 
 class Stati(Base):

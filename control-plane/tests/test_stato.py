@@ -93,6 +93,15 @@ class Status(unittest.TestCase):
         self.assertEqual(self.esiti(r)["firewall"], "GUASTO")
         self.assertIn(f"{dichiarate - 1} regole su {dichiarate} dichiarate", json.dumps(r))
 
+    def test_registro_illeggibile_guasto_senza_crash(self):
+        """[H41] Col registro corrotto lo status dice GUASTO peer e firewall, non cade con un traceback."""
+        config = pathlib.Path(self._t.name) / "server.toml"
+        config.write_text('wan_interface = "ens3"\n' + ESEMPIO.read_text())
+        pathlib.Path(self.db).write_bytes(os.urandom(4096))
+        codice, r, _ = self.status(config)
+        self.assertEqual(codice, 1)
+        self.assertEqual((self.esiti(r)["peer"], self.esiti(r)["firewall"]), ("GUASTO", "GUASTO"))
+
     def test_peer_revocato_ancora_nel_runtime(self):
         self.vivi[self.revocato[0]] = self.revocato[1]
         codice, r, _ = self.status()
