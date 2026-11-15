@@ -45,6 +45,9 @@ arriva() {  # file testo: aspetta fino a 3 s che il testo compaia nel file dell'
 # rete: un ponte in «internet»; server (ens3) e peer (u0) attaccati come host pubblici
 for n in "${NSS[@]}"; do ip netns add "$n"; ns "$n" ip link set lo up; done
 ns tinet ip link add br0 type bridge
+# MAC fisso: un ponte prende il MAC piu' basso fra le sue porte, e la porta di tp3 aggiunta nella sezione 9 lo
+# cambierebbe (1 volta su 4) sotto la cache ARP del server: i suoi frame verso il gateway cadrebbero come OTHERHOST
+ns tinet ip link set br0 address 02:00:00:00:00:fe
 ns tinet ip link set br0 up
 ns tinet ip address add 203.0.113.254/24 dev br0
 ns tinet ip address add 198.51.100.10/32 dev br0  # sorgente SSH autorizzata dalla configurazione d'esempio
