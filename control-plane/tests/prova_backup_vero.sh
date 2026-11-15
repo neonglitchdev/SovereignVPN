@@ -74,10 +74,14 @@ restore() { ip netns exec "$NS" python3 -m sovereignctl backup restore "$FILE" -
 set +e; restore --identity "$D/altra.txt" >/dev/null 2>&1; C=$?; set -e
 [ "$C" -eq 2 ] || rosso "restore con un'altra chiave: codice $C, atteso 2"
 [ "$(contapeer)" = "$((N_BACKUP + 1))" ] || rosso "il restore con la chiave sbagliata ha toccato il registro"
+T0=$(date +%s)
 set +e; R2="$(restore --identity "$D/identita.txt" --json)"; C=$?; set -e
+RTO=$(( $(date +%s) - T0 ))  # NFR-AVL-003: il restore col backup valido, misurato; l'obiettivo dichiarato e' 30 minuti
+[ "$RTO" -lt 1800 ] || rosso "restore in $RTO s, oltre l'obiettivo di 30 minuti (NFR-AVL-003)"
 echo "$R2"
 [ "$C" -eq 0 ] || rosso "restore con la chiave giusta: codice $C, atteso 0"
 [ "$(contapeer)" = "$N_BACKUP" ] || rosso "dopo il restore il registro ha $(contapeer) peer, attesi $N_BACKUP come nel backup"
 PREV="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["stato_precedente"])' "$R2")"
 [ -f "$PREV" ] || rosso "lo stato di prima non e' stato salvato"
 echo "OK: restore, chiave sbagliata rifiutata (2) senza toccare niente; chiave giusta: registro da $((N_BACKUP + 1)) a $N_BACKUP peer come nel backup, stato di prima salvato, reconcile e status OK"
+echo "MISURA: restore completo (decifratura, scrittura, reconcile, status) in $RTO s contro l'obiettivo di 1800 s (NFR-AVL-003); RPO = l'ultimo backup riuscito, per costruzione"

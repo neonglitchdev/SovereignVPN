@@ -38,3 +38,10 @@ ogni feature che apre un confine nuovo o un traffico nuovo verso fuori (NFR-SEC-
 | I container del DNS girano in rete host con capability minime e `no-new-privileges`; Unbound anche in sola lettura (H44) | AUD-32; `prova_dns_vero.sh` (vincoli controllati con `docker inspect`, l'Unbound «largo» come controllo negativo) |
 | Il firewall è una tabella propria (`inet sovereignvpn`), separata dalle catene di Docker (H36) | `prova_nft_vero.sh`; AUD-05 |
 | Registro illeggibile = nessun traffico dei peer finché non si ripristina (H41) | `prova_init_vero.sh` giro 6b; AUD-17 |
+
+## Ripristino (NFR-AVL-003)
+
+| Obiettivo | Prova |
+| --- | --- |
+| RTO di 30 minuti su host singolo con un backup valido: il restore (decifratura, scrittura, reconcile, status) si misura a ogni CI e diventa rosso oltre i 1800 s | `prova_backup_vero.sh` (riga «MISURA:»); il tempo di reinstallare l'host da zero non e' misurato qui |
+| RPO = l'ultimo backup riuscito: tra un backup e il guasto si perde cio' che e' cambiato (peer, scadenze, byte delle quote) | per costruzione (H20); AUD-23 avvisa se non c'e' nessun backup |
