@@ -34,5 +34,12 @@ else
   sovereignctl reconcile --config /etc/sovereignvpn/server.toml
 fi
 sovereignctl dns apply --interfaccia wg0 >/dev/null
-systemctl start sovereignvpn-unbound.service sovereignvpn-pihole.service || true
+# colima: il suo dnsmasq (01-colima.conf, interface=eth0) prende anche 127.0.0.1:53, dove ascolta per forza il dnsmasq
+# di Pi-hole: senza questo Pi-hole va in CRIT «Address in use» e il DNS del tunnel muore. La VM risolve da 192.168.5.1.
+if [ -f /etc/dnsmasq.d/01-colima.conf ] && [ ! -f /etc/dnsmasq.d/02-sovereignvpn.conf ]; then
+  echo "except-interface=lo" > /etc/dnsmasq.d/02-sovereignvpn.conf
+  systemctl restart dnsmasq
+fi
+systemctl start sovereignvpn-unbound.service || true
+systemctl restart sovereignvpn-pihole.service || true
 echo "SERVER PRONTO"
