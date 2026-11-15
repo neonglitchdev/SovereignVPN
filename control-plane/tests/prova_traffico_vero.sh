@@ -128,6 +128,16 @@ arriva "$D/dns5353.txt" controllo || rosso "controllo: la porta 5353 del DNS est
 [ ! -s "$D/dns53.txt" ] || rosso "il DNS esterno ha ricevuto dal peer: $(cat "$D/dns53.txt")"
 echo "OK: peer -> DNS esterno fermo; la porta 5353 dello stesso host passa"
 
+# 3b. DoT verso fuori fermo (FR-DNS-006, H25), la porta accanto dello stesso host passa; col blocco spento passa la 853
+ascolta tinet tcp 192.0.2.53 853 "$D/dot.txt"
+ascolta tinet tcp 192.0.2.53 8853 "$D/dot8853.txt"
+if passa tp1 192.0.2.53 853; then rosso "DoT verso fuori passa"; fi
+passa tp1 192.0.2.53 8853 || rosso "controllo: la 8853 dello stesso host non passa, la prova non distinguerebbe"
+ns tsrv python3 -c 'import sys; from sovereignctl import configurazione, firewall; c = configurazione.leggi(sys.argv[1]); firewall.applica(firewall.componi(c["subnet"], "wg0", c["wg_port"], "ens3", c["admin_port"], c["ssh_port"], c["admin_ssh_sources"], c.get("mtu", 1420), False))' "$CONFIG"
+passa tp1 192.0.2.53 853 || rosso "col blocco DoT spento la 853 ancora non passa: la prova non vede la regola"
+ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interface ens3 >/dev/null
+echo "OK: DoT verso fuori fermo (reject su TCP 853), la 8853 passa, e col blocco spento passa anche la 853"
+
 # 4. DNS e amministrazione del server dalla VPN; amministrazione dal WAN ferma
 manda tp1 10.66.0.1 53 dns-interno
 arriva "$D/dnsint.txt" "10.66.0.2 dns-interno" || rosso "il DNS interno non riceve dal peer"

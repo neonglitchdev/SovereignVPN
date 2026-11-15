@@ -16,7 +16,7 @@ DESTINATARIO_AGE = re.compile(r"^age1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{58}$")
 OPZIONALI = ("tor", "multihop", "wstunnel", "udp2raw")      # fuori dalla 1.0 finche' non hanno un gate (ANC-0110)
 SEGRETI = re.compile(r"token|password|secret|private|psk", re.I)
 CAMPI = {"schema_version", "endpoint", "wg_port", "admin_port", "subnet", "subnet6", "dns", "mtu", "wan_interface",
-         "tls_domain", "firewall_profile", "admin_token_hash", "flags", "admin_ssh_sources", "ssh_port",
+         "tls_domain", "firewall_profile", "admin_token_hash", "flags", "admin_ssh_sources", "ssh_port", "dns_block_dot",
          "backup_recipient"}
 
 
@@ -101,6 +101,10 @@ def valida(dati):
         except (TypeError, ValueError):
             raise _errore(f"admin_ssh_sources[{i}]", f"«{s}» non e' un CIDR canonico")
     imp["admin_ssh_sources"] = list(sorgenti)
+    if "dns_block_dot" in dati:  # [H25] FR-DNS-006: di base acceso
+        if not isinstance(dati["dns_block_dot"], bool):
+            raise _errore("dns_block_dot", "deve essere true o false")
+        imp["dns_block_dot"] = dati["dns_block_dot"]
     porta_ssh = dati.get("ssh_port", 22)
     if not isinstance(porta_ssh, int) or isinstance(porta_ssh, bool) or not 1 <= porta_ssh <= 65535:
         raise _errore("ssh_port", "deve essere un intero fra 1 e 65535")

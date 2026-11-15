@@ -27,7 +27,7 @@ def _rete(nome, v, versione=None):
     return r
 
 
-def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ssh_port=22, ssh_sorgenti=None, mtu=1420):
+def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ssh_port=22, ssh_sorgenti=None, mtu=1420, blocca_dot=True):
     for nome, v in (("--wg-interface", wg_if), ("--wan-interface", wan_if)):
         if not isinstance(v, str) or not INTERFACCIA.match(v):
             raise InputNonValido(f"{nome}: nome di interfaccia Linux di 1-15 caratteri (ANC-0174: la WAN si dichiara, mai eth0 presunta)")
@@ -68,6 +68,9 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
           "    ct state invalid drop",
           f'    iifname "{wg_if}" oifname "{wg_if}" drop',
           f'    iifname "{wg_if}" meta l4proto {{ tcp, udp }} th dport 53 drop',
+          # FR-DNS-006 [H25]: DoT verso fuori aggira il resolver interno. Il reject su 853 NON ferma ogni DNS cifrato:
+          # DoH viaggia su 443 come il resto del web, DoQ su UDP 853 o altre porte. Si dichiara, non si promette.
+          *([f'    iifname "{wg_if}" tcp dport 853 reject with tcp reset'] if blocca_dot else []),
           f'    iifname "{wg_if}" meta nfproto ipv6 reject with icmpv6 type admin-prohibited',
           f'    iifname "{wg_if}" ip saddr {vpn} oifname "{wan_if}" accept',
           "  }",
