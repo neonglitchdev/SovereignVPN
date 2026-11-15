@@ -77,3 +77,10 @@ if grep -qiF "random password" <<<"$LOG" || grep -qF "$(cat "$D/pw")" <<<"$LOG";
 FILE_LOG="$(docker exec "$PIHOLE" sh -c 'cat /var/log/pihole/pihole.log 2>/dev/null' || true)"
 if grep -qiE "isc\.org|dnssec-failed" <<<"$FILE_LOG"; then rosso "un nome interrogato e' in pihole.log"; fi
 echo "OK: nessun nome interrogato nel log del container ne' in pihole.log, nessuna password nel log (FR-DNS-004, FR-OPS-002)"
+# status chiede a Pi-hole dall'host stesso, sull'indirizzo di wg0: con listeningMode BIND deve rispondere anche cosi'
+python3 -c 'import sys; from sovereignctl import stato; sys.exit(0 if stato._dns_risponde("10.98.0.1", 53) else 1)' \
+  || rosso "dall'host Pi-hole non risponde sull'indirizzo di wgdns0: status lo vedrebbe GUASTO"
+if python3 -c 'import sys; from sovereignctl import stato; sys.exit(0 if stato._dns_risponde("192.168.251.1", 53) else 1)'; then
+  rosso "dall'host qualcuno risponde sull'indirizzo «WAN» porta 53"
+fi
+echo "OK: dall'host Pi-hole risponde sull'indirizzo di wgdns0 (come lo chiede status) e non su quello «WAN»"
