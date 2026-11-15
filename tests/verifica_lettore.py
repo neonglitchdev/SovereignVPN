@@ -12,7 +12,9 @@ for f in sorted((P / "corpus").glob("*.md")):
 n = lambda s: " ".join(re.sub(r"[^\w]+", " ", s.replace("\\|", "|")).lower().split())
 
 def esamina(testo):
-    righe = [r for r in testo.splitlines() if re.match(r"^\|\s*\d+\s*\|", r)]
+    # solo la tabella del lettore: dalla sua intestazione alla sezione successiva (in coda ci sono altre tabelle numerate)
+    sezione = testo.split("## Registro delle ambiguità", 1)[-1].split("\n## ", 1)[0]
+    righe = [r for r in sezione.splitlines() if re.match(r"^\|\s*\d+\s*\|", r)]
     cattive = []
     for r in righe:
         c = [x.strip() for x in re.split(r"(?<!\\)\|", r.strip())[1:-1]]

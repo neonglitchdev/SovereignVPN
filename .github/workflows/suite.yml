@@ -18,6 +18,10 @@ jobs:
           grep " gitleaks_${V}_linux_x64.tar.gz$" gitleaks_${V}_checksums.txt | sha256sum -c -
           tar -xzf gitleaks_${V}_linux_x64.tar.gz gitleaks
           ./gitleaks detect --no-git --source . --no-banner --redact
+      - name: Registro delle ambiguità (citazioni verificate, mutante preso)
+        run: |
+          python3 tests/verifica_lettore.py . docs/lettore-nuovo-1.md
+          python3 tests/verifica_incrociata.py .
       - name: Prove del control plane
         run: cd control-plane && python3 -m unittest discover -s tests -v
       - name: Banco dei mutanti (guasti presi, innocui vivi)
