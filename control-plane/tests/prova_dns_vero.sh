@@ -84,3 +84,16 @@ if python3 -c 'import sys; from sovereignctl import stato; sys.exit(0 if stato._
   rosso "dall'host qualcuno risponde sull'indirizzo «WAN» porta 53"
 fi
 echo "OK: dall'host Pi-hole risponde sull'indirizzo di wgdns0 (come lo chiede status) e non su quello «WAN»"
+
+# inventario delle porte (FR-NET-004, H26): con Unbound e Pi-hole accesi nessun ascolto fuori dal dichiarato; un secondo
+# Unbound in ascolto su 0.0.0.0:5336 deve essere trovato
+FUORI="$(python3 -c 'from sovereignctl import stato; print(" ".join(stato.porte_fuori_inventario("10.98.0.1")))')"
+[ -z "$FUORI" ] || { ss -H -lntup | grep -E "unbound|pihole" || true; rosso "ascolti fuori inventario con il DNS acceso: $FUORI"; }
+python3 -m sovereignctl dns plan --porta 5336 | sed 's/127\.0\.0\.1@5336/0.0.0.0@5336/; s#access-control: 127.0.0.0/8 allow#access-control: 0.0.0.0/0 allow#' > "$D/largo.conf"
+chmod 0644 "$D/largo.conf"
+docker run -d --name "$NOME-largo" --network host -v "$D/largo.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-unbound:prova >/dev/null
+for _ in $(seq 20); do ss -H -lnup | grep -q ":5336 " && break; sleep 1; done
+FUORI="$(python3 -c 'from sovereignctl import stato; print(" ".join(stato.porte_fuori_inventario("10.98.0.1")))')"
+docker rm -f "$NOME-largo" >/dev/null
+grep -q "unbound 0.0.0.0:5336" <<<"$FUORI" || rosso "un Unbound su 0.0.0.0:5336 non e' stato trovato fuori inventario (trovato: «$FUORI»)"
+echo "OK: inventario delle porte, nessun ascolto fuori dal dichiarato; un Unbound su 0.0.0.0:5336 viene trovato"

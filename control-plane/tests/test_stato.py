@@ -9,6 +9,10 @@ from test_preflight import esegui
 
 PUB = base64.b64encode(b"p" * 32).decode()
 PRIVATA = base64.b64encode(b"s" * 32).decode()
+SS_PULITO = ('udp UNCONN 0 0 127.0.0.1:5335 0.0.0.0:* users:(("unbound",pid=10,fd=3))\n'
+             'udp UNCONN 0 0 10.66.0.1:53 0.0.0.0:* users:(("pihole-FTL",pid=20,fd=4))\n'
+             'tcp LISTEN 0 128 127.0.0.1:8081 0.0.0.0:* users:(("pihole-FTL",pid=20,fd=6))\n'
+             'tcp LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=1,fd=3))\n')
 
 
 class Status(unittest.TestCase):
@@ -113,14 +117,21 @@ class Status(unittest.TestCase):
         (pathlib.Path(self._t.name) / "dns").mkdir()
         (pathlib.Path(self._t.name) / "dns/unbound.conf").write_text("server:\n")
         risposte = {("127.0.0.1", 5335): True, ("10.66.0.1", 53): True}
+        self.risposte[("ss", "-H", "-lntup")] = (0, SS_PULITO)
         with mock.patch.object(stato.dns, "CARTELLA_DNS", str(pathlib.Path(self._t.name) / "dns")), \
                 mock.patch.object(stato, "_dns_risponde", lambda i, p: risposte[(i, p)]):
             codice, r, testo = self.status()
-            self.assertEqual((codice, r["superati"], r["controlli_eseguiti"], r["non_consegnati"]), (0, 9, 9, []), testo)
+            self.assertEqual((codice, r["superati"], r["controlli_eseguiti"], r["non_consegnati"]), (0, 10, 10, []), testo)
             risposte[("10.66.0.1", 53)] = False
             codice, r, _ = self.status()
+            self.assertEqual(codice, 1)
+            self.assertEqual([n for n, e in self.esiti(r).items() if e != "OK"], ["pihole"])
+            risposte[("10.66.0.1", 53)] = True
+            self.risposte[("ss", "-H", "-lntup")] = (0, SS_PULITO + 'udp UNCONN 0 0 0.0.0.0:53 0.0.0.0:* users:(("pihole-FTL",pid=20,fd=9))\n')
+            codice, r, _ = self.status()
         self.assertEqual(codice, 1)
-        self.assertEqual([n for n, e in self.esiti(r).items() if e != "OK"], ["pihole"])
+        self.assertEqual([n for n, e in self.esiti(r).items() if e != "OK"], ["porte"])
+        self.assertIn("pihole-FTL 0.0.0.0:53", json.dumps(r))
 
     def test_solo_letture(self):
         prima = hashlib.sha256(pathlib.Path(self.db).read_bytes()).hexdigest()

@@ -23,6 +23,31 @@ def non_applicati():
     return [] if dns_applicato() else ["DNS interno (Unbound + Pi-hole): `sovereignctl dns apply` non eseguito qui"]
 
 
+def inventario(server):
+    """FR-NET-004 [H26]: le porte dei container del DNS, dichiarate. Sono in rete host e non pubblicano porte: si
+    verifica chi ascolta, e dove. Unbound solo su 127.0.0.1:5335; Pi-hole solo sull'indirizzo del server in VPN, porta
+    53, e il pannello su 127.0.0.1:8081 (ADR-006)."""
+    return {"unbound": {("127.0.0.1", dns.PORTA_UNBOUND)}, "pihole-FTL": {(server, 53), ("127.0.0.1", 8081)}}
+
+
+def porte_fuori_inventario(server):
+    """Gli ascolti di unbound e pihole-FTL che l'inventario non dichiara, da `ss -H -lntup`: «processo indirizzo:porta»."""
+    codice, uscita = _leggi("ss", "-H", "-lntup")
+    if codice != 0:
+        raise RuntimeError("ss non risponde: le porte in ascolto non si possono verificare")
+    ammessi, fuori = inventario(server), []
+    for riga in uscita.splitlines():
+        campi = riga.split()
+        if len(campi) < 7 or "users:((" not in riga:
+            continue
+        locale, processo = campi[4], riga.split('users:(("', 1)[1].split('"', 1)[0]
+        indirizzo, _, porta = locale.rpartition(":")
+        indirizzo = indirizzo.strip("[]").split("%", 1)[0]
+        if processo in ammessi and (indirizzo, int(porta)) not in ammessi[processo]:
+            fuori.append(f"{processo} {locale}")
+    return sorted(set(fuori))
+
+
 def _dns_risponde(indirizzo, porta, attesa=2):
     """Una domanda vera («.» NS, ricorsiva), in libreria standard: vale se torna una risposta con lo stesso id e rcode 0."""
     ident = os.urandom(2)
@@ -134,6 +159,12 @@ def controlla(cfg, db=None, wg_if=runtime.INTERFACCIA):
         esito("unbound", _dns_risponde("127.0.0.1", dns.PORTA_UNBOUND), f"127.0.0.1:{dns.PORTA_UNBOUND}, ricorsivo con DNSSEC")
         server = str(next(ipaddress.ip_network(cfg.get("subnet") or "10.66.0.0/24").hosts()))
         esito("pihole", _dns_risponde(server, 53), f"{server}:53 su {wg_if}, il resolver dei profili")
+        try:
+            fuori = porte_fuori_inventario(server)
+            esito("porte", not fuori, "unbound e pihole-FTL ascoltano solo dove dichiarato" if not fuori
+                  else "in ascolto fuori dall'inventario: " + ", ".join(fuori))
+        except RuntimeError as e:
+            esito("porte", False, registro.redigi(e))
     return c, esposta
 
 
