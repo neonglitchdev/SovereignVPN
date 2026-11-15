@@ -1,7 +1,7 @@
 """Prove della configurazione di Unbound e della sua immagine (FR-DNS-003/004, cap. 6, ANC-0319). Il resolver vero,
 DNSSEC positivo e negativo e i log vuoti, si prova sul runner (prova_dns_vero.sh).
 Uso, da control-plane/: python3 -m unittest discover -s tests"""
-import pathlib, re, unittest
+import json, pathlib, re, unittest
 
 from sovereignctl import dns
 from test_preflight import esegui
@@ -43,6 +43,27 @@ class Unbound(unittest.TestCase):
         self.assertEqual(len(basi), 1)
         self.assertRegex(basi[0], r"^debian:[\w.-]+@sha256:[0-9a-f]{64}$")
         self.assertIn("apt-get install -y --no-install-recommends unbound dns-root-data", testo)
+
+
+class PiHole(unittest.TestCase):
+    def test_solo_su_wg0_solo_unbound_nessuna_traccia(self):
+        e = dns.pihole_env("wg0")
+        self.assertEqual((e["FTLCONF_dns_listeningMode"], e["FTLCONF_dns_interface"]), ("BIND", "wg0"))
+        self.assertEqual(e["FTLCONF_dns_upstreams"], "127.0.0.1#5335")
+        self.assertEqual((e["FTLCONF_dns_queryLogging"], e["FTLCONF_database_maxDBdays"], e["FTLCONF_misc_privacylevel"]),
+                         ("false", "0", "3"))
+        self.assertTrue(e["FTLCONF_webserver_port"].startswith("127.0.0.1:"))
+        self.assertEqual(e["WEBPASSWORD_FILE"], "pihole_webpasswd")
+        self.assertNotIn("FTLCONF_webserver_api_password", e)  # mai la password nell'ambiente
+
+    def test_immagine_pin_nata_per_digest(self):
+        self.assertRegex(dns.IMMAGINE_PIHOLE, r"^pihole/pihole:\d{4}\.\d{2}\.\d+@sha256:[0-9a-f]{64}$")
+
+    def test_comando_e_interfaccia_validata(self):
+        codice, out, err = esegui(["dns", "plan", "--servizio", "pihole", "--interfaccia", "wgdns0", "--json"])
+        self.assertEqual(codice, 0, err)
+        self.assertEqual(json.loads(out)["ambiente"]["FTLCONF_dns_interface"], "wgdns0")
+        self.assertEqual(esegui(["dns", "plan", "--servizio", "pihole", "--interfaccia", "wg0;ip"])[0], 2)
 
 
 if __name__ == "__main__":
