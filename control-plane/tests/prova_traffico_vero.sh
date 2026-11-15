@@ -146,3 +146,27 @@ ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --
 if passa tp1 192.0.2.80 8080; then rosso "il peer revocato raggiunge ancora internet"; fi
 passa tp2 192.0.2.80 8080 || rosso "controllo: dopo la revoca dell'altro, il peer 2 non raggiunge internet"
 echo "OK: dopo la revoca il peer 1 non passa piu', il peer 2 si' (FR-PEER-004)"
+
+# 8. MSS clamping, dove serve (FR-WG-006): il peer 2 porta la sua MTU a 1500 (un client che ignora il profilo) e
+#    l'«internet» scarta gli ICMP frag-needed (buco nero PMTUD). Col firewall vero una risposta da 200.000 byte
+#    arriva; col firewall senza le due regole MSS non arriva: le regole servono, e la prova vede la differenza.
+ascolta tinet tcp 192.0.2.80 8081 "$D/grande.txt" 200000
+scarica() { ns "$1" python3 tests/rete_finta.py scarica "${@:2}"; }
+ns tp2 ip link set wgp mtu 1500
+ns tinet nft add table inet buco
+ns tinet nft add chain inet buco entrata '{ type filter hook input priority 0; }'
+ns tinet nft add rule inet buco entrata icmp type destination-unreachable drop
+scarica tp2 192.0.2.80 8081 200000 || rosso "col firewall vero la risposta grande non arriva al peer con MTU 1500"
+ns tsrv python3 - "$CONFIG" <<'PY'
+import sys
+from sovereignctl import configurazione, firewall
+c = configurazione.leggi(sys.argv[1])
+t = firewall.componi(c["subnet"], "wg0", c["wg_port"], "ens3", c["admin_port"], c["ssh_port"], c["admin_ssh_sources"], c.get("mtu", 1420))
+senza = "".join(r + "\n" for r in t.splitlines() if "maxseg" not in r)
+assert t.count("maxseg") == 3 and senza.count("\n") == t.count("\n") - 2, "le regole MSS da togliere non sono due"
+firewall.applica(senza)
+PY
+if scarica tp2 192.0.2.80 8081 200000; then rosso "senza le regole MSS la risposta grande arriva lo stesso: la prova non distingue"; fi
+ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interface ens3 >/dev/null
+scarica tp2 192.0.2.80 8081 200000 || rosso "rimesse le regole MSS, la risposta grande non arriva piu'"
+echo "OK: MSS, col buco nero PMTUD la risposta da 200000 byte arriva al peer con MTU 1500 solo con le regole MSS (FR-WG-006)"
