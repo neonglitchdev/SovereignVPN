@@ -77,6 +77,7 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "uscita: endpoint col nome accettato": ("uscite.py", "        if ipaddress.ip_address(host).version != 4 or not 1 <= int(porta) <= 65535:\n            raise ValueError\n", "        pass\n"),
     "uscita: wgx0 non mascherata": ("firewall.py", """          f'    ip saddr {vpn} oifname "{INTERFACCIA_USCITA}" masquerade',\n""", ""),
     "uscita: dopo i peer nel reconcile": ("bootstrap.py", '"interfaccia", "uscita", "riconciliazione")', '"interfaccia", "riconciliazione", "uscita")'),
+    "uscita: regole tolte per sola priorita'": ("uscite.py", '            if _cmd("ip", "rule", "del", *regola, tollera=True)[0] != 0:', '            if _cmd("ip", "rule", "del", "priority", regola[-1], tollera=True)[0] != 0:'),
     "uscita: IPv6 del provider nel tunnel": ("uscite.py", '"AllowedIPs = 0.0.0.0/0", ', '"AllowedIPs = 0.0.0.0/0, ::/0", '),
     "Pi-hole con tutte le capability": ("dns.py", 'VINCOLI_PIHOLE = ("--cap-drop", "ALL", ', 'VINCOLI_PIHOLE = ('),
     "bundle con un file senza checksum": ("profilo.py", 'for n, b in sorted(file.items())]}\n    file["manifest.json"]', 'for n, b in sorted(file.items())[:1]]}\n    file["manifest.json"]'),
