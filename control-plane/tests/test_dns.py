@@ -66,5 +66,47 @@ class PiHole(unittest.TestCase):
         self.assertEqual(esegui(["dns", "plan", "--servizio", "pihole", "--interfaccia", "wg0;ip"])[0], 2)
 
 
+class AvvioDns(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self._t = tempfile.TemporaryDirectory(); self.cartella = pathlib.Path(self._t.name) / "dns"
+
+    def tearDown(self):
+        self._t.cleanup()
+
+    def test_file_coi_permessi_e_password_generata_una_volta_sola_mai_stampata(self):
+        import stat
+        codice, out, err = esegui(["dns", "apply", "--cartella", str(self.cartella), "--json"])
+        self.assertEqual(codice, 0, err)
+        self.assertTrue(json.loads(out)["password_generata"])
+        modi = {f.name: stat.S_IMODE(f.stat().st_mode) for f in self.cartella.iterdir()}
+        self.assertEqual(modi, {"unbound.conf": 0o644, "pihole.env": 0o600, "pihole-web.secret": 0o600})
+        self.assertEqual(stat.S_IMODE(self.cartella.stat().st_mode), 0o700)
+        self.assertEqual((self.cartella / "unbound.conf").read_text(), dns.unbound_conf())
+        self.assertEqual((self.cartella / "pihole.env").read_text(), "".join(f"{k}={v}\n" for k, v in dns.pihole_env().items()))
+        segreto = (self.cartella / "pihole-web.secret").read_text().strip()
+        self.assertGreaterEqual(len(segreto), 24)
+        self.assertNotIn(segreto, out + err)
+        codice, out, _ = esegui(["dns", "apply", "--cartella", str(self.cartella), "--json"])
+        self.assertEqual((codice, json.loads(out)["password_generata"]), (0, False))
+        self.assertEqual((self.cartella / "pihole-web.secret").read_text().strip(), segreto)
+
+    def test_interfaccia_validata(self):
+        self.assertEqual(esegui(["dns", "apply", "--cartella", str(self.cartella), "--interfaccia", "wg0 ; x"])[0], 2)
+        self.assertFalse(self.cartella.exists())
+
+    def test_unita_coerenti_col_codice_e_con_l_installer(self):
+        ops = pathlib.Path(__file__).resolve().parents[2] / "ops"
+        pihole = (ops / "systemd/sovereignvpn-pihole.service").read_text()
+        unbound = (ops / "systemd/sovereignvpn-unbound.service").read_text()
+        self.assertIn(dns.IMMAGINE_PIHOLE, pihole)
+        for f in ("pihole.env", "pihole-web.secret"):
+            self.assertIn(f"{dns.CARTELLA_DNS}/{f}", pihole)
+        self.assertIn(f"{dns.CARTELLA_DNS}/unbound.conf:/etc/unbound/unbound.conf:ro", unbound)
+        self.assertIn("After=docker.service sovereignvpn-unbound.service sovereignvpn-reconcile.service", pihole)
+        etichetta = re.search(r"(sovereignvpn-unbound:[\w.]+)", unbound).group(1)
+        self.assertIn(f"docker build -q -t {etichetta} ", (ops / "install.sh").read_text())
+
+
 if __name__ == "__main__":
     unittest.main()

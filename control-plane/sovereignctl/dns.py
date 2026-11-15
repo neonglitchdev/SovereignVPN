@@ -6,7 +6,9 @@ risposte, servfail e azioni locali spenti, niente statistiche, niente file di lo
 127.0.0.1: davanti, sulla VPN, ci sara' Pi-hole; dalla WAN non si raggiunge (cap. 6, interfacce DNS mai sulla WAN).
 L'immagine e' nostra (ops/dns/unbound/Dockerfile): debian:12-slim pin-nata per digest (ANC-0319) col pacchetto Debian.
 """
-import json, sys
+import json, os, secrets, sys
+
+from .manifest import scrivi_testo
 
 PORTA_UNBOUND = 5335
 IMMAGINE_PIHOLE = "pihole/pihole:2026.10.1@sha256:30f803ad5dd60ff96cc0a63008a2e9271af481c1b0399a182192b2e91152c1f9"
@@ -44,6 +46,28 @@ def pihole_env(wg_if="wg0", porta_unbound=PORTA_UNBOUND):
             "WEBPASSWORD_FILE": "pihole_webpasswd"}
 
 
+CARTELLA_DNS = "/etc/sovereignvpn/dns"
+
+
+def applica_file(cartella=None, wg_if="wg0"):
+    """`dns apply` [H24]: i file che leggono le unita' systemd. unbound.conf 0644, pihole.env 0600; la password del
+    pannello si genera una volta sola (secrets, aperta in esclusiva: mai sopra una esistente) e non si stampa mai."""
+    cartella = cartella or CARTELLA_DNS
+    os.makedirs(cartella, mode=0o700, exist_ok=True)
+    os.chmod(cartella, 0o700)
+    scrivi_testo(os.path.join(cartella, "unbound.conf"), unbound_conf(), 0o644)
+    scrivi_testo(os.path.join(cartella, "pihole.env"), "".join(f"{k}={v}\n" for k, v in pihole_env(wg_if).items()), 0o600)
+    segreto, generato = os.path.join(cartella, "pihole-web.secret"), False
+    if not os.path.exists(segreto):
+        fd = os.open(segreto, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            os.write(fd, (secrets.token_urlsafe(24) + "\n").encode())
+        finally:
+            os.close(fd)
+        generato = True
+    return {"cartella": cartella, "file": ["unbound.conf", "pihole.env", "pihole-web.secret"], "password_generata": generato}
+
+
 def aggiungi_parser(sotto, classe):
     dns = sotto.add_parser("dns", help="DNS interno: Unbound (FR-DNS-003/004)")
     az = dns.add_subparsers(dest="azione", required=True, parser_class=classe)
@@ -52,9 +76,23 @@ def aggiungi_parser(sotto, classe):
     pl.add_argument("--porta", type=int, default=PORTA_UNBOUND, help="porta di Unbound su 127.0.0.1")
     pl.add_argument("--interfaccia", default="wg0", help="l'interfaccia WireGuard su cui ascolta Pi-hole")
     pl.add_argument("--json", action="store_true")
+    ap = az.add_parser("apply", help="scrive i file di Unbound e Pi-hole che leggono le unita' systemd")
+    ap.add_argument("--interfaccia", default="wg0")
+    ap.add_argument("--cartella", help="di base /etc/sovereignvpn/dns (0700)")
+    ap.add_argument("--json", action="store_true")
 
 
 def esegui(a):
+    if a.azione == "apply":
+        from .configurazione import INTERFACCIA
+        if not INTERFACCIA.match(a.interfaccia):
+            print("sovereignctl: input non valido: --interfaccia: nome di interfaccia Linux di 1-15 caratteri", file=sys.stderr)
+            return 2
+        esito = applica_file(a.cartella, a.interfaccia)
+        print(json.dumps(esito, ensure_ascii=False, indent=1) if a.json else
+              f"File del DNS in {esito['cartella']}: unbound.conf (0644), pihole.env e pihole-web.secret (0600"
+              + (", password generata ora, non si mostra)" if esito["password_generata"] else ", password gia' presente)"))
+        return 0
     if not 1024 <= a.porta <= 65535:
         print("sovereignctl: input non valido: --porta da 1024 a 65535 (le porte basse sono di Pi-hole)", file=sys.stderr)
         return 2
