@@ -133,5 +133,21 @@ class Status(unittest.TestCase):
         self.assertFalse(os.path.exists(assente))
 
 
+
+class DomandaDns(unittest.TestCase):
+    """La domanda vera di status, contro un server UDP finto: risposta buona si', SERVFAIL no, nessun server no."""
+    def server(self, rcode):
+        import socket, threading
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind(("127.0.0.1", 0)); porta = s.getsockname()[1]
+        def rispondi():
+            d, a = s.recvfrom(512); s.sendto(d[:2] + bytes([0x81, 0x80 | rcode]) + d[4:], a); s.close()
+        threading.Thread(target=rispondi, daemon=True).start()
+        return porta
+
+    def test_solo_una_risposta_buona_vale(self):
+        self.assertTrue(stato._dns_risponde("127.0.0.1", self.server(0)))
+        self.assertFalse(stato._dns_risponde("127.0.0.1", self.server(2)))  # SERVFAIL
+        self.assertFalse(stato._dns_risponde("127.0.0.1", 9, attesa=0.5))  # nessuno ascolta
+
 if __name__ == "__main__":
     unittest.main()
