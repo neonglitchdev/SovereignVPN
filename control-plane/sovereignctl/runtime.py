@@ -22,8 +22,11 @@ class ChiaveEsposta(Exception):
 
 
 def _wg(*argomenti, ingresso=None):
-    r = subprocess.run(["wg", *argomenti], input=ingresso, capture_output=True, text=True, timeout=15,
-                       env={"PATH": os.environ.get("PATH", "/usr/sbin:/usr/bin:/sbin:/bin"), "LC_ALL": "C"})
+    try:
+        r = subprocess.run(["wg", *argomenti], input=ingresso, capture_output=True, text=True, timeout=15,
+                           env={"PATH": os.environ.get("PATH", "/usr/sbin:/usr/bin:/sbin:/bin"), "LC_ALL": "C"})
+    except (OSError, subprocess.TimeoutExpired) as e:  # wg assente o bloccato: un errore leggibile, mai un traceback
+        return 127, "", f"wg non eseguibile ({type(e).__name__}): servono i wireguard-tools"
     return r.returncode, r.stdout, r.stderr
 
 

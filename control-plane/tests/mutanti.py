@@ -75,6 +75,7 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "bundle con un file senza checksum": ("profilo.py", 'for n, b in sorted(file.items())]}\n    file["manifest.json"]', 'for n, b in sorted(file.items())[:1]]}\n    file["manifest.json"]'),
     "bundle senza i limiti dichiarati": ("profilo.py", "- «Connect On Demand» delle app Apple non e' Always-On VPN: Always-On vuole IKEv2 su dispositivi supervisionati via\n  MDM, che la 1.0 non fornisce.\n", ""),
     "fiducia: la prova non vede http": ("control-plane/tests/test_fiducia.py", 'VIETATI = {"urllib", "http", ', 'VIETATI = {"urllib", '),
+    "wg assente: traceback": ("runtime.py", "    except (OSError, subprocess.TimeoutExpired) as e:  # wg assente", "    except ZeroDivisionError as e:  # wg assente"),
     "transizione respinta senza audit": ("peer.py", 'self.audit(c, f"peer.{azione}", "denied", p["id"], f"transizione non valida da {stato}")', "pass"),
     "il sospeso resta nel runtime": ("runtime.py", 'NEL_RUNTIME = ("PENDING", "ACTIVE")', 'NEL_RUNTIME = ("PENDING", "ACTIVE", "SUSPENDED")'),
     "chiave del server leggibile accettata": ("runtime.py", "    if modo & 0o077:", "    if False:"),
