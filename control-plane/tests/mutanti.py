@@ -45,6 +45,9 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "rp_filter imposto globalmente": ("host.py", '"net.ipv6.conf.default.forwarding": "0"}', '"net.ipv6.conf.default.forwarding": "0", "net.ipv4.conf.all.rp_filter": "1"}'),
     "inoltro IPv6 acceso": ("host.py", '"net.ipv6.conf.all.forwarding": "0"', '"net.ipv6.conf.all.forwarding": "1"'),
     "verifica dei sysctl che dice sempre si'": ("host.py", '"verificato": letti == VALORI}', '"verificato": True}'),
+    "id dell'installazione rigenerato": ("bootstrap.py", "id_installazione=vecchio or str(uuid.uuid4())", "id_installazione=str(uuid.uuid4())"),
+    "chiave del server rigenerata sopra quella esistente": ("bootstrap.py", "    if os.path.exists(percorso):\n        return False\n    os.makedirs(os.path.dirname(percorso), mode=0o700", "    os.makedirs(os.path.dirname(percorso), mode=0o700"),
+    "init --apply ignora il preflight": ("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
