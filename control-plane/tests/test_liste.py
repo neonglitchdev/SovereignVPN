@@ -65,5 +65,26 @@ class Liste(unittest.TestCase):
         self.assertEqual(chiamate[1], ("exec", "pihole-prova", "pihole", "-g"))
 
 
+class Permessi(unittest.TestCase):
+    setUp, tearDown, file = Liste.setUp, Liste.tearDown, Liste.file
+
+    def test_permessi_col_loro_link_e_conflitti_segnalati_con_la_precedenza(self):
+        liste.applica(self.file("b.txt", "comune.example\nsolo-blocco.example\n"), str(self.cartella))
+        s = liste.applica(self.file("p.txt", "comune.example\nsolo-permesso.example\n"), str(self.cartella), tipo="allowlist")
+        self.assertEqual(os.readlink(self.cartella / "permessi.txt"), s["attiva"])
+        self.assertEqual((s["tipo"], s["conflitti"], s["conflitti_totali"], s["precedenza"]),
+                         ("allowlist", ["comune.example"], 1, "allowlist"))
+        self.assertTrue((self.cartella / "stato-permessi.json").exists())
+        codice, out, _ = esegui(["dns", "blocklist", "status", "--cartella", str(self.cartella), "--json"])
+        self.assertEqual(json.loads(out)["tipo"], "blocklist")  # le due liste non si confondono
+
+    def test_in_pihole_il_permesso_ha_tipo_1(self):
+        chiamate = []
+        with mock.patch.object(liste, "_docker", lambda *a: chiamate.append(a) or ("1|1\n" if "SELECT" in a[-1] else "")):
+            r = liste.sincronizza("pihole-prova", "allowlist")
+        self.assertEqual(r["adlist"], "file:///etc/pihole/sovereignvpn/permessi.txt")
+        self.assertTrue(chiamate[0][-1].rstrip().endswith("'sovereignvpn', 1);"))
+
+
 if __name__ == "__main__":
     unittest.main()

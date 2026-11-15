@@ -88,7 +88,7 @@ def aggiungi_parser(sotto, classe):
 
 
 def esegui(a):
-    if a.azione == "blocklist":
+    if a.azione in ("blocklist", "allowlist"):
         from . import liste
         return liste.esegui(a)
     if a.azione == "apply":
