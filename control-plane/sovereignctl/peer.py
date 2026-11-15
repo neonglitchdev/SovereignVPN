@@ -164,6 +164,37 @@ class Archivio:
         return self.mostra(p["id"])
 
 
+def aggiungi_parser_firewall(sotto, classe):
+    fw = sotto.add_parser("firewall", help="firewall di base nftables (ADR-005)")
+    az = fw.add_subparsers(dest="azione", required=True, parser_class=classe)
+    for nome in ("plan", "apply"):
+        s = az.add_parser(nome)
+        s.add_argument("--config", required=True); s.add_argument("--wan-interface"); s.add_argument("--wg-interface", default="wg0")
+        s.add_argument("--json", action="store_true")
+
+
+def esegui_firewall(a):
+    from . import configurazione, firewall
+    try:
+        cfg = configurazione.leggi(a.config)
+        ruleset = firewall.componi(cfg.get("subnet") or preflight.CANDIDATE_VPN[0], a.wg_interface, cfg.get("wg_port", 51820),
+                                   a.wan_interface or cfg.get("wan_interface"), cfg.get("admin_port", 8443),
+                                   cfg["ssh_port"], cfg["admin_ssh_sources"])
+        if a.azione == "plan":  # solo testo: niente nft, niente host toccato
+            print(json.dumps({"ruleset": ruleset, "mutazioni_eseguite": 0}, ensure_ascii=False, indent=1) if a.json else ruleset, end="" if not a.json else "\n")
+            return 0
+        esito = firewall.applica(ruleset)
+    except InputNonValido as e:
+        print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
+        return 2
+    except (RuntimeError, OSError) as e:
+        print(f"sovereignctl: errore del firewall: {registro.redigi(e)}", file=sys.stderr)
+        return 1
+    print(json.dumps(esito, ensure_ascii=False, indent=1) if a.json else
+          f"Firewall applicato: tabella {esito['tabella']}, {esito['regole']} regole, policy {esito['catene']}")
+    return 0 if esito["verificato"] else 4
+
+
 def aggiungi_parser(sotto, classe):
     peer = sotto.add_parser("peer", help="registro dei peer")
     az = peer.add_subparsers(dest="azione", required=True, parser_class=classe)

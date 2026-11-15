@@ -87,6 +87,12 @@ class Rifiuti(unittest.TestCase):
     def test_servizio_opzionale_acceso(self):
         self.rifiuto(BASE + "[flags]\ntor = true\n", "config.flags.tor")
 
+    def test_sorgenti_ssh_non_canoniche(self):
+        self.rifiuto(BASE + 'admin_ssh_sources = ["198.51.100.7/24"]\n', "config.admin_ssh_sources[0]")
+
+    def test_porta_ssh_fuori_intervallo(self):
+        self.rifiuto(BASE + "ssh_port = 0\n", "config.ssh_port")
+
     def test_toml_rotto(self):
         self.rifiuto("schema_version = \n", "--config")
 

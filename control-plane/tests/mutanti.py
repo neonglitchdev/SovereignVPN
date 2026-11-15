@@ -37,6 +37,11 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "chiave del server leggibile accettata": ("runtime.py", "    if modo & 0o077:", "    if False:"),
     "nessuna verifica del runtime": ("runtime.py", "coincide = vivi == attesi", "coincide = True"),
     "un cambio nel frattempo sovrascritto": ("runtime.py", "AND stato = ? AND saga = 'PENDING_APPLY'", "AND ? IS NOT NULL"),
+    "forward aperto": ("firewall.py", "type filter hook forward priority filter; policy drop;", "type filter hook forward priority filter; policy accept;"),
+    "peer non isolati": ("firewall.py", '          f\'    iifname "{wg_if}" oifname "{wg_if}" drop\',\n', ""),
+    "SSH aperto a tutti": ("firewall.py", 'r.append(f"    ip saddr {{ {v4} }} tcp dport {int(ssh_port)} accept")', 'r.append(f"    ip saddr {{ 0.0.0.0/0 }} tcp dport {int(ssh_port)} accept")'),
+    "IPv6 dei peer non respinto": ("firewall.py", "meta nfproto ipv6 reject with icmpv6 type admin-prohibited", "meta nfproto ipv6 accept"),
+    "DNS esterno dei peer non bloccato": ("firewall.py", 'meta l4proto {{ tcp, udp }} th dport 53 drop', 'meta l4proto {{ tcp, udp }} th dport 53 accept'),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
 INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
@@ -45,6 +50,7 @@ INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
     "un messaggio dell'installer detto con altre parole": ("ops/install.sh", "Prossimo passo:", "Passo successivo:"),
     "un messaggio del registro detto con altre parole": ("peer.py", "riprovare (CONFLICT)", "ritentare (CONFLICT)"),
     "un messaggio della riconciliazione detto con altre parole": ("runtime.py", "va creata da `init`", "la crea `init`"),
+    "un messaggio del firewall detto con altre parole": ("firewall.py", "niente applicato (", "nulla applicato ("),
     "una variabile locale rinominata": ("preflight.py", "    gib = fatti[\"disco_libero\"] / 1024 ** 3\n", "    giga = fatti[\"disco_libero\"] / 1024 ** 3\n    gib = giga\n"),
 }
 
