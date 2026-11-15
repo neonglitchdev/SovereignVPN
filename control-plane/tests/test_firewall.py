@@ -59,6 +59,12 @@ class Ruleset(unittest.TestCase):
         sorgente = (pathlib.Path(firewall.__file__)).read_text()
         self.assertIn("NON ferma ogni DNS cifrato", sorgente)  # la nota di FR-DNS-006 accanto alla regola
 
+    def test_un_peer_con_rotte_esce_solo_verso_le_rotte_e_la_vpn(self):
+        r = righe(limiti=[("10.66.0.5", ["192.168.10.0/24", "172.16.0.0/16"])])
+        regola = 'iifname "wg0" ip saddr 10.66.0.5 ip daddr != { 10.66.0.0/24, 192.168.10.0/24, 172.16.0.0/16 } drop'
+        self.assertLess(r.index(regola), r.index('iifname "wg0" ip saddr 10.66.0.0/24 oifname "ens3" accept'))
+        self.assertFalse(any("ip daddr !=" in x for x in righe()))  # senza limiti, nessuna regola per peer
+
     def test_ordine_del_forward(self):
         """Isolamento fra peer e DNS esterno bloccati PRIMA dell'uscita verso la WAN: dopo non servirebbero a niente."""
         r = righe()

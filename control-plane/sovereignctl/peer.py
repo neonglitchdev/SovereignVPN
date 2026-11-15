@@ -57,6 +57,21 @@ def valida_chiave(chiave):
     return chiave
 
 
+def limiti_rotte(db):
+    """FR-PEER-008 [H33]: (indirizzo, rotte) dei peer non revocati che hanno rotte, in sola lettura; il firewall li
+    applica. Registro assente o di schema 1 (senza la colonna) = nessun limite."""
+    if not os.path.exists(db):
+        return []
+    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        righe = con.execute("SELECT indirizzo, rotte FROM peer WHERE rotte IS NOT NULL AND stato != 'REVOKED' ORDER BY indirizzo").fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        con.close()
+    return [(ind, json.loads(r)) for ind, r in righe]
+
+
 class Archivio:
     def __init__(self, percorso):
         self.percorso = percorso
@@ -240,6 +255,7 @@ def aggiungi_parser_firewall(sotto, classe):
     for nome in ("plan", "apply"):
         s = az.add_parser(nome)
         s.add_argument("--config", required=True); s.add_argument("--wan-interface"); s.add_argument("--wg-interface", default="wg0")
+        s.add_argument("--db", default=DB_PREDEFINITO, help="registro: le rotte dei peer diventano regole (FR-PEER-008)")
         s.add_argument("--json", action="store_true")
 
 
@@ -250,7 +266,7 @@ def esegui_firewall(a):
         ruleset = firewall.componi(cfg.get("subnet") or preflight.CANDIDATE_VPN[0], a.wg_interface, cfg.get("wg_port", 51820),
                                    a.wan_interface or cfg.get("wan_interface"), cfg.get("admin_port", 8443),
                                    cfg["ssh_port"], cfg["admin_ssh_sources"], cfg.get("mtu", 1420),
-                                   cfg.get("dns_block_dot", True))
+                                   cfg.get("dns_block_dot", True), limiti_rotte(a.db))
         if a.azione == "plan":  # solo testo: niente nft, niente host toccato
             print(json.dumps({"ruleset": ruleset, "mutazioni_eseguite": 0}, ensure_ascii=False, indent=1) if a.json else ruleset, end="" if not a.json else "\n")
             return 0
