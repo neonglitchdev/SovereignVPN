@@ -1,9 +1,9 @@
 """Prove di `init --apply` (ANC-0263-0270, ANC-0255, FR-WG-002) con tutto cio' che tocca l'host sostituito.
 Uso, da control-plane/: python3 -m unittest discover -s tests"""
-import base64, json, os, pathlib, stat, tempfile, unittest
+import base64, contextlib, io, json, os, pathlib, stat, tempfile, unittest
 from unittest import mock
 
-from sovereignctl import bootstrap, preflight
+from sovereignctl import __main__ as cli, bootstrap, preflight
 from test_configurazione import ESEMPIO
 from test_preflight import BUONI, con, esegui
 
@@ -112,6 +112,50 @@ class Apply(unittest.TestCase):
         with self.assertRaises(SystemExit) as e, contextlib.redirect_stderr(io.StringIO()):
             cli.main(["init", "--check", "--apply"])
         self.assertEqual(e.exception.code, 2)
+
+
+    def test_chiave_esposta_esce_con_3(self):
+        with mock.patch.object(bootstrap.runtime, "riconcilia", side_effect=bootstrap.runtime.ChiaveEsposta("permessi 0o644")):
+            codice, _, _ = self.apply()
+        self.assertEqual(codice, 3)
+
+
+class Riavvio(unittest.TestCase):
+    """`reconcile` a ogni avvio (FR-NET-007): firewall per primo, mai il preflight, mai una chiave o un manifest nuovi."""
+    setUp, tearDown, cmd = Apply.setUp, Apply.tearDown, Apply.cmd
+
+    def rec(self, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                mock.patch.object(preflight, "raccogli", side_effect=AssertionError("preflight al riavvio")):
+            codice = cli.main(["reconcile", "--config", str(ESEMPIO), *argv])
+        return codice, out.getvalue(), err.getvalue()
+
+    def test_firewall_per_primo_niente_chiave_ne_manifest(self):
+        codice, out, err = self.rec("--wan-interface", "ens3", "--json")
+        self.assertEqual(codice, 0, err)
+        self.assertEqual([p["passo"] for p in json.loads(out)["passi"]], ["firewall", "sysctl", "interfaccia", "riconciliazione"])
+        self.assertNotIn(("wg", "genkey"), self.comandi)
+        self.assertFalse(self.chiave.exists())
+        self.assertFalse(self.manifest.exists())
+
+    def test_senza_wan_esce_con_2_senza_toccare_niente(self):
+        codice, _, err = self.rec()
+        self.assertEqual(codice, 2)
+        self.assertIn("wan_interface", err)
+        self.assertEqual(self.comandi, [])
+
+    def test_chiave_assente_esce_con_4_senza_generarla(self):
+        with mock.patch.object(bootstrap.runtime, "riconcilia", side_effect=RuntimeError("chiave del server assente")):
+            codice, out, _ = self.rec("--wan-interface", "ens3", "--json")
+        self.assertEqual(codice, 4)
+        self.assertEqual([p["passo"] for p in json.loads(out)["passi"]], ["firewall", "sysctl", "interfaccia"])
+        self.assertNotIn(("wg", "genkey"), self.comandi)
+
+    def test_chiave_esposta_esce_con_3(self):
+        with mock.patch.object(bootstrap.runtime, "riconcilia", side_effect=bootstrap.runtime.ChiaveEsposta("permessi 0o644")):
+            codice, _, _ = self.rec("--wan-interface", "ens3")
+        self.assertEqual(codice, 3)
 
 
 if __name__ == "__main__":

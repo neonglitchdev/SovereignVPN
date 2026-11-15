@@ -3,10 +3,12 @@
 Codici di uscita (ANC-0255): 0 successo; 1 errore runtime/sistema (anche un prerequisito mancante [H3]);
 2 input o schema non valido; 3 security gate fallito; 4 applicato in parte, serve recovery.
 Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [--admin-port N] [--subnet CIDR] [--json]
+     python3 -m sovereignctl init --apply --config server.toml --wan-interface IF [--json]
+     python3 -m sovereignctl reconcile --config server.toml [--wan-interface IF] [--json]   (a ogni avvio, FR-NET-007)
 """
 import argparse, json, sys
 
-from . import VERSIONE, configurazione, manifest, peer, preflight, registro
+from . import VERSIONE, configurazione, manifest, peer, preflight, registro, runtime
 
 
 class _Parser(argparse.ArgumentParser):
@@ -14,6 +16,34 @@ class _Parser(argparse.ArgumentParser):
         self.print_usage(sys.stderr)
         print(f"sovereignctl: input non valido: {message}", file=sys.stderr)
         sys.exit(2)
+
+
+def _esito_passi(rapporto, comando, passi, errore, come_json):
+    """Rapporto di `init --apply` e `reconcile`. Codice (ANC-0255): 3 se la chiave del server e' esposta (come
+    `peer reconcile`), 4 se il guasto arriva dopo almeno un passo (applicato in parte), 1 se prima."""
+    rapporto.update({"comando": comando, "passi": [{"passo": p, "esito": e} for p, e in passi],
+                     "errore": registro.redigi(errore) if errore else None})
+    print(json.dumps(rapporto, ensure_ascii=False, indent=1) if come_json else
+          "\n".join([f"SovereignVPN {VERSIONE} — {comando}"] + [f"  [OK] {p}: {e}" for p, e in passi]
+                    + ([f"  [FERMO] {registro.redigi(errore)}"] if errore else [])))
+    if errore is None:
+        return 0
+    return 3 if isinstance(errore, runtime.ChiaveEsposta) else (4 if passi else 1)
+
+
+def _ripristina(a):
+    from . import bootstrap
+    try:
+        cfg = configurazione.leggi(a.config)
+        wan = a.wan_interface or cfg.get("wan_interface")
+        if not wan:
+            raise preflight.InputNonValido("reconcile vuole --wan-interface o wan_interface nella configurazione: "
+                                           "al riavvio la WAN si legge da li' (ANC-0174: mai presunta)")
+        passi, errore = bootstrap.ripristina(cfg, wan)
+    except preflight.InputNonValido as e:
+        print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
+        return 2
+    return _esito_passi({"versione": VERSIONE}, "reconcile", passi, errore, a.json)
 
 
 def main(argv=None):
@@ -27,6 +57,10 @@ def main(argv=None):
     init.add_argument("--wg-port"); init.add_argument("--admin-port"); init.add_argument("--subnet")
     init.add_argument("--config", help="file TOML della configurazione, schema v1 (config/examples/server.toml)")
     init.add_argument("--json", action="store_true", help="rapporto in JSON")
+    rec = sotto.add_parser("reconcile", help="riporta l'host allo stato dichiarato: firewall, sysctl, wg0, peer (FR-NET-007)")
+    rec.add_argument("--config", required=True, help="file TOML della configurazione (al riavvio /etc/sovereignvpn/server.toml)")
+    rec.add_argument("--wan-interface", help="interfaccia verso Internet; altrimenti wan_interface della configurazione")
+    rec.add_argument("--json", action="store_true", help="rapporto in JSON")
     peer.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser_firewall(sotto, _Parser)
     peer.aggiungi_parser_host(sotto, _Parser)
@@ -37,6 +71,8 @@ def main(argv=None):
         return peer.esegui_firewall(a)
     if a.comando == "host":
         return peer.esegui_host(a)
+    if a.comando == "reconcile":
+        return _ripristina(a)
     try:
         cfg = configurazione.leggi(a.config) if a.config else {}
         valori, nomi = {}, {}
@@ -82,13 +118,8 @@ def main(argv=None):
         except preflight.InputNonValido as e:  # WAN o sorgenti SSH sbagliate: rifiutate prima di toccare l'host
             print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
             return 2
-        rapporto.update({"comando": "init --apply", "passi": [{"passo": p, "esito": e} for p, e in passi],
-                         "errore": registro.redigi(errore) if errore else None})
         rapporto.pop("mutazioni_eseguite", None)
-        print(json.dumps(rapporto, ensure_ascii=False, indent=1) if a.json else
-              "\n".join([f"SovereignVPN {VERSIONE} — init --apply"] + [f"  [OK] {p}: {e}" for p, e in passi]
-                         + ([f"  [FERMO] {registro.redigi(errore)}"] if errore else [])))
-        return 0 if not errore else (4 if passi else 1)
+        return _esito_passi(rapporto, "init --apply", passi, errore, a.json)
     if a.json:
         print(json.dumps(rapporto, ensure_ascii=False, indent=1))
     else:
