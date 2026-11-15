@@ -108,6 +108,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "conflitti fra permessi e blocchi non segnalati": ("liste.py", '"conflitti": comuni[:50],', '"conflitti": [],'),
     "manifest senza immagini": ("bootstrap.py", ", immagini=dns.immagini())", ")"),
     "base di Unbound diversa dal Dockerfile": ("dns.py", 'BASE_UNBOUND = "debian:12-slim@sha256:734a', 'BASE_UNBOUND = "debian:12-slim@sha256:004a'),
+    "il rollback non rimette la release precedente": ("ops/install.sh", '  mv "$OPT/sovereignctl.precedente" "$OPT/sovereignctl"\n', '  cp -R "$OPT/sovereignctl.scambio" "$OPT/sovereignctl"\n'),
+    "la release precedente si butta": ("ops/install.sh", '  mv "$OPT/sovereignctl" "$OPT/sovereignctl.precedente"\n', '  rm -rf "$OPT/sovereignctl"\n'),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
