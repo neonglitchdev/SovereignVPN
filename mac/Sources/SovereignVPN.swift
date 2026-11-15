@@ -205,12 +205,12 @@ struct VistaDispositivi: View {
                 TableColumn("Stato") { p in Etichetta(testo: p.stato) }
                 TableColumn("Scade") { p in Text(p.scade ?? "mai").foregroundStyle(.secondary) }
                 TableColumn("") { p in
-                    HStack {
-                        Button("Bundle") { Task { await server.esportaBundle(p) } }.disabled(p.stato == "REVOKED" || p.stato == "EXPIRED")
-                        Button("Rinomina") { nome = p.nome; daRinominare = p }
-                        Button("Revoca", role: .destructive) { daRevocare = p }.disabled(p.stato == "REVOKED")
-                    }
-                }
+                    HStack(spacing: 6) {  // col riquadro e della stessa misura: in una colonna stretta andavano a capo a meta' parola
+                        Button { Task { await server.esportaBundle(p) } } label: { Text("Bundle").frame(width: 64) }.disabled(p.stato == "REVOKED" || p.stato == "EXPIRED")
+                        Button { nome = p.nome; daRinominare = p } label: { Text("Rinomina").frame(width: 64) }
+                        Button(role: .destructive) { daRevocare = p } label: { Text("Revoca").frame(width: 64) }.disabled(p.stato == "REVOKED")
+                    }.buttonStyle(.bordered).controlSize(.small).lineLimit(1)
+                }.width(min: 250, ideal: 250)
             }
         }
         .sheet(isPresented: $nuovo) {
