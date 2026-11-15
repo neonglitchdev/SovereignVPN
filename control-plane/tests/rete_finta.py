@@ -7,7 +7,15 @@
   tcp INDIRIZZO PORTA [SORGENTE]         esce 0 se la connessione riesce e la risposta arriva, 1 altrimenti (2 s)
   udp INDIRIZZO PORTA TESTO              manda un datagramma: UDP non ha esito, lo dice il file dell'ascoltatore
 """
-import socket, sys
+import socket, sys, threading
+
+
+def _rispondi(c, dati):
+    with c:
+        try:
+            c.sendall(dati)
+        except OSError:
+            pass
 
 
 def ascolta(proto, indirizzo, porta, file, grande=0):
@@ -18,12 +26,11 @@ def ascolta(proto, indirizzo, porta, file, grande=0):
         s.listen()
     open(file, "a").close()  # pronto
     while True:
-        if proto == "tcp":
+        if proto == "tcp":  # un thread per connessione: una risposta ferma in un buco nero PMTUD non blocca le altre
             c, (sorgente, _) = s.accept()
-            with c:
-                with open(file, "a") as f:  # prima la riga, poi la risposta: chi riceve «ok» trova gia' la riga
-                    f.write(sorgente + "\n")
-                c.sendall(b"ok\n" + b"x" * grande)
+            with open(file, "a") as f:  # prima la riga, poi la risposta: chi riceve «ok» trova gia' la riga
+                f.write(sorgente + "\n")
+            threading.Thread(target=_rispondi, args=(c, b"ok\n" + b"x" * grande), daemon=True).start()
         else:
             dati, (sorgente, _) = s.recvfrom(512)
             with open(file, "a") as f:
