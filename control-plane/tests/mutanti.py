@@ -75,6 +75,12 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "manifest del backup senza checksum": ("backup.py", '"sha256": hashlib.sha256(b).hexdigest()', '"sha256": ""'),
     "backup verso un destinatario qualunque": ("backup.py", 'if not configurazione.DESTINATARIO_AGE.match(destinatario or ""):', "if not destinatario:"),
     "registro nel backup col flag WAL": ("backup.py", "    dati[18] = dati[19] = 1", "    pass"),
+    "restore senza controllo dei checksum": ("ripristino.py", "    if diversi:\n", "    if False:\n"),
+    "restore che accetta voci estranee": ("ripristino.py", "            if estranei:\n", "            if False:\n"),
+    "restore senza tornare indietro": ("ripristino.py", "        if prima:  # si torna indietro", "        if False:  # si torna indietro"),
+    "restore senza salvare lo stato di prima": ("ripristino.py", "    if prima:  # lo stato corrente", "    if False:  # lo stato corrente"),
+    "WAL vecchio lasciato sul registro nuovo": ("ripristino.py", '            for coda in ("-wal", "-shm"):', "            for coda in ():"),
+    "restore senza conferma": ("ripristino.py", "    if not a.conferma:\n", "    if False:\n"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }

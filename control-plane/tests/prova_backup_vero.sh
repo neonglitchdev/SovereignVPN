@@ -7,7 +7,7 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 [ "$(id -u)" -eq 0 ] || { echo "prova_backup_vero: serve root"; exit 1; }
-for c in age age-keygen tar; do command -v "$c" >/dev/null || { echo "prova_backup_vero: serve $c"; exit 1; }; done
+for c in age age-keygen tar wg; do command -v "$c" >/dev/null || { echo "prova_backup_vero: serve $c"; exit 1; }; done
 rosso() { echo "ROSSO: $*"; exit 1; }
 CHIAVE=/etc/sovereignvpn/wg-server.key
 REGISTRO=/var/lib/sovereignvpn/registro.sqlite3
@@ -15,7 +15,8 @@ for f in "$CHIAVE" "$REGISTRO" /var/lib/sovereignvpn/manifest.json /etc/sovereig
   [ -f "$f" ] || rosso "manca $f: prima prova_init_vero.sh"
 done
 D="$(mktemp -d)"
-trap 'rm -rf "$D"' EXIT
+NS=bkprova
+trap 'ip netns del "$NS" 2>/dev/null || true; rm -rf "$D"' EXIT
 cd "$(dirname "$0")/.."
 age-keygen -o "$D/identita.txt" 2>/dev/null
 DEST="$(age-keygen -y "$D/identita.txt")"
@@ -60,3 +61,23 @@ b = bytearray(open(sys.argv[1], "rb").read()); b[-10] ^= 0x01; open(sys.argv[1],
 PY
 if age -d -i "$D/identita.txt" -o /dev/null "$D/manomesso.age" 2>/dev/null; then rosso "un backup manomesso si decifra lo stesso"; fi
 echo "OK: un'altra chiave non decifra, un byte cambiato rende il backup illeggibile"
+
+# restore (FR-OPS-003, H21) dentro un network namespace: reconcile applica firewall, sysctl e wg0, e sull'host del
+# runner non deve. Dopo il backup il registro vivo cambia (un peer in piu'): una chiave sbagliata non tocca niente; quella
+# giusta riporta il registro com'era, salva prima lo stato corrente, e la verifica finale (reconcile e status) passa.
+ip netns add "$NS"
+contapeer() { python3 -c 'import sqlite3,sys; print(sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True).execute("SELECT count(*) FROM peer").fetchone()[0])' "$REGISTRO"; }
+N_BACKUP="$(contapeer)"
+python3 -m sovereignctl peer add --db "$REGISTRO" --name dopo-il-backup --public-key "$(wg genkey | wg pubkey)" >/dev/null
+[ "$(contapeer)" = "$((N_BACKUP + 1))" ] || rosso "il peer aggiunto dopo il backup non e' nel registro"
+restore() { ip netns exec "$NS" python3 -m sovereignctl backup restore "$FILE" --conferma --config /etc/sovereignvpn/server.toml --out "$D/backup" "$@"; }
+set +e; restore --identity "$D/altra.txt" >/dev/null 2>&1; C=$?; set -e
+[ "$C" -eq 2 ] || rosso "restore con un'altra chiave: codice $C, atteso 2"
+[ "$(contapeer)" = "$((N_BACKUP + 1))" ] || rosso "il restore con la chiave sbagliata ha toccato il registro"
+set +e; R2="$(restore --identity "$D/identita.txt" --json)"; C=$?; set -e
+echo "$R2"
+[ "$C" -eq 0 ] || rosso "restore con la chiave giusta: codice $C, atteso 0"
+[ "$(contapeer)" = "$N_BACKUP" ] || rosso "dopo il restore il registro ha $(contapeer) peer, attesi $N_BACKUP come nel backup"
+PREV="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["stato_precedente"])' "$R2")"
+[ -f "$PREV" ] || rosso "lo stato di prima non e' stato salvato"
+echo "OK: restore, chiave sbagliata rifiutata (2) senza toccare niente; chiave giusta: registro da $((N_BACKUP + 1)) a $N_BACKUP peer come nel backup, stato di prima salvato, reconcile e status OK"
