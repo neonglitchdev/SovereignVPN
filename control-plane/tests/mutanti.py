@@ -74,6 +74,11 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "MSS clampata dopo ct established": ("firewall.py", '''          f'    iifname "{wan_if}" oifname "{wg_if}" tcp flags syn / syn,rst tcp option maxseg size set rt mtu',
           "    ct state established,related accept",''', '''          "    ct state established,related accept",
           f'    iifname "{wan_if}" oifname "{wg_if}" tcp flags syn / syn,rst tcp option maxseg size set rt mtu','''),
+    "il backup tralascia la chiave del server": ("backup.py", '                           ("etc/sovereignvpn/wg-server.key", runtime.CHIAVE_SERVER),\n', ""),
+    "backup leggibile da altri": ("backup.py", "        os.chmod(tmp, 0o600)", "        os.chmod(tmp, 0o644)"),
+    "manifest del backup senza checksum": ("backup.py", '"sha256": hashlib.sha256(b).hexdigest()', '"sha256": ""'),
+    "backup verso un destinatario qualunque": ("backup.py", 'if not configurazione.DESTINATARIO_AGE.match(destinatario or ""):', "if not destinatario:"),
+    "registro nel backup col flag WAL": ("backup.py", "    dati[18] = dati[19] = 1", "    pass"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }

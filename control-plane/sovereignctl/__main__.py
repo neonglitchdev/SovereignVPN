@@ -77,6 +77,14 @@ def main(argv=None):
     st.add_argument("--config", default="/etc/sovereignvpn/server.toml", help="configurazione (porta, subnet, WAN)")
     st.add_argument("--db", default=peer.DB_PREDEFINITO)
     st.add_argument("--json", action="store_true", help="rapporto in JSON")
+    bk = sotto.add_parser("backup", help="backup cifrato con age (FR-OPS-001)")
+    ba = bk.add_subparsers(dest="azione", required=True, parser_class=_Parser)
+    bc = ba.add_parser("create", help="archivio cifrato con manifest e checksum; a schermo percorso e checksum")
+    bc.add_argument("--config", default="/etc/sovereignvpn/server.toml")
+    bc.add_argument("--recipient", help="chiave pubblica age; altrimenti backup_recipient della configurazione [H20]")
+    bc.add_argument("--out", help="cartella di destinazione (0700); di base /var/lib/sovereignvpn/backup")
+    bc.add_argument("--db", default=peer.DB_PREDEFINITO)
+    bc.add_argument("--json", action="store_true")
     peer.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser_firewall(sotto, _Parser)
     peer.aggiungi_parser_host(sotto, _Parser)
@@ -92,6 +100,9 @@ def main(argv=None):
     if a.comando == "profile":
         from . import profilo
         return profilo.esegui(a)
+    if a.comando == "backup":
+        from . import backup
+        return backup.esegui(a)
     if a.comando == "status":
         from . import stato
         return stato.esegui(a)
