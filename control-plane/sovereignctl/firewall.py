@@ -39,7 +39,9 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
     sorgenti = [_rete(f"admin_ssh_sources[{i}]", s) for i, s in enumerate(ssh_sorgenti)]
     v4 = ", ".join(str(s) for s in sorgenti if s.version == 4)
     v6 = ", ".join(str(s) for s in sorgenti if s.version == 6)
-    r = [f"table inet {TABELLA}", f"delete table inet {TABELLA}", f"table inet {TABELLA} {{",
+    # FR-PEER-008 [H35]: un oggetto quota per peer, coi byte gia' usati (il reconcile sostituisce la tabella ogni minuto)
+    oggetti = [f"  quota {_nome_quota(ind)} {{ over {int(tot)} bytes used {int(usati or 0)} bytes }}" for ind, tot, usati in quote]
+    r = [f"table inet {TABELLA}", f"delete table inet {TABELLA}", f"table inet {TABELLA} {{", *oggetti,
          "  chain input {",
          "    type filter hook input priority filter; policy drop;",
          '    iif "lo" accept',
@@ -64,12 +66,12 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
           f'    iifname "{wg_if}" oifname "{wan_if}" tcp flags syn / syn,rst tcp option maxseg size > {int(mtu) - 40} '
           f"tcp option maxseg size set {int(mtu) - 40}",
           f'    iifname "{wan_if}" oifname "{wg_if}" tcp flags syn / syn,rst tcp option maxseg size set rt mtu',
+          # la quota conta i due versi e sta prima di ct established: dopo, i pacchetti delle connessioni aperte non passano di qui
+          *[x for ind, _, _ in quote for x in (f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} quota name "{_nome_quota(ind)}" drop',
+                                               f'    oifname "{wg_if}" ip daddr {ipaddress.ip_address(ind)} quota name "{_nome_quota(ind)}" drop')],
           "    ct state established,related accept",
           "    ct state invalid drop",
           f'    iifname "{wg_if}" oifname "{wg_if}" drop',
-          # FR-PEER-008 [H35]: la quota del peer, coi byte gia' usati (il reconcile sostituisce la tabella ogni minuto)
-          *[f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} quota over {int(tot)} bytes used {int(usati or 0)} bytes drop'
-            f' comment "quota {ipaddress.ip_address(ind)}"' for ind, tot, usati in quote],
           # FR-PEER-008 [H34]: i peer con DNS libero passano prima del blocco del DNS esterno
           *[f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} meta l4proto {{ tcp, udp }} th dport 53 accept' for ind in dns_liberi],
           f'    iifname "{wg_if}" meta l4proto {{ tcp, udp }} th dport 53 drop',
@@ -107,6 +109,10 @@ def applica(ruleset):
     return leggi()
 
 
+def _nome_quota(ind):
+    return "q_" + str(ipaddress.ip_address(ind)).replace(".", "_")
+
+
 def quote_usate():
     """{indirizzo: byte usati} dalle quote della tabella viva, prima di sostituirla; tabella assente = {}."""
     try:
@@ -117,11 +123,9 @@ def quote_usate():
         return {}
     usate = {}
     for o in json.loads(uscita)["nftables"]:
-        r = o.get("rule")
-        if r and str(r.get("comment", "")).startswith("quota "):
-            for e in r.get("expr", []):
-                if "quota" in e:
-                    usate[r["comment"].split(" ", 1)[1]] = int(e["quota"].get("used", 0))
+        q = o.get("quota")
+        if q and str(q.get("name", "")).startswith("q_"):
+            usate[q["name"][2:].replace("_", ".")] = int(q.get("used", 0))
     return usate
 
 
