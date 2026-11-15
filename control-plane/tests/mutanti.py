@@ -63,6 +63,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "profilo di un peer revocato": ("profilo.py", 'if p["stato"] in ("REVOKED", "EXPIRED"):', "if False:"),
     "profilo leggibile da altri": ("profilo.py", "manifest.scrivi_testo(percorso, testo, 0o600)", "manifest.scrivi_testo(percorso, testo, 0o644)"),
     "keepalive sempre acceso": ("profilo.py", "    if keepalive:\n", "    if True:\n"),
+    "la porta di un'altra wg0 passa per nostra": ("preflight.py", 'not libera and bool(fatti.get("installato")) and', "not libera and"),
+    "la rete di wg0 sempre esclusa": ("preflight.py", '            if itf.get("ifname") == escludi:', '            if itf.get("ifname") in (escludi, "wg0"):'),
     "status dice sempre OK": ("stato.py", "    return 0 if superati == len(controlli) else 1", "    return 0"),
     "status non confronta i peer": ("stato.py", 'esito("peer", diverse == 0,', 'esito("peer", True,'),
     "status non conta le regole del firewall": ("stato.py", 'ok = t["verificato"] and dichiarate in (None, t["regole"])', 'ok = t["verificato"]'),
