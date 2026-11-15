@@ -76,6 +76,8 @@ def aggiungi_parser(sotto, classe):
     pl.add_argument("--porta", type=int, default=PORTA_UNBOUND, help="porta di Unbound su 127.0.0.1")
     pl.add_argument("--interfaccia", default="wg0", help="l'interfaccia WireGuard su cui ascolta Pi-hole")
     pl.add_argument("--json", action="store_true")
+    from . import liste
+    liste.aggiungi_parser(az, classe)
     ap = az.add_parser("apply", help="scrive i file di Unbound e Pi-hole che leggono le unita' systemd")
     ap.add_argument("--interfaccia", default="wg0")
     ap.add_argument("--cartella", help="di base /etc/sovereignvpn/dns (0700)")
@@ -83,6 +85,9 @@ def aggiungi_parser(sotto, classe):
 
 
 def esegui(a):
+    if a.azione == "blocklist":
+        from . import liste
+        return liste.esegui(a)
     if a.azione == "apply":
         from .configurazione import INTERFACCIA
         if not INTERFACCIA.match(a.interfaccia):

@@ -98,6 +98,9 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "status non guarda il DNS applicato": ("stato.py", "    if dns_applicato():  # NFR-AVL-002", "    if False:  # NFR-AVL-002"),
     "domanda DNS che accetta un errore": ("stato.py", "and (r[3] & 0x0F) == 0", "and True"),
     "ascolto fuori inventario ignorato": ("stato.py", "        if processo in ammessi and (indirizzo, int(porta)) not in ammessi[processo]:", "        if False:"),
+    "lista invalida attivata lo stesso": ("liste.py", "    if errori or not domini:", "    if not domini:"),
+    "indirizzi IP accettati come domini": ("liste.py", "            ipaddress.ip_address(r)\n", "            raise ValueError\n"),
+    "rollback che non torna indietro": ("liste.py", 'return _attiva(cartella, vecchio["attiva"],', 'return _attiva(cartella, prima["attiva"],'),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }

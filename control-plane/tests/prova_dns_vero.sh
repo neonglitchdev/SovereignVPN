@@ -55,7 +55,8 @@ python3 -m sovereignctl dns plan --servizio pihole --interfaccia wgdns0 --json >
 IMMAGINE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["immagine"])' "$D/pihole.json")"
 mapfile -t AMBIENTE < <(python3 -c 'import json,sys; [print(f"{k}={v}") for k, v in json.load(open(sys.argv[1]))["ambiente"].items()]' "$D/pihole.json")
 ARGS=(); for e in "${AMBIENTE[@]}"; do ARGS+=(-e "$e"); done
-docker run -d --name "$PIHOLE" --network host "${ARGS[@]}" -v "$D/pw:/run/secrets/pihole_webpasswd:ro" "$IMMAGINE" >/dev/null
+mkdir -m 0755 "$D/liste"
+docker run -d --name "$PIHOLE" --network host "${ARGS[@]}" -v "$D/pw:/run/secrets/pihole_webpasswd:ro" -v "$D/liste:/etc/pihole/sovereignvpn:ro" "$IMMAGINE" >/dev/null
 chiedi_vpn() { ns dig +timeout=3 +tries=1 @10.98.0.1 "$@"; }
 for _ in $(seq 90); do chiedi_vpn isc.org A 2>/dev/null | grep -q "status: NOERROR" && break; sleep 1; done
 BUONO="$(chiedi_vpn isc.org A || true)"
@@ -97,3 +98,25 @@ FUORI="$(python3 -c 'from sovereignctl import stato; print(" ".join(stato.porte_
 docker rm -f "$NOME-largo" >/dev/null
 grep -q "unbound 0.0.0.0:5336" <<<"$FUORI" || rosso "un Unbound su 0.0.0.0:5336 non e' stato trovato fuori inventario (trovato: «$FUORI»)"
 echo "OK: inventario delle porte, nessun ascolto fuori dal dichiarato; un Unbound su 0.0.0.0:5336 viene trovato"
+
+# liste di blocco versionate (FR-DNS-002/007, H27): la lista attiva blocca, una lista invalida non tocca quella attiva,
+# la lista nuova sostituisce la vecchia, il rollback rimette la vecchia
+bl() { python3 -m sovereignctl dns blocklist "$@" --cartella "$D/liste" --contenitore "$PIHOLE"; }
+bloccato() { chiedi_vpn "$1" A | grep -qE "^$1\.[[:space:]].*0\.0\.0\.0"; }
+aspetta() { for _ in $(seq 15); do if [ "$1" = si ]; then bloccato "$2" && return 0; else bloccato "$2" || return 0; fi; sleep 1; done; return 1; }
+printf 'lista-prova.example\n# commento\n' > "$D/l1.txt"
+printf 'altra-prova.example\n' > "$D/l2.txt"
+printf 'lista-prova.example\nnon un dominio!\n' > "$D/rotta.txt"
+R1="$(bl apply "$D/l1.txt" --sincronizza --json)"
+[ "$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["pihole"]["domini_in_gravity"])' "$R1")" = "1" ] || { echo "$R1"; rosso "gravity non ha il dominio della lista"; }
+aspetta si lista-prova.example || rosso "dopo apply la lista non blocca lista-prova.example"
+set +e; bl apply "$D/rotta.txt" --sincronizza >/dev/null 2>&1; C=$?; set -e
+[ "$C" -eq 2 ] || rosso "una lista invalida esce con $C, atteso 2"
+bloccato lista-prova.example || rosso "dopo una lista invalida quella attiva non blocca piu'"
+bl apply "$D/l2.txt" --sincronizza >/dev/null
+aspetta si altra-prova.example || rosso "la lista nuova non blocca altra-prova.example"
+aspetta no lista-prova.example || rosso "con la lista nuova lista-prova.example e' ancora bloccato"
+bl rollback --sincronizza >/dev/null
+aspetta si lista-prova.example || rosso "dopo il rollback lista-prova.example non e' bloccato"
+aspetta no altra-prova.example || rosso "dopo il rollback altra-prova.example e' ancora bloccato"
+echo "OK: liste di blocco, la attiva blocca, una invalida (2) lascia l'attiva, la nuova sostituisce, il rollback rimette la vecchia"
