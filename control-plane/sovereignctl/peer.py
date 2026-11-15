@@ -123,9 +123,29 @@ class Archivio:
         c.execute("INSERT INTO audit (evento) VALUES (?)", (registro.evento_audit(
             actor="sovereignctl", action=azione, target=bersaglio, outcome=esito, reason=motivo),))
 
-    def aggiungi(self, nome, chiave, rete, ttl_giorni=None):
+    @staticmethod
+    def valida_rotte(testo, rete):
+        """FR-PEER-008, FR-WG-007 [H32]: «CIDR,CIDR» -> lista canonica; reti IPv4, al massimo 32, nessuna sovrapposta
+        alla subnet VPN (la VPN entra sempre nel profilo), niente 0.0.0.0/0 (quello e' il full-tunnel: si omette)."""
+        if testo is None:
+            return None
+        rotte = []
+        for pezzo in [x.strip() for x in testo.split(",") if x.strip()]:
+            try:
+                r = ipaddress.ip_network(pezzo)
+            except ValueError:
+                raise InputNonValido(f"--routes: «{pezzo}» non e' un CIDR canonico")
+            if r.version != 4 or r.prefixlen == 0 or r.overlaps(ipaddress.ip_network(rete)):
+                raise InputNonValido(f"--routes: «{pezzo}» deve essere una rete IPv4 non 0.0.0.0/0 e fuori dalla subnet VPN {rete}")
+            rotte.append(str(r))
+        if not 1 <= len(rotte) <= 32:
+            raise InputNonValido("--routes: da 1 a 32 reti")
+        return sorted(set(rotte))
+
+    def aggiungi(self, nome, chiave, rete, ttl_giorni=None, rotte=None):
         nome, nome_chiave = normalizza_nome(nome)
         chiave = valida_chiave(chiave)
+        rotte = self.valida_rotte(rotte, rete)
         if ttl_giorni is not None and not 1 <= ttl_giorni <= TTL_MASSIMO_GIORNI:
             raise InputNonValido(f"--ttl-days: da 1 a {TTL_MASSIMO_GIORNI} [H10]")
         rete = ipaddress.ip_network(rete)
@@ -153,9 +173,10 @@ class Archivio:
             adesso = datetime.datetime.now(datetime.timezone.utc)
             scade = None if ttl_giorni is None else (adesso + datetime.timedelta(days=ttl_giorni)).isoformat(timespec="seconds").replace("+00:00", "Z")
             c.execute("INSERT INTO id_usati VALUES (?)", (nuovo,))
-            c.execute("INSERT INTO peer (id, nome, nome_chiave, chiave_pubblica, indirizzo, stato, saga, creato, scade) "
-                      "VALUES (?,?,?,?,?,?,?,?,?)",
-                      (nuovo, nome, nome_chiave, chiave, libero, "PENDING", "PENDING_APPLY", ora(), scade))
+            c.execute("INSERT INTO peer (id, nome, nome_chiave, chiave_pubblica, indirizzo, stato, saga, creato, scade, rotte) "
+                      "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                      (nuovo, nome, nome_chiave, chiave, libero, "PENDING", "PENDING_APPLY", ora(), scade,
+                       json.dumps(rotte) if rotte else None))
             self.audit(c, "peer.add", "success", nuovo)
         return self.mostra(nuovo)
 
@@ -282,6 +303,7 @@ def aggiungi_parser(sotto, classe):
         if nome == "add":
             s.add_argument("--name", required=True); s.add_argument("--public-key", required=True)
             s.add_argument("--ttl-days", type=int); s.add_argument("--config")
+            s.add_argument("--routes", help="split tunnel: CIDR,CIDR verso cui il peer esce (FR-PEER-008); senza, full-tunnel")
         if nome in ("show", "suspend", "resume", "revoke"):
             s.add_argument("id")
         if nome == "reconcile":  # dal registro al runtime WireGuard (ANC-0276/0277)
@@ -296,7 +318,7 @@ def esegui(a):
             from . import configurazione
             cfg = configurazione.leggi(a.config) if a.config else {}
             rete = cfg.get("subnet") or preflight.CANDIDATE_VPN[0]  # [H6] senza configurazione, la prima candidata
-            esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days)
+            esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days, a.routes)
         elif a.azione == "reconcile":
             from . import runtime
             try:

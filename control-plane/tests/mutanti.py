@@ -58,7 +58,7 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "al riavvio gira il preflight": ("__main__.py", "        passi, errore = bootstrap.ripristina(cfg, wan)\n", "        preflight.raccogli({})\n        passi, errore = bootstrap.ripristina(cfg, wan)\n"),
     "chiave esposta trattata come un guasto qualunque": ("__main__.py", "return 3 if isinstance(errore, runtime.ChiaveEsposta) else", "return 4 if isinstance(errore, runtime.ChiaveEsposta) else"),
     "init --apply ignora le verifiche": ("bootstrap.py", "    if ok is not True:", "    if False:"),
-    "profilo con l'IPv6 fuori dal tunnel": ("profilo.py", '"AllowedIPs = 0.0.0.0/0, ::/0"', '"AllowedIPs = 0.0.0.0/0"'),
+    "profilo con l'IPv6 fuori dal tunnel": ("profilo.py", 'else "0.0.0.0/0, ::/0")]', 'else "0.0.0.0/0")]'),
     "profilo esportato senza conferma": ("profilo.py", "    if not a.conferma:", "    if False:"),
     "profilo di un peer revocato": ("profilo.py", 'if p["stato"] in ("REVOKED", "EXPIRED"):', "if False:"),
     "profilo leggibile da altri": ("profilo.py", "manifest.scrivi_testo(percorso, testo, 0o600)", "manifest.scrivi_testo(percorso, testo, 0o644)"),
@@ -110,6 +110,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "base di Unbound diversa dal Dockerfile": ("dns.py", 'BASE_UNBOUND = "debian:12-slim@sha256:734a', 'BASE_UNBOUND = "debian:12-slim@sha256:004a'),
     "migrazione senza copia prima": ("peer.py", "                self.db.backup(dest)  # copia coerente", "                pass  # copia coerente"),
     "migrazione che non aggiorna la versione": ("peer.py", '            c.execute("UPDATE schema SET versione = ?", (VERSIONE_SCHEMA_DB,))', "            pass"),
+    "rotte sovrapposte alla VPN accettate": ("peer.py", " or r.overlaps(ipaddress.ip_network(rete)):", ":"),
+    "profilo full-tunnel anche con le rotte": ("profilo.py", 'if p.get("rotte") else "0.0.0.0/0, ::/0")]', 'if False else "0.0.0.0/0, ::/0")]'),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }

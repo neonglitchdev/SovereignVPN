@@ -261,5 +261,19 @@ class Migrazione(Base):
         with self.assertRaises(RuntimeError):
             peer.Archivio(self.db)
 
+
+class Rotte(Base):
+    """FR-PEER-008 / FR-WG-007: rotte per peer validate e salvate; senza, full-tunnel."""
+    def test_rotte_canoniche_salvate_e_quelle_sbagliate_rifiutate(self):
+        codice, p, err = self.add("ufficio", None, "--routes", "192.168.10.0/24, 172.16.0.0/16,192.168.10.0/24")
+        self.assertEqual(codice, 0, err)
+        self.assertEqual(json.loads(p["rotte"]), ["172.16.0.0/16", "192.168.10.0/24"])
+        self.assertIsNone(self.add("tutto")[1]["rotte"])
+        for sbagliate in ("10.66.0.0/25", "0.0.0.0/0", "192.168.1.1/24", "fd00::/64", "non-una-rete",
+                          ",".join(f"10.{i}.0.0/16" for i in range(100, 133))):
+            with self.subTest(sbagliate=sbagliate[:30]):
+                self.assertEqual(self.add("x" + str(abs(hash(sbagliate)) % 1000), None, "--routes", sbagliate)[0], 2)
+
+
 if __name__ == "__main__":
     unittest.main()
