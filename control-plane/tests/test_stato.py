@@ -25,7 +25,7 @@ class Status(unittest.TestCase):
         self.attivi = []
         for nome in ("uno", "due", "tre"):
             p = a.aggiungi(nome, base64.b64encode(os.urandom(32)).decode(), "10.66.0.0/24")
-            self.attivi.append((p["chiave_pubblica"], p["indirizzo"] + "/32"))
+            self.attivi.append((p["chiave_pubblica"], stato.runtime.ammessi(p["indirizzo"], configurazione.SUBNET6)))
         a.db.execute("UPDATE peer SET stato = 'ACTIVE', saga = 'APPLIED'")
         a.db.execute("UPDATE peer SET stato = 'REVOKED' WHERE nome = 'tre'")
         a.db.close()
@@ -117,7 +117,7 @@ class Status(unittest.TestCase):
         (pathlib.Path(self._t.name) / "dns").mkdir()
         (pathlib.Path(self._t.name) / "dns/unbound.conf").write_text("server:\n")
         risposte = {("127.0.0.1", 5335): True, ("10.66.0.1", 53): True}
-        self.risposte[("ss", "-H", "-lntup")] = (0, SS_PULITO)
+        self.risposte[("ss", "-H", "-lntup")] = (0, SS_PULITO + 'udp UNCONN 0 0 [fdd3:5205:9303::a42:1]:53 [::]:* users:(("pihole-FTL",pid=20,fd=7))\n')  # [H38] BIND anche sull'ULA di wg0
         with mock.patch.object(stato.dns, "CARTELLA_DNS", str(pathlib.Path(self._t.name) / "dns")), \
                 mock.patch.object(stato, "_dns_risponde", lambda i, p: risposte[(i, p)]):
             codice, r, testo = self.status()
@@ -132,6 +132,14 @@ class Status(unittest.TestCase):
         self.assertEqual(codice, 1)
         self.assertEqual([n for n, e in self.esiti(r).items() if e != "OK"], ["porte"])
         self.assertIn("pihole-FTL 0.0.0.0:53", json.dumps(r))
+
+    def test_pihole_sull_ula_del_server_e_dichiarato_su_un_altra_no(self):
+        """[H38] BIND apre la 53 su ogni indirizzo di wg0, anche sull'ULA del server: dichiarato. Un'altra ULA no."""
+        altra = 'udp UNCONN 0 0 [fdd3:5205:9303::a42:9]:53 [::]:* users:(("pihole-FTL",pid=20,fd=8))\n'
+        self.risposte[("ss", "-H", "-lntup")] = (0, SS_PULITO + 'udp UNCONN 0 0 [fdd3:5205:9303::a42:1]:53 [::]:* users:(("pihole-FTL",pid=20,fd=7))\n')
+        self.assertEqual(stato.porte_fuori_inventario("10.66.0.1", "fdd3:5205:9303::a42:1"), [])
+        self.risposte[("ss", "-H", "-lntup")] = (0, SS_PULITO + 'udp UNCONN 0 0 [fdd3:5205:9303::a42:1]:53 [::]:* users:(("pihole-FTL",pid=20,fd=7))\n' + altra)
+        self.assertEqual(stato.porte_fuori_inventario("10.66.0.1", "fdd3:5205:9303::a42:1"), ["pihole-FTL [fdd3:5205:9303::a42:9]:53"])
 
     def test_solo_letture(self):
         prima = hashlib.sha256(pathlib.Path(self.db).read_bytes()).hexdigest()

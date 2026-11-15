@@ -92,7 +92,15 @@ class Ruleset(unittest.TestCase):
         uscita = r.index('iifname "wg0" ip saddr 10.66.0.0/24 oifname "ens3" accept')
         self.assertLess(r.index('iifname "wg0" oifname "wg0" drop'), uscita)
         self.assertLess(r.index('iifname "wg0" meta l4proto { tcp, udp } th dport 53 drop'), uscita)
-        self.assertLess(r.index('iifname "wg0" meta nfproto ipv6 reject with icmpv6 type admin-prohibited'), uscita)
+
+    def test_ipv6_dei_peer_rifiutato_prima_dell_instradamento(self):
+        """T-013, H38: con l'inoltro IPv6 spento il FORWARD non lo vedrebbe mai; il rifiuto sta in PREROUTING."""
+        r = righe()
+        inizio = r.index("chain prerouting {")
+        catena = r[inizio:r.index("}", inizio)]
+        self.assertIn("type filter hook prerouting priority filter; policy accept;", catena)
+        self.assertIn('iifname "wg0" meta nfproto ipv6 reject with icmpv6 type admin-prohibited', catena)
+        self.assertEqual(sum("ipv6" in x for x in r), 1)  # una regola sola, in una catena sola
 
     def test_masquerade_verso_la_wan(self):
         self.assertIn('ip saddr 10.66.0.0/24 oifname "ens3" masquerade', righe())

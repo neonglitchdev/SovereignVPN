@@ -12,6 +12,8 @@
 # Il riavvio vero del runner non si puo' fare: e' dichiarato. Richiede ops/install.sh (nel CI e' il passo prima).
 #   sudo bash ops/install.sh && sudo bash control-plane/tests/prova_init_vero.sh
 set -Eeuo pipefail
+contiene() { local t; t="$(cat)"; grep -q "$@" <<<"$t"; }  # legge tutto: un grep -q in una pipeline esce presto e,
+# con pipefail, il SIGPIPE di chi scrive diventa un rosso finto, o un verde finto in un controllo negativo
 IFS=$'\n\t'
 [ "$(id -u)" -eq 0 ] || { echo "prova_init_vero: serve root"; exit 1; }
 for c in wg nft; do command -v "$c" >/dev/null || { echo "prova_init_vero: serve $c"; exit 1; }; done
@@ -70,7 +72,7 @@ PY
 riassunto() {  # una riga: passo=esito | ... | errore | rifiutato
   python3 -c 'import json,sys; r=json.loads(sys.argv[1]); print(" | ".join([f"{p}={e}" for p, e in r["passi"]] + [str(r["errore"]), str(r["rifiutato"])]))' "$1"
 }
-FISSO="interfaccia=wg0 10.66.0.1/24 | sysctl=True | firewall=True"
+FISSO="interfaccia=wg0 10.66.0.1/24 fdd3:5205:9303::a42:1/64 | sysctl=True | firewall=True"
 
 # 1. primo giro: sei passi, chiave generata
 R1="$(applica ens3)"; L1="$(riassunto "$R1")"; echo "giro 1: $L1"
@@ -84,12 +86,13 @@ APERTI="$(find /etc/sovereignvpn /var/lib/sovereignvpn -type f -perm /077 ! -nam
 [ -z "$APERTI" ] || rosso "file leggibili da altri: $APERTI"
 [ "$(dentro wg show wg0 listen-port)" = "51820" ] || rosso "wg0 non ascolta su 51820"
 [ "$(dentro wg show wg0 public-key)" = "$(wg pubkey < "$CHIAVE")" ] || rosso "wg0 non usa la chiave di $CHIAVE"
-dentro ip -4 -o addr show dev wg0 | grep -qF "inet 10.66.0.1/24" || rosso "wg0 senza 10.66.0.1/24 (primo host, [H11])"
-dentro ip -o link show wg0 | grep -q '[<,]UP[,>]' || rosso "wg0 non e' accesa"
+dentro ip -4 -o addr show dev wg0 | contiene -F "inet 10.66.0.1/24" || rosso "wg0 senza 10.66.0.1/24 (primo host, [H11])"
+dentro ip -6 -o addr show dev wg0 | contiene -F "inet6 fdd3:5205:9303::a42:1/64" || rosso "wg0 senza l'IPv6 ULA del server fdd3:5205:9303::a42:1/64 [H38]"
+dentro ip -o link show wg0 | contiene '[<,]UP[,>]' || rosso "wg0 non e' accesa"
 POLICY="$(dentro nft -j list table inet sovereignvpn | python3 -c '
 import json,sys; d=json.load(sys.stdin)["nftables"]
 print(" ".join("%s=%s" % (o["chain"]["name"], o["chain"].get("policy")) for o in d if "chain" in o))')"
-[ "$POLICY" = "input=drop forward=drop postrouting=accept" ] || rosso "policy del firewall $POLICY"
+[ "$POLICY" = "input=drop prerouting=accept forward=drop postrouting=accept" ] || rosso "policy del firewall $POLICY"
 SYS="$(dentro sysctl -n net.ipv4.ip_forward) $(dentro sysctl -n net.ipv6.conf.all.forwarding)"
 [ "$SYS" = "1 0" ] || rosso "ip_forward e IPv6 forwarding = $SYS, attesi 1 0"
 echo "OK: giro 1, wg0 10.66.0.1/24 su 51820 con la chiave del file (0600, mai stampata), firewall $POLICY, sysctl $SYS"
@@ -102,7 +105,7 @@ R2="$(applica ens3)"; L2="$(riassunto "$R2")"; echo "giro 2: $L2"
 [ "$L2" = "manifest=$ID | chiave del server=gia' presente | $FISSO | riconciliazione=True | None | None" ] || rosso "secondo giro diverso dall'atteso"
 [ "$(sha256sum "$CHIAVE")" = "$HK" ] || rosso "la chiave del server e' cambiata al secondo giro"
 [ "$(dentro nft list table inet sovereignvpn)" = "$T1" ] || rosso "il secondo giro ha cambiato il firewall"
-dentro wg show wg0 allowed-ips | grep -qF "$K"$'\t'"10.66.0.2/32" || rosso "il peer del registro non e' nel runtime dopo init"
+dentro wg show wg0 allowed-ips | contiene -F "$K"$'\t'"10.66.0.2/32" || rosso "il peer del registro non e' nel runtime dopo init"
 echo "OK: giro 2 idempotente (id $ID, chiave e firewall identici), il peer del registro e' in wg0 con 10.66.0.2/32"
 
 # 3. chiave guasta: init non la rigenera sopra (FR-WG-002), si ferma alla riconciliazione e non ne mostra il contenuto
@@ -132,7 +135,7 @@ EXEC="$(sed -n 's/^ExecStart=//p' "$UNITA")"
 IFS=' ' read -r -a ESEGUI <<<"$EXEC"
 stato() {
   dentro nft list table inet sovereignvpn
-  dentro ip -4 -o addr show dev wg0 | awk '{print $4}'
+  dentro ip -o addr show dev wg0 scope global | awk '{print $4}'  # l'IPv4 e l'IPv6 ULA [H38]
   dentro wg show wg0 listen-port; dentro wg show wg0 public-key; dentro wg show wg0 allowed-ips
   echo "$(dentro sysctl -n net.ipv4.ip_forward) $(dentro sysctl -n net.ipv6.conf.all.forwarding)"
 }

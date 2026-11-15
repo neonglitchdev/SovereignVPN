@@ -47,6 +47,9 @@ class Apply(unittest.TestCase):
         self.assertEqual([p["passo"] for p in r["passi"]], ORDINE)
         self.assertIn(("ip", "link", "add", "wg0", "type", "wireguard"), self.comandi)
         self.assertIn(("ip", "address", "replace", "10.66.0.1/24", "dev", "wg0"), self.comandi)
+        # [H38] IPv6 acceso solo su wg0, poi l'ULA del server: il prefisso piu' i 32 bit di 10.66.0.1
+        acceso = self.comandi.index(("sysctl", "-qw", "net/ipv6/conf/wg0/disable_ipv6=0"))
+        self.assertLess(acceso, self.comandi.index(("ip", "address", "replace", "fdd3:5205:9303::a42:1/64", "dev", "wg0")))
 
     def test_chiave_0600_mai_stampata_e_mai_sovrascritta(self):
         codice, out, err = self.apply()

@@ -47,7 +47,7 @@ class Export(unittest.TestCase):
         testo = f.read_text()
         self.assertEqual(r["checksum"], "sha256:" + hashlib.sha256(testo.encode()).hexdigest())
         righe = testo.splitlines()
-        for attesa in ("PrivateKey = <CHIAVE_PRIVATA_DEL_DISPOSITIVO>", "Address = 10.66.0.2/32", "DNS = 10.66.0.1",
+        for attesa in ("PrivateKey = <CHIAVE_PRIVATA_DEL_DISPOSITIVO>", "Address = 10.66.0.2/32, fdd3:5205:9303::a42:2/128", "DNS = 10.66.0.1",
                        "MTU = 1420", f"PublicKey = {PUB}", "Endpoint = vpn.example.org:51820", "AllowedIPs = 0.0.0.0/0, ::/0"):
             self.assertIn(attesa, righe)
         self.assertTrue(righe[1].startswith("# SEGRETI: nessuno"))
@@ -91,11 +91,14 @@ class Export(unittest.TestCase):
 class SplitTunnel(unittest.TestCase):
     def test_con_le_rotte_il_profilo_e_split_tunnel_con_la_vpn(self):
         p = {"id": "x", "nome": "ufficio", "indirizzo": "10.66.0.2", "scade": None, "rotte": '["192.168.10.0/24"]'}
-        righe = profilo.componi(p, {"endpoint": "vpn.example.org"}, PUB).splitlines()
+        cfg = {"endpoint": "vpn.example.org", "subnet6": "fd00:1:2::/64"}
+        righe = profilo.componi(p, cfg, PUB).splitlines()
         self.assertIn("AllowedIPs = 192.168.10.0/24, 10.66.0.0/24", righe)
+        self.assertIn("Address = 10.66.0.2/32", righe)  # l'IPv6 resta fuori, come tutto cio' che non e' nelle rotte
         self.assertIn("split-tunnel", righe[0])
-        righe = profilo.componi({**p, "rotte": None}, {"endpoint": "vpn.example.org"}, PUB).splitlines()
+        righe = profilo.componi({**p, "rotte": None}, cfg, PUB).splitlines()
         self.assertIn("AllowedIPs = 0.0.0.0/0, ::/0", righe)
+        self.assertIn("Address = 10.66.0.2/32, fd00:1:2::a42:2/128", righe)  # [H38] il prefisso della configurazione
 
 
 if __name__ == "__main__":

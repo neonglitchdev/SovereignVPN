@@ -6,6 +6,8 @@
 # Poi Pi-hole davanti a Unbound, raggiunto da un client WireGuard in un network namespace (serve root).
 #   sudo bash control-plane/tests/prova_dns_vero.sh
 set -Eeuo pipefail
+contiene() { local t; t="$(cat)"; grep -q "$@" <<<"$t"; }  # legge tutto: un grep -q in una pipeline esce presto e,
+# con pipefail, il SIGPIPE di chi scrive diventa un rosso finto, o un verde finto in un controllo negativo
 IFS=$'\n\t'
 for c in docker dig wg; do command -v "$c" >/dev/null || { echo "prova_dns_vero: serve $c"; exit 1; }; done
 rosso() { echo "ROSSO: $*"; exit 1; }
@@ -47,7 +49,7 @@ ip address add 192.168.251.1/30 dev vdns0; ip link set vdns0 up
 ns ip address add 192.168.251.2/30 dev vdns1; ns ip link set vdns1 up; ns ip link set lo up
 ip link add wgdns0 type wireguard
 wg set wgdns0 listen-port 51898 private-key "$D/srv.key" peer "$(wg pubkey < "$D/cli.key")" allowed-ips 10.98.0.2/32
-ip address add 10.98.0.1/24 dev wgdns0; ip link set wgdns0 up
+python3 -c 'from sovereignctl import bootstrap, configurazione; bootstrap.interfaccia("wgdns0", "10.98.0.0/24", configurazione.SUBNET6)'  # IPv4 e ULA, come init [H38]
 ns ip link add wgc type wireguard
 ns wg set wgc private-key "$D/cli.key" peer "$(wg pubkey < "$D/srv.key")" endpoint 192.168.251.1:51898 allowed-ips 10.98.0.0/24
 ns ip address add 10.98.0.2/32 dev wgc; ns ip link set wgc up; ns ip route add 10.98.0.0/24 dev wgc
@@ -58,7 +60,7 @@ ARGS=(); for e in "${AMBIENTE[@]}"; do ARGS+=(-e "$e"); done
 mkdir -m 0755 "$D/liste"
 docker run -d --name "$PIHOLE" --network host "${ARGS[@]}" -v "$D/pw:/run/secrets/pihole_webpasswd:ro" -v "$D/liste:/etc/pihole/sovereignvpn:ro" "$IMMAGINE" >/dev/null
 chiedi_vpn() { ns dig +timeout=3 +tries=1 @10.98.0.1 "$@"; }
-for _ in $(seq 90); do chiedi_vpn isc.org A 2>/dev/null | grep -q "status: NOERROR" && break; sleep 1; done
+for _ in $(seq 90); do chiedi_vpn isc.org A 2>/dev/null | contiene "status: NOERROR" && break; sleep 1; done
 BUONO="$(chiedi_vpn isc.org A || true)"
 grep -q "status: NOERROR" <<<"$BUONO" || { echo "$BUONO"; docker logs "$PIHOLE" 2>&1 | tail -20; rosso "dal tunnel Pi-hole non risolve isc.org"; }
 ROTTO="$(chiedi_vpn dnssec-failed.org A || true)"
@@ -68,13 +70,13 @@ WAN="$(ns dig +timeout=2 +tries=1 @192.168.251.1 isc.org A 2>&1 || true)"
 if grep -q "status: NOERROR" <<<"$WAN"; then echo "$WAN"; rosso "Pi-hole risponde anche sull'indirizzo «WAN»"; fi
 echo "OK: sull'indirizzo «WAN» nessuna risposta DNS (listeningMode BIND su wgdns0)"
 docker exec "$PIHOLE" pihole deny bloccato-prova.example >/dev/null
-for _ in $(seq 10); do chiedi_vpn bloccato-prova.example A | grep -qE "^bloccato-prova\.example\..*0\.0\.0\.0|status: NXDOMAIN" && break; sleep 1; done
+for _ in $(seq 10); do chiedi_vpn bloccato-prova.example A | contiene -E "^bloccato-prova\.example\..*0\.0\.0\.0|status: NXDOMAIN" && break; sleep 1; done
 NEG="$(chiedi_vpn bloccato-prova.example A || true)"
 grep -qE "^bloccato-prova\.example\..*0\.0\.0\.0|status: NXDOMAIN" <<<"$NEG" || { echo "$NEG"; rosso "un nome negato con pihole deny si risolve ancora"; }
 echo "OK: un nome negato non si risolve, isc.org si' (FR-DNS-002)"
 LOG="$(docker logs "$PIHOLE" 2>&1)"
 if grep -qiE "isc\.org|dnssec-failed|bloccato-prova" <<<"$LOG"; then rosso "un nome interrogato e' nel log di Pi-hole"; fi
-if grep -qiF "random password" <<<"$LOG" || grep -qF "$(cat "$D/pw")" <<<"$LOG"; then rosso "una password del pannello e' nel log"; fi
+if grep -qiF "random password" <<<"$LOG" || contiene -F "$(cat "$D/pw")" <<<"$LOG"; then rosso "una password del pannello e' nel log"; fi
 FILE_LOG="$(docker exec "$PIHOLE" sh -c 'cat /var/log/pihole/pihole.log 2>/dev/null' || true)"
 if grep -qiE "isc\.org|dnssec-failed" <<<"$FILE_LOG"; then rosso "un nome interrogato e' in pihole.log"; fi
 echo "OK: nessun nome interrogato nel log del container ne' in pihole.log, nessuna password nel log (FR-DNS-004, FR-OPS-002)"
@@ -88,13 +90,14 @@ echo "OK: dall'host Pi-hole risponde sull'indirizzo di wgdns0 (come lo chiede st
 
 # inventario delle porte (FR-NET-004, H26): con Unbound e Pi-hole accesi nessun ascolto fuori dal dichiarato; un secondo
 # Unbound in ascolto su 0.0.0.0:5336 deve essere trovato
-FUORI="$(python3 -c 'from sovereignctl import stato; print(" ".join(stato.porte_fuori_inventario("10.98.0.1")))')"
+FUORI="$(python3 -c 'from sovereignctl import configurazione, runtime, stato; print(" ".join(stato.porte_fuori_inventario("10.98.0.1", str(runtime.indirizzo6(configurazione.SUBNET6, "10.98.0.1")))))')"
 [ -z "$FUORI" ] || { ss -H -lntup | grep -E "unbound|pihole" || true; rosso "ascolti fuori inventario con il DNS acceso: $FUORI"; }
+echo "INFO: ascolti di pihole-FTL sulla 53 (BIND li apre su ogni indirizzo di wgdns0, anche l'ULA [H38]): $(ss -H -lnup | awk '/pihole-FTL/ && $4 ~ /:53$/ {print $4}' | sort -u | tr '\n' ' ')"
 python3 -m sovereignctl dns plan --porta 5336 | sed 's/127\.0\.0\.1@5336/0.0.0.0@5336/; s#access-control: 127.0.0.0/8 allow#access-control: 0.0.0.0/0 allow#' > "$D/largo.conf"
 chmod 0644 "$D/largo.conf"
 docker run -d --name "$NOME-largo" --network host -v "$D/largo.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-unbound:prova >/dev/null
-for _ in $(seq 20); do ss -H -lnup | grep -q ":5336 " && break; sleep 1; done
-FUORI="$(python3 -c 'from sovereignctl import stato; print(" ".join(stato.porte_fuori_inventario("10.98.0.1")))')"
+for _ in $(seq 20); do ss -H -lnup | contiene ":5336 " && break; sleep 1; done
+FUORI="$(python3 -c 'from sovereignctl import configurazione, runtime, stato; print(" ".join(stato.porte_fuori_inventario("10.98.0.1", str(runtime.indirizzo6(configurazione.SUBNET6, "10.98.0.1")))))')"
 docker rm -f "$NOME-largo" >/dev/null
 grep -q "unbound 0.0.0.0:5336" <<<"$FUORI" || rosso "un Unbound su 0.0.0.0:5336 non e' stato trovato fuori inventario (trovato: «$FUORI»)"
 echo "OK: inventario delle porte, nessun ascolto fuori dal dichiarato; un Unbound su 0.0.0.0:5336 viene trovato"
@@ -102,7 +105,7 @@ echo "OK: inventario delle porte, nessun ascolto fuori dal dichiarato; un Unboun
 # liste di blocco versionate (FR-DNS-002/007, H27): la lista attiva blocca, una lista invalida non tocca quella attiva,
 # la lista nuova sostituisce la vecchia, il rollback rimette la vecchia
 bl() { python3 -m sovereignctl dns blocklist "$@" --cartella "$D/liste" --contenitore "$PIHOLE"; }
-bloccato() { chiedi_vpn "$1" A | grep -qE "^$1\.[[:space:]].*0\.0\.0\.0"; }
+bloccato() { chiedi_vpn "$1" A | contiene -E "^$1\.[[:space:]].*0\.0\.0\.0"; }
 aspetta() { for _ in $(seq 15); do if [ "$1" = si ]; then bloccato "$2" && return 0; else bloccato "$2" || return 0; fi; sleep 1; done; return 1; }
 printf 'lista-prova.example\n# commento\n' > "$D/l1.txt"
 printf 'altra-prova.example\n' > "$D/l2.txt"

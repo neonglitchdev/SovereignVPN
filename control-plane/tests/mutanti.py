@@ -119,6 +119,16 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "byte usati della quota non salvati": ("peer.py", "    if salva and esito:", "    if False:"),
     "quota contata in un verso solo": ("firewall.py", """,
                                                f'    oifname "{wg_if}" ip daddr {ipaddress.ip_address(ind)} quota name "{_nome_quota(ind)}" drop')],""", ",)],"),
+    "IPv6 del peer fuori dal runtime": ("runtime.py", 'return ",".join(sorted((f"{ipv4}/32", f"{indirizzo6(subnet6, ipv4)}/128")))', 'return f"{ipv4}/32"'),
+    "ordine degli AllowedIPs del kernel confrontato": ("runtime.py", 'vivi[campi[0]] = ",".join(sorted(x.strip() for x in campi[3].split(",")))', "vivi[campi[0]] = campi[3]"),
+    "peer reconcile ignora la subnet6 della configurazione": ("peer.py", 'subnet6 = configurazione.leggi(a.config)["subnet6"]', "subnet6 = configurazione.SUBNET6"),
+    "subnet6 dove l'IPv4 non ci sta": ("configurazione.py", "r6.prefixlen > 96:", "r6.prefixlen > 120:"),
+    "wg0 senza IPv6 ULA": ("bootstrap.py", '    _cmd("ip", "address", "replace", server6, "dev", nome)\n', ""),
+    "IPv6 di wg0 lasciato spento": ("bootstrap.py", '    _cmd("sysctl", "-qw", f"net/ipv6/conf/{nome}/disable_ipv6=0")', "    pass"),
+    "profilo senza IPv6 nel tunnel": ("profilo.py", "/32, {runtime.indirizzo6(cfg['subnet6'], p['indirizzo'])}/128\"", "/32\""),
+    "rifiuto IPv6 dopo l'instradamento": ("firewall.py", '"    type filter hook prerouting priority filter; policy accept;",', '"    type filter hook forward priority filter; policy accept;",'),
+    "ULA del server fuori dall'inventario": ("stato.py", "(server, 53), (server6, 53),", "(server, 53),"),
+    "status con l'ULA di un altro prefisso": ("stato.py", 'runtime.indirizzo6(cfg["subnet6"], server)', 'runtime.indirizzo6("fd00::/64", server)'),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
@@ -129,6 +139,7 @@ INNOCUI = {  # devono SOPRAVVIVERE: stesso comportamento, prove verdi
     "un messaggio del registro detto con altre parole": ("peer.py", "riprovare (CONFLICT)", "ritentare (CONFLICT)"),
     "un messaggio della riconciliazione detto con altre parole": ("runtime.py", "va creata da `init`", "la crea `init`"),
     "un messaggio del firewall detto con altre parole": ("firewall.py", "niente applicato (", "nulla applicato ("),
+    "un commento del profilo detto con altre parole": ("profilo.py", "dove il server lo rifiuta subito", "dove il server lo respinge subito"),
     "una variabile locale rinominata": ("preflight.py", "    gib = fatti[\"disco_libero\"] / 1024 ** 3\n", "    giga = fatti[\"disco_libero\"] / 1024 ** 3\n    gib = giga\n"),
 }
 

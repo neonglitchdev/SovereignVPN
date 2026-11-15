@@ -8,7 +8,7 @@ file temporaneo ne' dall'output. Poi `wg show <if> dump` si confronta peer per p
 Un aggiornamento tocca solo le righe rimaste come lette (stato e saga uguali): un cambio arrivato nel frattempo non si
 sovrascrive, resta in PENDING_APPLY per il giro dopo.
 """
-import base64, binascii, os, stat, subprocess, time
+import base64, binascii, ipaddress, os, stat, subprocess, time
 
 from . import registro
 
@@ -45,10 +45,21 @@ def leggi_chiave_server(percorso):
     return chiave
 
 
-def configurazione(chiave_server, porta, peer):
+def indirizzo6(subnet6, ipv4):
+    """[H38] L'IPv6 ULA di un indirizzo della VPN: il prefisso piu' i 32 bit dell'IPv4 (10.66.0.3 -> <prefisso>::a42:3).
+    Unico come l'IPv4, e nessuna colonna nel registro."""
+    return ipaddress.ip_network(subnet6).network_address + int(ipaddress.ip_address(ipv4))
+
+
+def ammessi(ipv4, subnet6):
+    """AllowedIPs di un peer, nella forma in cui si confrontano col runtime: la /32 e la /128, in ordine."""
+    return ",".join(sorted((f"{ipv4}/32", f"{indirizzo6(subnet6, ipv4)}/128")))
+
+
+def configurazione(chiave_server, porta, peer, subnet6):
     righe = ["[Interface]", f"PrivateKey = {chiave_server}", f"ListenPort = {porta}"]
-    for p in peer:  # FR-WG-003: AllowedIPs precisa, una /32 per peer, uniche per vincolo del registro
-        righe += ["", "[Peer]", f"PublicKey = {p['chiave_pubblica']}", f"AllowedIPs = {p['indirizzo']}/32"]
+    for p in peer:  # FR-WG-003: AllowedIPs precisa, una /32 e una /128 per peer, uniche per vincolo del registro
+        righe += ["", "[Peer]", f"PublicKey = {p['chiave_pubblica']}", f"AllowedIPs = {ammessi(p['indirizzo'], subnet6)}"]
     return "\n".join(righe) + "\n"
 
 
@@ -68,22 +79,22 @@ def leggi_runtime(interfaccia):
     vivi = {}
     for riga in uscita.strip().splitlines()[1:]:  # la prima riga e' l'interfaccia, con la chiave privata: si salta
         campi = riga.split("\t")
-        vivi[campi[0]] = campi[3]
+        vivi[campi[0]] = ",".join(sorted(x.strip() for x in campi[3].split(",")))  # l'ordine nel kernel non conta
     return vivi
 
 
-def nel_runtime(righe):
+def nel_runtime(righe, subnet6):
     """Chiave pubblica -> AllowedIPs attesi nel runtime, da righe (chiave_pubblica, indirizzo, stato) del registro."""
-    return {k: ind + "/32" for k, ind, stato in righe if stato in NEL_RUNTIME}
+    return {k: ammessi(ind, subnet6) for k, ind, stato in righe if stato in NEL_RUNTIME}
 
 
-def riconcilia(archivio, interfaccia=INTERFACCIA, percorso_chiave=CHIAVE_SERVER, porta=51820):
+def riconcilia(archivio, interfaccia, percorso_chiave, porta, subnet6):
     t0 = time.monotonic()
     chiave = leggi_chiave_server(percorso_chiave)
     letti = archivio.db.execute("SELECT id, chiave_pubblica, indirizzo, stato, saga FROM peer").fetchall()
     attesi_peer = [{"chiave_pubblica": k, "indirizzo": ind} for _, k, ind, stato, _ in letti if stato in NEL_RUNTIME]
-    attesi = nel_runtime((k, ind, stato) for _, k, ind, stato, _ in letti)
-    codice, _, errore = _wg("syncconf", interfaccia, "/dev/stdin", ingresso=configurazione(chiave, porta, attesi_peer))
+    attesi = nel_runtime(((k, ind, stato) for _, k, ind, stato, _ in letti), subnet6)
+    codice, _, errore = _wg("syncconf", interfaccia, "/dev/stdin", ingresso=configurazione(chiave, porta, attesi_peer, subnet6))
     if codice != 0:  # niente applicato: la saga resta PENDING_APPLY e il giro si puo' ripetere
         raise RuntimeError(f"wg syncconf non riuscito su {interfaccia} ({registro.redigi(errore.strip())[:160]})")
     vivi = leggi_runtime(interfaccia)
