@@ -111,6 +111,8 @@ class AvvioDns(unittest.TestCase):
             self.assertIn(f"{dns.CARTELLA_DNS}/{f}", pihole)
         self.assertIn(f"{dns.CARTELLA_DNS}/unbound.conf:/etc/unbound/unbound.conf:ro", unbound)
         self.assertIn("After=docker.service sovereignvpn-unbound.service sovereignvpn-reconcile.service", pihole)
+        self.assertIn("--network host " + " ".join(dns.VINCOLI_UNBOUND) + " -v", unbound)  # [H44] gli stessi vincoli
+        self.assertIn('  pidfile: ""', dns.unbound_conf())
         etichetta = re.search(r"(sovereignvpn-unbound:[\w.]+)", unbound).group(1)
         self.assertIn(f"docker build -q -t {etichetta} ", (ops / "install.sh").read_text())
 

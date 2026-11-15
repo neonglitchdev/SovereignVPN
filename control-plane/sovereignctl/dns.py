@@ -15,6 +15,13 @@ IMMAGINE_PIHOLE = "pihole/pihole:2026.10.1@sha256:30f803ad5dd60ff96cc0a63008a2e9
 BASE_UNBOUND = "debian:12-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc"  # = FROM del Dockerfile
 
 
+# NFR-SEC-001/003 [H44]: i vincoli dei container, gli stessi nelle unita' systemd, nella prova vera e nell'audit.
+# Unbound: filesystem in sola lettura, nessuna capability salvo SETUID/SETGID (scende all'utente unbound), mai nuovi
+# privilegi; misurato che risponde cosi'. Ascolta sopra la 1024 e non scrive niente (pidfile spento).
+VINCOLI_UNBOUND = ("--read-only", "--cap-drop", "ALL", "--cap-add", "SETUID", "--cap-add", "SETGID",
+                   "--security-opt", "no-new-privileges")
+
+
 def immagini():
     """FR-OPS-004, ANC-0319 [H30]: le immagini della release col loro digest, per il manifest. La base di Unbound e'
     quella da cui l'installer costruisce sovereignvpn-unbound; una prova la confronta col FROM del Dockerfile."""
@@ -28,7 +35,7 @@ def unbound_conf(porta=PORTA_UNBOUND):
              "  access-control: 0.0.0.0/0 refuse",
              "  access-control: 127.0.0.0/8 allow",
              "  do-ip4: yes", "  do-ip6: no", "  do-udp: yes", "  do-tcp: yes",
-             '  username: "unbound"', '  chroot: ""',
+             '  username: "unbound"', '  chroot: ""', '  pidfile: ""',  # [H44] niente da scrivere: il filesystem e' in sola lettura
              "  # ricorsione dalle radici, nessuna forward-zone (cap. 6); DNSSEC validato",
              '  trust-anchor-file: "/usr/share/dns/root.key"',
              "  harden-dnssec-stripped: yes", "  harden-glue: yes", "  qname-minimisation: yes",

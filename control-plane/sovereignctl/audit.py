@@ -1,6 +1,6 @@
 """`sovereignctl audit run` (ANC-0254, ANC-0307, ANC-0398; T-016, T-030) [H42].
 
-Il security audit: solo letture, non invasivo, senza cronologie. Ogni controllo ha un ID stabile, la severita' del
+Il security audit (32 controlli): solo letture, non invasivo, senza cronologie. Ogni controllo ha un ID stabile, la severita' del
 requisito che verifica (P0, P1, P2), lo stato PASS | WARN | FAIL | SKIPPED, un'evidenza non sensibile (mai chiavi,
 nomi, indirizzi o query dei peer: conteggi e nomi di file), il rimedio e il timestamp. SKIPPED non vale PASS e porta
 il suo motivo (una feature opzionale spenta, il DNS non applicato su questo host). I controlli di `status` entrano col
@@ -173,6 +173,40 @@ def _file_dns(nome, vietati, voluti):
     return "PASS", f"{nome}: nessuna traccia delle query", ""
 
 
+def vincoli_mancanti(nome, attesi):
+    """[H44] Che cosa manca al container acceso rispetto ai vincoli dichiarati (o che cosa ha in piu': una capability
+    aggiunta non dichiarata). None se il container non c'e'."""
+    codice, uscita = stato._leggi("docker", "inspect", "--format", "{{json .HostConfig}}", nome)
+    if codice != 0 or not uscita.strip():
+        return None
+    hc = json.loads(uscita)
+    cap = lambda xs: {str(x).upper().removeprefix("CAP_") for x in (xs or [])}
+    voluti = {"cap-drop": set(), "cap-add": set(), "security-opt": set(), "tmpfs": set()}
+    for i, x in enumerate(attesi):
+        if x.startswith("--") and x[2:] in voluti:
+            voluti[x[2:]].add(attesi[i + 1])
+    mancano = (["read-only"] if "--read-only" in attesi and not hc.get("ReadonlyRootfs") else [])
+    mancano += [f"cap-drop {c}" for c in sorted(cap(voluti["cap-drop"]) - cap(hc.get("CapDrop")))]
+    mancano += [f"cap-add {c} in piu'" for c in sorted(cap(hc.get("CapAdd")) - cap(voluti["cap-add"]))]
+    mancano += [f"security-opt {s}" for s in sorted(voluti["security-opt"] - set(hc.get("SecurityOpt") or []))]
+    mancano += [f"tmpfs {t}" for t in sorted(voluti["tmpfs"] - set((hc.get("Tmpfs") or {}).keys()))]
+    return mancano
+
+
+def _vincoli():
+    accesi, male = 0, []
+    for nome, attesi in (("sovereignvpn-unbound", dns.VINCOLI_UNBOUND),):
+        m = vincoli_mancanti(nome, attesi)
+        if m is not None:
+            accesi += 1
+            male += [f"{nome}: {x}" for x in m]
+    if not accesi:
+        return "SKIPPED", "nessun container del DNS acceso (o Docker assente)", ""
+    if male:
+        return "FAIL", f"vincoli mancanti: {', '.join(male)}", "riavviare il servizio dall'unita' installata (systemctl restart sovereignvpn-unbound)"
+    return "PASS", f"{accesi} container coi vincoli dichiarati (sola lettura, capability minime, nessun nuovo privilegio)", ""
+
+
 def esegui_controlli(cfg, db=None, wg_if=runtime.INTERFACCIA):
     """La lista dei controlli, in ordine di ID: ognuno {id, severita, requisito, nome, stato, evidenza, rimedio, timestamp}."""
     db = db or peer.DB_PREDEFINITO
@@ -226,6 +260,7 @@ def esegui_controlli(cfg, db=None, wg_if=runtime.INTERFACCIA):
     metti("AUD-30", "P0", "FR-DNS-004", "log di Pi-hole", _file_dns("pihole.env", ("FTLCONF_dns_queryLogging=true",),
                                                                     ("FTLCONF_dns_queryLogging=false", "FTLCONF_database_maxDBdays=0")))
     metti("AUD-31", "P0", "FR-DNS-004", "log di Unbound", _file_dns("unbound.conf", ("forward-zone:", "log-queries: yes"), ("log-queries: no", "verbosity: 0")))
+    metti("AUD-32", "P1", "NFR-SEC-003", "vincoli dei container", _vincoli())
     return sorted(c, key=lambda x: int(x["id"][4:]))
 
 

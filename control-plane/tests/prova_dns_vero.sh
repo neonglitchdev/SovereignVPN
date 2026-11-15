@@ -25,7 +25,10 @@ if docker run --rm -v "$D/rotta.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-
   rosso "unbound-checkconf accetta una configurazione rotta: il controllo non vede"
 fi
 echo "OK: immagine costruita, configurazione accettata da unbound-checkconf, quella rotta rifiutata"
-docker run -d --name "$NOME" --network host -v "$D/unbound.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-unbound:prova >/dev/null
+mapfile -t VINCOLI_UB < <(python3 -c 'from sovereignctl import dns; print("\n".join(dns.VINCOLI_UNBOUND))')
+docker run -d --name "$NOME" --network host "${VINCOLI_UB[@]}" -v "$D/unbound.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-unbound:prova >/dev/null
+vincoli() { python3 -c 'import json,sys; from sovereignctl import audit, dns; print(json.dumps(audit.vincoli_mancanti(sys.argv[1], getattr(dns, sys.argv[2]))))' "$@"; }
+[ "$(vincoli "$NOME" VINCOLI_UNBOUND)" = "[]" ] || rosso "Unbound acceso senza i vincoli dichiarati: $(vincoli "$NOME" VINCOLI_UNBOUND)"
 chiedi() { dig +dnssec +timeout=5 +tries=2 @127.0.0.1 -p 5335 "$@"; }
 for _ in $(seq 30); do chiedi . NS >/dev/null 2>&1 && break; sleep 1; done
 BUONO="$(chiedi isc.org A)"
@@ -98,6 +101,8 @@ chmod 0644 "$D/largo.conf"
 docker run -d --name "$NOME-largo" --network host -v "$D/largo.conf:/etc/unbound/unbound.conf:ro" sovereignvpn-unbound:prova >/dev/null
 for _ in $(seq 20); do ss -H -lnup | contiene ":5336 " && break; sleep 1; done
 FUORI="$(python3 -c 'from sovereignctl import configurazione, runtime, stato; print(" ".join(stato.porte_fuori_inventario("10.98.0.1", str(runtime.indirizzo6(configurazione.SUBNET6, "10.98.0.1")))))')"
+LARGO="$(vincoli "$NOME-largo" VINCOLI_UNBOUND)"  # controllo negativo: senza vincoli il controllo deve vederli mancare
+contiene -F '"read-only"' <<<"$LARGO" && contiene -F '"security-opt no-new-privileges"' <<<"$LARGO" || rosso "l'Unbound senza vincoli passa il controllo dei vincoli ($LARGO)"
 docker rm -f "$NOME-largo" >/dev/null
 grep -q "unbound 0.0.0.0:5336" <<<"$FUORI" || rosso "un Unbound su 0.0.0.0:5336 non e' stato trovato fuori inventario (trovato: «$FUORI»)"
 echo "OK: inventario delle porte, nessun ascolto fuori dal dichiarato; un Unbound su 0.0.0.0:5336 viene trovato"
