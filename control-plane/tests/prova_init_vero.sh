@@ -153,7 +153,7 @@ set +e; R5="$(dentro "${ESEGUI[@]}" 2>&1)"; C5=$?; set -e
 echo "giro 5 ($EXEC), codice $C5:"; echo "$R5"
 [ "$C5" -eq 0 ] || rosso "il ripristino al riavvio esce con $C5"
 ORDINE="$(sed -n 's/^  \[OK\] \([a-z]*\):.*/\1/p' <<<"$R5" | tr '\n' ' ')"
-[ "$ORDINE" = "firewall sysctl interfaccia riconciliazione " ] || rosso "ordine dei passi al riavvio: $ORDINE"
+[ "$ORDINE" = "firewall sysctl interfaccia uscita riconciliazione " ] || rosso "ordine dei passi al riavvio: $ORDINE"  # [H48] uscita prima dei peer
 [ "$(stato)" = "$PRIMA" ] || rosso "dopo il ripristino lo stato non e' quello di prima del riavvio"
 echo "OK: giro 5, dopo il riavvio simulato firewall, sysctl, wg0 e il peer tornano identici, col firewall per primo"
 
