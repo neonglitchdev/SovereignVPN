@@ -163,11 +163,22 @@ guasti() { python3 -c 'import json,sys; r=json.loads(sys.argv[1]); print(r["supe
 set +e; S1="$(dentro "${STATUS[@]}")"; CS1=$?; set -e
 echo "status: codice $CS1, $(guasti "$S1")"
 [ "$CS1" -eq 0 ] || { echo "$S1"; rosso "status sullo stato ripristinato esce con $CS1"; }
+# security audit (T-030, ANC-0307) sullo stesso stato: nessun FAIL, codice 0
+AUDIT=(/usr/local/bin/sovereignctl audit run --config /etc/sovereignvpn/server.toml --json)
+falliti() { python3 -c 'import json,sys; r=json.loads(sys.argv[1]); print(r["controlli_eseguiti"], r["FAIL"], " ".join(x["id"] for x in r["controlli"] if x["stato"] == "FAIL"))' "$1"; }
+set +e; A1="$(dentro "${AUDIT[@]}")"; CA1=$?; set -e
+echo "audit: codice $CA1, $(falliti "$A1")"
+[ "$CA1" -eq 0 ] || { echo "$A1"; rosso "audit sullo stato ripristinato esce con $CA1"; }
 dentro nft delete table inet sovereignvpn
 set +e; S2="$(dentro "${STATUS[@]}")"; CS2=$?; set -e
 G2="$(guasti "$S2")"
 [ "$CS2" -eq 1 ] && [ "$G2" = "6 7 firewall" ] || { echo "$S2"; rosso "senza tabella: codice $CS2 e «$G2», attesi 1 e «6 7 firewall»"; }
 if grep -qF "$(cat "$CHIAVE")" <<<"$S1$S2"; then rosso "la chiave del server e' nello status"; fi
+set +e; A2="$(dentro "${AUDIT[@]}")"; CA2=$?; set -e
+[ "$CA2" -eq 3 ] && [ "$(falliti "$A2" | cut -d' ' -f3-)" = "AUD-05 AUD-13 AUD-14 AUD-15 AUD-16" ] \
+  || { echo "$A2"; rosso "senza tabella l'audit: codice $CA2, «$(falliti "$A2")»; attesi 3 e i FAIL AUD-05 AUD-13 AUD-14 AUD-15 AUD-16"; }
+if grep -qF "$(cat "$CHIAVE")" <<<"$A1$A2"; then rosso "la chiave del server e' nell'audit"; fi
+echo "OK: audit senza FAIL sullo stato ripristinato; tolta la tabella, codice 3 coi soli FAIL del firewall (T-030)"
 dentro "${ESEGUI[@]}" >/dev/null
 echo "OK: status 7 su 7 sullo stato ripristinato; tolta la tabella, 6 su 7 col solo firewall GUASTO e codice 1"
 

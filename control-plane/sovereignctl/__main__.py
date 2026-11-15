@@ -6,6 +6,7 @@ Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [
      python3 -m sovereignctl init --apply --config server.toml --wan-interface IF [--json]
      python3 -m sovereignctl reconcile --config server.toml [--wan-interface IF] [--json]   (a ogni avvio, FR-NET-007)
      python3 -m sovereignctl status [--config server.toml] [--db FILE] [--json]           (solo letture)
+     python3 -m sovereignctl audit run [--config server.toml] [--db FILE] [--json]        (security audit, ANC-0307)
 """
 import argparse, json, sys
 
@@ -77,6 +78,12 @@ def main(argv=None):
     st.add_argument("--config", default="/etc/sovereignvpn/server.toml", help="configurazione (porta, subnet, WAN)")
     st.add_argument("--db", default=peer.DB_PREDEFINITO)
     st.add_argument("--json", action="store_true", help="rapporto in JSON")
+    au = sotto.add_parser("audit", help="security audit: PASS/WARN/FAIL/SKIPPED per controllo (ANC-0307)")
+    aa = au.add_subparsers(dest="azione", required=True, parser_class=_Parser)
+    ar = aa.add_parser("run", help="controlli in sola lettura; FAIL P0 = codice 3")
+    ar.add_argument("--config", default="/etc/sovereignvpn/server.toml")
+    ar.add_argument("--db", default=peer.DB_PREDEFINITO)
+    ar.add_argument("--json", action="store_true", help="rapporto in JSON")
     bk = sotto.add_parser("backup", help="backup cifrato con age (FR-OPS-001)")
     ba = bk.add_subparsers(dest="azione", required=True, parser_class=_Parser)
     bc = ba.add_parser("create", help="archivio cifrato con manifest e checksum; a schermo percorso e checksum")
@@ -119,6 +126,9 @@ def main(argv=None):
     if a.comando == "status":
         from . import stato
         return stato.esegui(a)
+    if a.comando == "audit":
+        from . import audit
+        return audit.esegui(a)
     try:
         cfg = configurazione.leggi(a.config) if a.config else {}
         valori, nomi = {}, {}
