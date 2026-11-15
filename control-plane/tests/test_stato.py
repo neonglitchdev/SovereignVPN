@@ -1,6 +1,6 @@
 """Prove di `sovereignctl status` (ANC-0254, NFR-AVL-002) con ip, wg, nft, sysctl e systemctl sostituiti.
 Uso, da control-plane/: python3 -m unittest discover -s tests"""
-import base64, hashlib, json, os, pathlib, sqlite3, tempfile, unittest
+import base64, contextlib, hashlib, json, os, pathlib, sqlite3, tempfile, unittest
 from unittest import mock
 
 from sovereignctl import VERSIONE, configurazione, firewall, peer, stato
@@ -160,6 +160,20 @@ class Status(unittest.TestCase):
         self.assertEqual({c["nome"]: c["esito"] for c in json.loads(out)["controlli"]}["peer"], "GUASTO")
         self.assertFalse(os.path.exists(assente))
 
+
+
+class Permessi(unittest.TestCase):
+    """ANC-0255: da utente normale status cadeva con un traceback (server.toml e wg-server.key sono 0600 di root, visto
+    sulla VM il 15/11): un permesso negato e' un errore di sistema, codice 1, col file e il rimedio, mai un traceback."""
+    def test_permesso_negato_e_un_messaggio_non_un_traceback(self):
+        for bersaglio, file in ((configurazione, "/etc/sovereignvpn/server.toml"), (stato, "/etc/sovereignvpn/wg-server.key")):
+            errore = PermissionError(13, "Permission denied", file)
+            with self.subTest(file=file), (mock.patch.object(configurazione, "leggi", side_effect=errore) if bersaglio is configurazione
+                                           else mock.patch.object(stato, "controlla", side_effect=errore)):
+                with mock.patch.object(configurazione, "leggi", return_value={}) if bersaglio is stato else contextlib.nullcontext():
+                    codice, out, err = esegui(["status", "--config", "/etc/sovereignvpn/server.toml"])
+                self.assertEqual(codice, 1)
+                self.assertIn(file, err); self.assertIn("serve root", err); self.assertNotIn("Traceback", err + out)
 
 
 class DomandaDns(unittest.TestCase):

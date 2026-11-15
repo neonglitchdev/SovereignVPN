@@ -51,6 +51,16 @@ def _ripristina(a):
 
 
 def main(argv=None):
+    """Ogni comando; un permesso negato (file 0600 di root letti da utente normale) e' un errore di sistema, codice 1
+    (ANC-0255), col file e il rimedio: mai un traceback, che mostrerebbe percorsi e codice interni."""
+    try:
+        return _main(argv)
+    except PermissionError as e:
+        print(f"sovereignctl: permesso negato su {e.filename or 'un file del sistema'}: serve root (sudo)", file=sys.stderr)
+        return 1
+
+
+def _main(argv=None):
     p = _Parser(prog="sovereignctl", description=f"SovereignVPN {VERSIONE} — control plane")
     sotto = p.add_subparsers(dest="comando", required=True, parser_class=_Parser)
     init = sotto.add_parser("init", help="preflight e bootstrap")
