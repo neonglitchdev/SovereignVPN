@@ -6,12 +6,17 @@
 #   sudo ops/install.sh [--dry-run]          installa sotto /
 #   ops/install.sh --radice DIR [--dry-run]  installa sotto DIR (prove, immagini, chroot)
 #   sudo ops/install.sh --rollback [--dry-run]  torna alla release installata prima di questa (FR-OPS-005)
+#   sudo ops/install.sh --uninstall [--elimina-dati --conferma] [--dry-run]  toglie il prodotto; i dati restano,
+#        salvo --elimina-dati con --conferma (FR-OPS-007)
 set -Eeuo pipefail
 IFS=$'\n\t'
 umask 077
 
 DRY=0
 INDIETRO=0
+VIA=0
+ELIMINA=0
+CONFERMA=0
 RADICE=""
 LUCCHETTO=""
 pulizia() { [ -n "$LUCCHETTO" ] && rmdir "$LUCCHETTO" 2>/dev/null || true; }
@@ -23,12 +28,20 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1 ;;
     --rollback) INDIETRO=1 ;;
+    --uninstall) VIA=1 ;;
+    --elimina-dati) ELIMINA=1 ;;
+    --conferma) CONFERMA=1 ;;
     --radice) [ $# -ge 2 ] || invalido "--radice senza cartella"; RADICE="$2"; shift ;;
-    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
     *) invalido "opzione sconosciuta «${1}»" ;;
   esac
   shift
 done
+if [ "$VIA" -eq 0 ] && [ $((ELIMINA + CONFERMA)) -gt 0 ]; then invalido "--elimina-dati e --conferma valgono solo con --uninstall"; fi
+if [ "$VIA" -eq 1 ] && [ "$INDIETRO" -eq 1 ]; then invalido "--uninstall e --rollback insieme"; fi
+if [ "$ELIMINA" -eq 1 ] && [ "$CONFERMA" -eq 0 ]; then
+  invalido "--elimina-dati cancella configurazione, chiave del server, registro e backup: serve anche --conferma"
+fi
 if [ -n "$RADICE" ]; then
   [ -d "$RADICE" ] || invalido "--radice: la cartella «${RADICE}» non esiste"
   RADICE="$(cd "$RADICE" && pwd)"
@@ -44,6 +57,7 @@ ETC="$RADICE/etc/sovereignvpn"
 VAR="$RADICE/var/lib/sovereignvpn"
 BIN="$RADICE/usr/local/bin"
 UNITA="$RADICE/etc/systemd/system"
+SYSCTL="$RADICE/etc/sysctl.d/90-sovereignvpn.conf"
 
 # prerequisiti (errori runtime: codice 1)
 [ -f "$SORGENTE/__main__.py" ] || { echo "install.sh: sorgente del control plane mancante in $SORGENTE" >&2; exit 1; }
@@ -71,6 +85,54 @@ if [ "$INDIETRO" -eq 1 ]; then  # FR-OPS-005 [H29]: torna all'ultima release ins
   mv "$OPT/sovereignctl.scambio" "$OPT/sovereignctl.precedente"
   echo "install.sh: tornato alla release precedente; quella lasciata e' in $OPT/sovereignctl.precedente (un secondo --rollback la rimette)."
   echo "Poi: sovereignctl reconcile --config $ETC/server.toml"
+  exit 0
+fi
+
+if [ "$VIA" -eq 1 ]; then  # FR-OPS-007 [H40]: solo cio' che il prodotto ha creato, riconosciuto dal nome; i dati restano
+  PIANO=(
+    "fermare e disabilitare le unita' systemd del prodotto, poi togliere i loro file da $UNITA"
+    "togliere il comando $BIN/sovereignctl e il control plane $OPT (release precedente compresa)"
+    "togliere i container sovereignvpn-pihole e sovereignvpn-unbound e l'immagine sovereignvpn-unbound:14.0.0"
+    "togliere la tabella nft inet sovereignvpn, $SYSCTL, e wg0 solo se il manifest in $VAR dice che e' nostra"
+  )
+  if [ "$ELIMINA" -eq 1 ]; then
+    PIANO+=("CANCELLARE i dati: $ETC (configurazione, chiave del server), $VAR (registro, manifest, export, backup) e il volume Docker sovereignvpn-pihole")
+  else
+    PIANO+=("conservare i dati: $ETC (configurazione, chiave del server), $VAR (registro, manifest, export, backup) e il volume Docker sovereignvpn-pihole")
+  fi
+  if [ "$DRY" -eq 1 ]; then
+    echo "install.sh --uninstall --dry-run: nessuna mutazione. Piano:"
+    n=1; for p in "${PIANO[@]}"; do echo "  $n. $p"; n=$((n + 1)); done
+    exit 0
+  fi
+  mkdir -p "$RADICE/opt"
+  LUCCHETTO="$RADICE/opt/.sovereignvpn-install.lock"
+  mkdir "$LUCCHETTO" 2>/dev/null || { LUCCHETTO=""; echo "install.sh: un'altra installazione e' in corso (lucchetto presente)" >&2; exit 1; }
+  VERO=0
+  if [ -z "$RADICE" ]; then VERO=1; fi
+  if [ "$VERO" -eq 1 ] && [ -d /run/systemd/system ]; then
+    systemctl disable --now --quiet "${UNITA_NOMI[@]}" 2>/dev/null || true
+  fi
+  for u in "${UNITA_NOMI[@]}"; do rm -f "$UNITA/$u"; done
+  if [ "$VERO" -eq 1 ] && [ -d /run/systemd/system ]; then systemctl daemon-reload; fi
+  rm -f "$BIN/sovereignctl"
+  rm -rf "$OPT"
+  if [ "$VERO" -eq 1 ]; then
+    if command -v docker >/dev/null 2>&1; then
+      docker rm -f sovereignvpn-pihole sovereignvpn-unbound >/dev/null 2>&1 || true
+      docker rmi sovereignvpn-unbound:14.0.0 >/dev/null 2>&1 || true
+      if [ "$ELIMINA" -eq 1 ]; then docker volume rm sovereignvpn-pihole >/dev/null 2>&1 || true; fi
+    fi
+    if command -v nft >/dev/null 2>&1; then nft delete table inet sovereignvpn 2>/dev/null || true; fi
+    if [ -f "$VAR/manifest.json" ] && ip link show wg0 >/dev/null 2>&1; then ip link del wg0; fi  # [H19] nostra solo se installata
+  fi
+  rm -f "$SYSCTL"
+  if [ "$ELIMINA" -eq 1 ]; then
+    rm -rf "$ETC" "$VAR"
+    echo "install.sh: prodotto tolto e dati cancellati ($ETC, $VAR)."
+  else
+    echo "install.sh: prodotto tolto. Dati conservati in $ETC e $VAR; per cancellarli: --uninstall --elimina-dati --conferma."
+  fi
   exit 0
 fi
 

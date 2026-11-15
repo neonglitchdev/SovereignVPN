@@ -54,6 +54,20 @@ jobs:
           sudo rm /opt/sovereignvpn/sovereignctl/marca-ultima
           /usr/local/bin/sovereignctl status --help >/dev/null
           echo "OK: rollback alla release precedente e ritorno, sul sistema vero (FR-OPS-005)"
+          echo prova-dato | sudo tee /etc/sovereignvpn/prova-dato >/dev/null
+          sudo bash ops/install.sh --uninstall
+          for f in /usr/local/bin/sovereignctl /opt/sovereignvpn /etc/systemd/system/sovereignvpn-reconcile.service; do
+            if [ -e "$f" ]; then echo "ROSSO: l'uninstall ha lasciato $f"; exit 1; fi
+          done
+          if systemctl is-enabled sovereignvpn-reconcile.service >/dev/null 2>&1; then echo "ROSSO: unita' ancora abilitata"; exit 1; fi
+          [ "$(sudo cat /etc/sovereignvpn/prova-dato)" = prova-dato ] || { echo "ROSSO: l'uninstall senza scelta ha toccato i dati"; exit 1; }
+          if sudo bash ops/install.sh --uninstall --elimina-dati; then echo "ROSSO: dati eliminati senza --conferma"; exit 1; fi
+          sudo test -e /etc/sovereignvpn/prova-dato || { echo "ROSSO: un rifiuto ha cancellato i dati"; exit 1; }
+          sudo bash ops/install.sh --uninstall --elimina-dati --conferma
+          if sudo test -e /etc/sovereignvpn || sudo test -e /var/lib/sovereignvpn; then echo "ROSSO: --elimina-dati --conferma ha lasciato i dati"; exit 1; fi
+          sudo bash ops/install.sh >/dev/null
+          systemctl is-enabled sovereignvpn-reconcile.service sovereignvpn-expire.timer >/dev/null
+          echo "OK: uninstall sul sistema vero: prodotto tolto, dati conservati; senza --conferma niente cancellato, con --conferma cancellati; reinstallato (FR-OPS-007)"
       - name: init --apply vero in un network namespace (sei passi, idempotente, chiave guasta, WAN rifiutata, riavvio)
         run: sudo bash control-plane/tests/prova_init_vero.sh
       - name: Backup vero con age (decifrato con la chiave giusta, non con un'altra, non se manomesso)

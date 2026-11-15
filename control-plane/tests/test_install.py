@@ -114,6 +114,77 @@ class Installer(unittest.TestCase):
         self.assertEqual(lancia("--radice", self.radice, "--rollback")[0], 0)  # un secondo rollback rimette la piu' nuova
         self.assertFalse((opt / "sovereignctl/marca-release-1").exists())
 
+    def dati_ed_estranei(self):
+        """Dati persistenti del prodotto e file di altri, accanto: l'uninstall deve distinguerli."""
+        r = pathlib.Path(self.radice)
+        file = {"etc/sovereignvpn/server.toml": "schema_version = 1\n", "etc/sovereignvpn/wg-server.key": "chiave\n",
+                "var/lib/sovereignvpn/registro.sqlite3": "registro", "var/lib/sovereignvpn/backup/b.age": "cifrato",
+                "etc/sysctl.d/90-sovereignvpn.conf": "net.ipv4.ip_forward = 1\n",
+                "etc/systemd/system/altro.service": "[Unit]\n", "usr/local/bin/altro": "#!/bin/sh\n",
+                "opt/altro/file": "x", "etc/sysctl.d/10-altro.conf": "vm.swappiness = 10\n"}
+        for nome, testo in file.items():
+            (r / nome).parent.mkdir(parents=True, exist_ok=True)
+            (r / nome).write_text(testo)
+        return r
+
+    ESTRANEI = ("etc/systemd/system/altro.service", "usr/local/bin/altro", "opt/altro/file", "etc/sysctl.d/10-altro.conf")
+    DATI = ("etc/sovereignvpn/server.toml", "etc/sovereignvpn/wg-server.key", "var/lib/sovereignvpn/registro.sqlite3",
+            "var/lib/sovereignvpn/backup/b.age")
+
+    def test_uninstall_toglie_il_prodotto_e_conserva_i_dati(self):
+        """FR-OPS-007 [H40]: senza scelta esplicita i dati restano; i file di altri non si toccano."""
+        self.assertEqual(lancia("--radice", self.radice)[0], 0)
+        self.assertEqual(lancia("--radice", self.radice)[0], 0)  # anche la release precedente
+        r = self.dati_ed_estranei()
+        codice, out, err = lancia("--radice", self.radice, "--uninstall")
+        self.assertEqual(codice, 0, err)
+        for tolto in ("opt/sovereignvpn", "usr/local/bin/sovereignctl", "etc/systemd/system/sovereignvpn-reconcile.service",
+                      "etc/systemd/system/sovereignvpn-expire.timer", "etc/sysctl.d/90-sovereignvpn.conf"):
+            self.assertFalse((r / tolto).exists(), tolto)
+        for resta in self.DATI + self.ESTRANEI:
+            self.assertTrue((r / resta).is_file(), resta)
+        self.assertEqual((r / "etc/sovereignvpn/wg-server.key").read_text(), "chiave\n")
+        self.assertIn("Dati conservati", out)
+        self.assertFalse((r / "opt/.sovereignvpn-install.lock").exists())
+
+    def test_uninstall_a_secco_non_tocca_niente(self):
+        self.assertEqual(lancia("--radice", self.radice)[0], 0)
+        self.dati_ed_estranei()
+        prima = albero(self.radice)
+        codice, out, err = lancia("--radice", self.radice, "--uninstall", "--dry-run")
+        self.assertEqual(codice, 0, err)
+        self.assertIn("conservare i dati", out)
+        self.assertEqual(albero(self.radice), prima)
+
+    def test_eliminare_i_dati_vuole_la_conferma(self):
+        self.assertEqual(lancia("--radice", self.radice)[0], 0)
+        r = self.dati_ed_estranei()
+        prima = albero(self.radice)
+        codice, _, err = lancia("--radice", self.radice, "--uninstall", "--elimina-dati")
+        self.assertEqual(codice, 2)
+        self.assertIn("--conferma", err)
+        self.assertEqual(albero(self.radice), prima)  # rifiutato prima di toccare qualunque cosa
+        codice, out, err = lancia("--radice", self.radice, "--uninstall", "--elimina-dati", "--conferma")
+        self.assertEqual(codice, 0, err)
+        for tolto in ("etc/sovereignvpn", "var/lib/sovereignvpn", "opt/sovereignvpn"):
+            self.assertFalse((r / tolto).exists(), tolto)
+        for resta in self.ESTRANEI:
+            self.assertTrue((r / resta).is_file(), resta)
+
+    def test_uninstall_fermato_dal_lucchetto(self):
+        self.assertEqual(lancia("--radice", self.radice)[0], 0)
+        (pathlib.Path(self.radice) / "opt/.sovereignvpn-install.lock").mkdir()
+        prima = albero(self.radice)
+        codice, _, err = lancia("--radice", self.radice, "--uninstall")
+        self.assertEqual(codice, 1)
+        self.assertIn("lucchetto", err)
+        self.assertEqual(albero(self.radice), prima)
+
+    def test_combinazioni_dell_uninstall_non_valide(self):
+        for argomenti in (["--elimina-dati", "--conferma"], ["--conferma"], ["--uninstall", "--rollback"]):
+            with self.subTest(argomenti=argomenti):
+                self.assertEqual(lancia("--radice", self.radice, *argomenti)[0], 2)
+
     def test_input_non_valido_esce_con_2(self):
         for argomenti, voce in ((["--colore"], "--colore"), (["--radice"], "--radice"),
                                 (["--radice", "/non/esiste/davvero"], "--radice")):
