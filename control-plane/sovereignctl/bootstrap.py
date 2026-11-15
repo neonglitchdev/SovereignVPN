@@ -8,7 +8,7 @@ fatti: un errore dopo almeno un passo esce col codice 4 (applicato in parte, ser
 """
 import ipaddress, json, os, subprocess, uuid
 
-from . import firewall, host, manifest, peer, registro, runtime
+from . import dns, firewall, host, manifest, peer, registro, runtime
 
 MANIFEST = "/var/lib/sovereignvpn/manifest.json"
 
@@ -27,7 +27,7 @@ def scrivi_manifest(fatti, percorso_config, percorso=None):
     if os.path.exists(percorso):
         with open(percorso, encoding="utf-8") as f:
             vecchio = json.load(f).get("id_installazione")
-    m = manifest.componi(fatti, percorso_config, id_installazione=vecchio or str(uuid.uuid4()))
+    m = manifest.componi(fatti, percorso_config, id_installazione=vecchio or str(uuid.uuid4()), immagini=dns.immagini())
     os.makedirs(os.path.dirname(percorso), mode=0o700, exist_ok=True)
     manifest.scrivi(percorso, m)
     return m["id_installazione"]

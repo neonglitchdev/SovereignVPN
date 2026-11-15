@@ -59,6 +59,13 @@ class Apply(unittest.TestCase):
         self.assertEqual(self.chiave.read_text(), "chiave-di-prima\n")
         self.assertEqual(sum(1 for c in self.comandi if c == ("wg", "genkey")), 1)
 
+    def test_il_manifest_porta_le_immagini_col_digest(self):
+        self.apply()
+        m = json.loads(self.manifest.read_text())
+        self.assertEqual(m["immagini"], bootstrap.dns.immagini())
+        self.assertTrue(all(i["digest"].startswith("sha256:") and len(i["digest"]) == 71 for i in m["immagini"]))
+        self.assertEqual(len(m["immagini"]), 2)
+
     def test_id_dell_installazione_conservato(self):
         self.apply(); primo = json.loads(self.manifest.read_text())["id_installazione"]
         self.apply(); secondo = json.loads(self.manifest.read_text())["id_installazione"]

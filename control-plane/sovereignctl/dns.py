@@ -12,6 +12,13 @@ from .manifest import scrivi_testo
 
 PORTA_UNBOUND = 5335
 IMMAGINE_PIHOLE = "pihole/pihole:2026.10.1@sha256:30f803ad5dd60ff96cc0a63008a2e9271af481c1b0399a182192b2e91152c1f9"
+BASE_UNBOUND = "debian:12-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc"  # = FROM del Dockerfile
+
+
+def immagini():
+    """FR-OPS-004, ANC-0319 [H30]: le immagini della release col loro digest, per il manifest. La base di Unbound e'
+    quella da cui l'installer costruisce sovereignvpn-unbound; una prova la confronta col FROM del Dockerfile."""
+    return [{"nome": n.split("@")[0], "digest": n.split("@")[1]} for n in (IMMAGINE_PIHOLE, BASE_UNBOUND)]
 
 
 def unbound_conf(porta=PORTA_UNBOUND):

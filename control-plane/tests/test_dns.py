@@ -58,6 +58,11 @@ class PiHole(unittest.TestCase):
         self.assertEqual([e[k] for k in ("FTLCONF_ntp_ipv4_active", "FTLCONF_ntp_ipv6_active", "FTLCONF_ntp_sync_active")],
                          ["false"] * 3)  # nessun server NTP su 0.0.0.0:123, nessuna sincronizzazione verso fuori
 
+    def test_le_immagini_del_manifest_sono_quelle_che_girano(self):
+        basi = re.findall(r"^FROM\s+(\S+)", DOCKERFILE.read_text(), flags=re.M)
+        self.assertEqual(basi, [dns.BASE_UNBOUND])
+        self.assertEqual([f"{i['nome']}@{i['digest']}" for i in dns.immagini()], [dns.IMMAGINE_PIHOLE, dns.BASE_UNBOUND])
+
     def test_immagine_pin_nata_per_digest(self):
         self.assertRegex(dns.IMMAGINE_PIHOLE, r"^pihole/pihole:\d{4}\.\d{2}\.\d+@sha256:[0-9a-f]{64}$")
 
