@@ -33,7 +33,9 @@ fi
 
 SORGENTE="$(cd "$(dirname "$0")/.." && pwd)/control-plane/sovereignctl"
 SORGENTE_UNITA="$(cd "$(dirname "$0")" && pwd)/systemd"
-UNITA_NOMI=(sovereignvpn-reconcile.service sovereignvpn-expire.service sovereignvpn-expire.timer)
+SORGENTE_DNS="$(cd "$(dirname "$0")" && pwd)/dns"
+UNITA_NOMI=(sovereignvpn-reconcile.service sovereignvpn-expire.service sovereignvpn-expire.timer
+            sovereignvpn-unbound.service sovereignvpn-pihole.service)
 OPT="$RADICE/opt/sovereignvpn"
 ETC="$RADICE/etc/sovereignvpn"
 VAR="$RADICE/var/lib/sovereignvpn"
@@ -97,7 +99,12 @@ for u in "${UNITA_NOMI[@]}"; do
 done
 if [ -z "$RADICE" ] && [ -d /run/systemd/system ]; then
   systemctl daemon-reload
-  systemctl enable --quiet sovereignvpn-reconcile.service sovereignvpn-expire.timer
+  systemctl enable --quiet sovereignvpn-reconcile.service sovereignvpn-expire.timer sovereignvpn-unbound.service sovereignvpn-pihole.service
+fi
+
+# 6. immagine di Unbound, costruita dalla base pin-nata per digest (Pi-hole si scarica per digest al primo avvio)
+if [ -z "$RADICE" ] && command -v docker >/dev/null 2>&1; then
+  docker build -q -t sovereignvpn-unbound:14.0.0 "$SORGENTE_DNS/unbound" >/dev/null
 fi
 
 echo "install.sh: installato. Control plane in $OPT, configurazione in $ETC, stato in $VAR."

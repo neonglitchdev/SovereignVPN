@@ -92,6 +92,11 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "Pi-hole in ascolto su tutte le interfacce": ("dns.py", '"FTLCONF_dns_listeningMode": "BIND"', '"FTLCONF_dns_listeningMode": "ALL"'),
     "Pi-hole che registra le query": ("dns.py", '"FTLCONF_dns_queryLogging": "false"', '"FTLCONF_dns_queryLogging": "true"'),
     "Pi-hole con un upstream pubblico": ("dns.py", 'f"127.0.0.1#{porta_unbound}"', 'f"127.0.0.1#{porta_unbound};1.1.1.1"'),
+    "password del pannello rigenerata": ("dns.py", "    if not os.path.exists(segreto):\n        fd = os.open(segreto, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)", "    if True:\n        fd = os.open(segreto, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)"),
+    "ambiente di Pi-hole leggibile da altri": ("dns.py", 'for k, v in pihole_env(wg_if).items()), 0o600)', 'for k, v in pihole_env(wg_if).items()), 0o644)'),
+    "unita' di Pi-hole con un'altra immagine": ("ops/systemd/sovereignvpn-pihole.service", "@sha256:30f803ad", "@sha256:00f803ad"),
+    "status non guarda il DNS applicato": ("stato.py", "    if dns_applicato():  # NFR-AVL-002", "    if False:  # NFR-AVL-002"),
+    "domanda DNS che accetta un errore": ("stato.py", "and (r[3] & 0x0F) == 0", "and True"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }
