@@ -8,13 +8,15 @@
 #   peer -> altro peer no (isolamento), server -> peer si';
 #   peer -> DNS e amministrazione del server si', amministrazione dal WAN no; SSH solo da admin_ssh_sources (ANC-0182);
 #   peer revocato: niente traffico, l'altro peer si' (FR-PEER-004).
-# Non provato, e dichiarato: l'IPv6 dei peer (il registro assegna solo IPv4 e WireGuard scarta l'IPv6 prima del firewall).
+#   IPv6 (9): un peer dual-stack configurato con wg-quick dal profilo: nessuna fuga, rifiuto esplicito, nessun fallback.
 #   sudo bash control-plane/tests/prova_traffico_vero.sh
 set -Eeuo pipefail
+contiene() { local t; t="$(cat)"; grep -q "$@" <<<"$t"; }  # legge tutto: un grep -q in una pipeline esce presto e,
+# con pipefail, il SIGPIPE di chi scrive diventa un rosso finto, o un verde finto in un controllo negativo
 IFS=$'\n\t'
 [ "$(id -u)" -eq 0 ] || { echo "prova_traffico_vero: serve root"; exit 1; }
 for c in wg wg-quick nft ping; do command -v "$c" >/dev/null || { echo "prova_traffico_vero: serve $c"; exit 1; }; done
-NSS=(tinet tsrv tp1 tp2)
+NSS=(tinet tsrv tp1 tp2 tp3)
 D="$(mktemp -d)"
 PIDS=()
 pulizia() {
@@ -61,16 +63,14 @@ collega tp2 u0 203.0.113.3/24
 
 # server: wg0, sysctl e firewall di sovereignctl, peer dal registro
 (umask 077; wg genkey > "$D/server.key"; wg genkey > "$D/tp1.key"; wg genkey > "$D/tp2.key")
-ns tsrv ip link add wg0 type wireguard
-ns tsrv ip address add 10.66.0.1/24 dev wg0
-ns tsrv ip link set wg0 up
+ns tsrv python3 -c 'import sys; from sovereignctl import bootstrap, configurazione; c = configurazione.leggi(sys.argv[1]); bootstrap.interfaccia("wg0", c["subnet"], c["subnet6"])' "$CONFIG"  # wg0 di init, IPv4 e ULA
 ns tsrv python3 -m sovereignctl host apply >/dev/null
 ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interface ens3 >/dev/null
 peer() { python3 -m sovereignctl peer "$@"; }
 ID1="$(peer add --db "$D/r.db" --name uno --public-key "$(wg pubkey < "$D/tp1.key")" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 peer add --db "$D/r.db" --name due --public-key "$(wg pubkey < "$D/tp2.key")" >/dev/null
-ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" >/dev/null
-ns tsrv wg show wg0 allowed-ips | grep -qF "$(wg pubkey < "$D/tp2.key")"$'\t'"10.66.0.3/32" || rosso "il secondo peer non ha 10.66.0.3/32"
+ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" --config "$CONFIG" >/dev/null
+ns tsrv wg show wg0 allowed-ips | contiene -F "$(wg pubkey < "$D/tp2.key")"$'\t'"10.66.0.3/32" || rosso "il secondo peer non ha 10.66.0.3/32"
 
 # peer: WireGuard vero verso il server; nel tunnel solo la VPN e la rete del sito, cosi' il resto resta sul ponte
 cliente() {  # ns indirizzo
@@ -97,7 +97,7 @@ sed "s|<CHIAVE_PRIVATA_DEL_DISPOSITIVO>|$(cat "$D/tp2.key")|" "$PROFILO" > "$D/t
 wg-quick strip "$D/tp2.conf" > "$D/tp2.wg"
 ns tp2 ip link add wgp type wireguard
 ns tp2 wg setconf wgp "$D/tp2.wg"
-ns tp2 ip address add "$(sed -n 's/^Address = //p' "$D/tp2.conf")" dev wgp
+for a in $(sed -n 's/^Address = //p' "$D/tp2.conf" | tr -d ' ' | tr ',' '\n'); do ns tp2 ip address add "$a" dev wgp; done  # IPv4 e ULA [H38]
 ns tp2 ip link set wgp up
 ns tp2 ip route add default dev wgp
 ns tp2 ping -q -c 2 -W 2 10.66.0.1 >/dev/null || rosso "tp2 col profilo esportato non raggiunge il server"
@@ -217,7 +217,7 @@ echo "OK: quota per peer, oltre 100 kB il peer si ferma, un firewall apply non l
 
 # 7. revoca: il peer revocato non passa piu', l'altro si'
 peer revoke --db "$D/r.db" "$ID1" >/dev/null
-ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" >/dev/null
+ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" --config "$CONFIG" >/dev/null
 if passa tp1 192.0.2.80 8080; then rosso "il peer revocato raggiunge ancora internet"; fi
 passa tp2 192.0.2.80 8080 || rosso "controllo: dopo la revoca dell'altro, il peer 2 non raggiunge internet"
 echo "OK: dopo la revoca il peer 1 non passa piu', il peer 2 si' (FR-PEER-004)"
@@ -245,3 +245,89 @@ if scarica tp2 192.0.2.80 8081 200000; then rosso "senza le regole MSS la rispos
 ns tsrv python3 -m sovereignctl firewall apply --config "$CONFIG" --wan-interface ens3 >/dev/null
 scarica tp2 192.0.2.80 8081 200000 || rosso "rimesse le regole MSS, la risposta grande non arriva piu'"
 echo "OK: MSS, col buco nero PMTUD la risposta da 200000 byte arriva al peer con MTU 1500 solo con le regole MSS (FR-WG-006)"
+
+# 9. IPv6 (FR-WG-004, FR-NET-006, T-013, H38). Un terzo peer su una rete dual-stack, con una via IPv4 e una IPv6 native
+#    verso la «internet»; anche il server ha l'IPv6 sulla WAN con la sua rotta di default, come un VPS. Il peer si
+#    configura con wg-quick dal profilo esportato, come un client Linux vero. Un contatore nft in «internet» (lato server)
+#    conta i pacchetti IPv6 verso il sito IPv6, qualunque sorgente abbiano, e quelli IPv4 dall'indirizzo nativo del peer.
+#    a) senza tunnel il peer raggiunge i due siti dalla via nativa e i contatori salgono: la via c'e', i contatori vedono;
+#    b) col tunnel l'IPv4 esce dal server (masquerade) e l'IPv6 fallisce subito con EACCES (ICMPv6 admin-prohibited dal
+#       server), senza che un pacchetto arrivi al sito;
+#    c) senza la regola di rifiuto lo stesso tentativo resta appeso fino al timeout e niente arriva al sito: la regola e'
+#       cio' che rende esplicito il fallimento, l'inoltro IPv6 spento cio' che lo ferma;
+#    d) col peer tolto dal server (server irraggiungibile per il client) niente esce dalla via nativa (nessun fallback);
+#    e) un profilo senza ::/0 fa uscire l'IPv6 dalla via nativa: la prova vede una fuga quando c'e'.
+ns tinet ip -6 address add 2001:db8:1::fe/64 dev br0 nodad
+ns tinet ip -6 address add 2001:db8:80::80/128 dev lo
+ns tsrv ip -6 address add 2001:db8:1::1/64 dev ens3 nodad
+ns tsrv ip -6 route add default via 2001:db8:1::fe
+collega tp3 u0 203.0.113.4/24
+ns tp3 ip route add default via 203.0.113.254
+ns tp3 ip -6 address add 2001:db8:1::4/64 dev u0 nodad
+ns tp3 ip -6 route add default via 2001:db8:1::fe
+ns tinet nft add table inet conta
+ns tinet nft add counter inet conta sito6
+ns tinet nft add counter inet conta nativo4
+ns tinet nft add chain inet conta pre '{ type filter hook prerouting priority -300; }'
+ns tinet nft add rule inet conta pre ip6 daddr 2001:db8:80::80 tcp dport 8090 counter name sito6
+ns tinet nft add rule inet conta pre ip saddr 203.0.113.4 ip daddr 192.0.2.80 counter name nativo4
+conta() { ns tinet nft list counter inet conta "$1" | sed -n 's/.*packets \([0-9]*\).*/\1/p'; }
+ascolta tinet tcp 2001:db8:80::80 8090 "$D/sito6.txt"
+tenta6() { ns tp3 python3 tests/rete_finta.py tenta 2001:db8:80::80 8090 "$1"; }
+
+R="$(tenta6 3)"; [ "${R%% *}" = ok ] || rosso "controllo: senza tunnel il sito IPv6 non risponde dalla via nativa ($R)"
+grep -qxF 2001:db8:1::4 "$D/sito6.txt" || rosso "controllo: il sito IPv6 non vede l'indirizzo nativo del peer 3"
+passa tp3 192.0.2.80 8080 || rosso "controllo: senza tunnel il peer 3 non raggiunge il sito IPv4"
+[ "$(tail -1 "$D/sito.txt")" = "203.0.113.4" ] || rosso "controllo: senza tunnel il sito IPv4 vede $(tail -1 "$D/sito.txt")"
+[ "$(conta sito6)" -ge 1 ] && [ "$(conta nativo4)" -ge 1 ] || rosso "controllo: i contatori non vedono la via nativa ($(conta sito6), $(conta nativo4))"
+echo "OK: 9a, senza tunnel il peer 3 raggiunge i due siti dalla via nativa, e i contatori la vedono"
+
+(umask 077; wg genkey > "$D/tp3.key")
+ID3="$(peer add --db "$D/r.db" --name tre --public-key "$(wg pubkey < "$D/tp3.key")" --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
+ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" --config "$CONFIG" >/dev/null
+python3 -m sovereignctl profile export "$ID3" --conferma --config "$D/server.toml" --db "$D/r.db" --server-key "$D/server.key" --out "$D/export" >/dev/null
+grep -qx 'Address = 10.66.0.4/32, fdd3:5205:9303::a42:4/128' "$D/export/$ID3.conf" || rosso "il profilo del peer 3 non ha l'IPv4 e l'IPv6 ULA attesi"
+(umask 077; sed -e "s|<CHIAVE_PRIVATA_DEL_DISPOSITIVO>|$(cat "$D/tp3.key")|" -e '/^DNS = /d' "$D/export/$ID3.conf" > "$D/wgt3.conf")
+ns tp3 wg-quick up "$D/wgt3.conf" 2>"$D/wgq.txt" || rosso "wg-quick up col profilo esportato non riuscito: $(tail -3 "$D/wgq.txt")"
+passa tp3 192.0.2.80 8080 || rosso "col tunnel il peer 3 non raggiunge il sito IPv4"
+[ "$(tail -1 "$D/sito.txt")" = "203.0.113.1" ] || rosso "col tunnel il sito IPv4 vede $(tail -1 "$D/sito.txt"): l'IPv4 non esce dal server"
+P6="$(conta sito6)"
+R="$(tenta6 3)"
+[ "${R%% *}" = EACCES ] || rosso "col tunnel l'IPv6 non e' rifiutato in modo esplicito: $R (atteso EACCES, ICMPv6 admin-prohibited)"
+python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) < 1 else 1)' "${R##* }" || rosso "il rifiuto IPv6 e' arrivato in ${R##* } s, oltre 1 s"
+[ "$(conta sito6)" = "$P6" ] || rosso "col tunnel un pacchetto IPv6 e' arrivato al sito"
+echo "OK: 9b, col tunnel l'IPv4 esce dal server e l'IPv6 e' rifiutato in ${R##* } s (EACCES), nessun pacchetto al sito"
+
+ns tsrv python3 - "$CONFIG" <<'PY'
+import sys
+from sovereignctl import configurazione, firewall
+c = configurazione.leggi(sys.argv[1])
+t = firewall.componi(c["subnet"], "wg0", c["wg_port"], "ens3", c["admin_port"], c["ssh_port"], c["admin_ssh_sources"], c.get("mtu", 1420))
+regola = '    iifname "wg0" meta nfproto ipv6 reject with icmpv6 type admin-prohibited\n'
+assert t.count(regola) == 1, "la regola di rifiuto da togliere non c'e'"
+firewall.applica(t.replace(regola, ""))
+PY
+R="$(tenta6 3)"
+[ "${R%% *}" = timeout ] || rosso "senza la regola di rifiuto l'IPv6 non resta appeso ($R): la prova non vede la regola"
+[ "$(conta sito6)" = "$P6" ] || rosso "senza la regola di rifiuto un pacchetto IPv6 e' arrivato al sito: l'inoltro IPv6 non e' spento"
+fw_vero
+R="$(tenta6 3)"; [ "${R%% *}" = EACCES ] || rosso "rimessa la regola, l'IPv6 non e' piu' rifiutato ($R)"
+echo "OK: 9c, senza la regola di rifiuto l'IPv6 resta appeso fino al timeout, sempre senza uscire; rimessa, torna EACCES"
+
+ns tsrv wg set wg0 peer "$(wg pubkey < "$D/tp3.key")" remove
+P4="$(conta nativo4)"; P6="$(conta sito6)"
+if passa tp3 192.0.2.80 8080; then rosso "col server irraggiungibile il peer 3 raggiunge ancora il sito IPv4"; fi
+R="$(tenta6 2)"; [ "${R%% *}" != ok ] || rosso "col server irraggiungibile il peer 3 raggiunge il sito IPv6"
+[ "$(conta nativo4)" = "$P4" ] && [ "$(conta sito6)" = "$P6" ] || rosso "col server irraggiungibile qualcosa e' uscito dalla via nativa (FR-WG-004)"
+ns tsrv python3 -m sovereignctl peer reconcile --db "$D/r.db" --interface wg0 --server-key "$D/server.key" --config "$CONFIG" >/dev/null
+echo "OK: 9d, col server irraggiungibile niente esce dalla via nativa, ne' IPv4 ne' IPv6 (nessun fallback)"
+
+ns tp3 wg-quick down "$D/wgt3.conf" 2>/dev/null
+(umask 077; sed 's|^AllowedIPs = 0.0.0.0/0, ::/0$|AllowedIPs = 0.0.0.0/0|' "$D/wgt3.conf" > "$D/wgs3.conf")
+grep -qx 'AllowedIPs = 0.0.0.0/0' "$D/wgs3.conf" || rosso "il profilo da guastare non ha la riga AllowedIPs attesa"
+ns tp3 wg-quick up "$D/wgs3.conf" 2>"$D/wgq.txt" || rosso "wg-quick up col profilo guastato non riuscito: $(tail -3 "$D/wgq.txt")"
+P6="$(conta sito6)"
+R="$(tenta6 3)"; [ "${R%% *}" = ok ] || rosso "col profilo senza ::/0 l'IPv6 non esce dalla via nativa ($R): la prova non vedrebbe una fuga"
+[ "$(conta sito6)" -gt "$P6" ] || rosso "col profilo senza ::/0 il contatore non vede la fuga"
+ns tp3 wg-quick down "$D/wgs3.conf" 2>/dev/null
+echo "OK: 9e, col profilo senza ::/0 l'IPv6 esce dalla via nativa e il contatore lo vede: la prova distingue una fuga"

@@ -371,6 +371,7 @@ def aggiungi_parser(sotto, classe):
         if nome == "reconcile":  # dal registro al runtime WireGuard (ANC-0276/0277)
             s.add_argument("--interface", default="wg0"); s.add_argument("--server-key", default="/etc/sovereignvpn/wg-server.key")
             s.add_argument("--port", type=int, default=51820)
+            s.add_argument("--config", default="/etc/sovereignvpn/server.toml", help="configurazione: subnet6 degli IPv6 dei peer [H38]")
 
 
 def esegui(a):
@@ -382,9 +383,10 @@ def esegui(a):
             rete = cfg.get("subnet") or preflight.CANDIDATE_VPN[0]  # [H6] senza configurazione, la prima candidata
             esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days, a.routes, a.dns_policy, a.quota_mb)
         elif a.azione == "reconcile":
-            from . import runtime
+            from . import configurazione, runtime
+            subnet6 = configurazione.leggi(a.config)["subnet6"]
             try:
-                esito = runtime.riconcilia(archivio, a.interface, a.server_key, a.port)
+                esito = runtime.riconcilia(archivio, a.interface, a.server_key, a.port, subnet6)
             except runtime.ChiaveEsposta as e:
                 print(f"sovereignctl: security gate: {registro.redigi(e)}", file=sys.stderr)
                 return 3

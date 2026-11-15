@@ -15,6 +15,7 @@ HASH_TOKEN = re.compile(r"^(scrypt|pbkdf2_sha256|argon2id)\$\S{20,}$")
 DESTINATARIO_AGE = re.compile(r"^age1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{58}$")
 OPZIONALI = ("tor", "multihop", "wstunnel", "udp2raw")      # fuori dalla 1.0 finche' non hanno un gate (ANC-0110)
 SEGRETI = re.compile(r"token|password|secret|private|psk", re.I)
+SUBNET6 = "fdd3:5205:9303::/64"  # [H38] ULA con l'ID globale casuale (RFC 4193); chi ne vuole un'altra scrive subnet6
 CAMPI = {"schema_version", "endpoint", "wg_port", "admin_port", "subnet", "subnet6", "dns", "mtu", "wan_interface",
          "tls_domain", "firewall_profile", "admin_token_hash", "flags", "admin_ssh_sources", "ssh_port", "dns_block_dot",
          "backup_recipient"}
@@ -51,14 +52,13 @@ def valida(dati):
     for campo in ("wg_port", "admin_port", "subnet"):
         if campo in dati:
             imp[campo] = dati[campo]
-    if "subnet6" in dati:
-        try:
-            r6 = ipaddress.ip_network(dati["subnet6"], strict=True)
-        except (TypeError, ValueError):
-            raise _errore("subnet6", f"«{dati['subnet6']}» non e' un CIDR IPv6 canonico")
-        if r6.version != 6 or not r6.subnet_of(ipaddress.ip_network("fc00::/7")) or r6.prefixlen > 120:
-            raise _errore("subnet6", "deve essere una rete IPv6 ULA (fc00::/7) grande almeno /120")
-        imp["subnet6"] = str(r6)
+    try:  # [H38] l'IPv6 dentro il tunnel esiste solo per essere rifiutato in modo esplicito
+        r6 = ipaddress.ip_network(dati.get("subnet6", SUBNET6), strict=True)
+    except (TypeError, ValueError):
+        raise _errore("subnet6", f"«{dati['subnet6']}» non e' un CIDR IPv6 canonico")
+    if r6.version != 6 or not r6.subnet_of(ipaddress.ip_network("fc00::/7")) or r6.prefixlen > 96:
+        raise _errore("subnet6", "deve essere una rete IPv6 ULA (fc00::/7) grande almeno /96: ci stanno i 32 bit dell'IPv4 del peer")
+    imp["subnet6"] = str(r6)
     dns = dati.get("dns", [])
     if not isinstance(dns, list):
         raise _errore("dns", "deve essere un elenco di indirizzi IP")

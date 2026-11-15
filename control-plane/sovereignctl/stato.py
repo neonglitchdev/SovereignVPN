@@ -23,20 +23,22 @@ def non_applicati():
     return [] if dns_applicato() else ["DNS interno (Unbound + Pi-hole): `sovereignctl dns apply` non eseguito qui"]
 
 
-def inventario(server):
+def inventario(server, server6):
     """FR-NET-004 [H26]: le porte dei container del DNS, dichiarate. Sono in rete host e non pubblicano porte: si
     verifica chi ascolta, e dove. Unbound solo su 127.0.0.1:5335; Pi-hole solo sull'indirizzo del server in VPN, porta
-    53, il loopback sulla 53 (BIND lo apre sempre, dalla rete non si raggiunge) e il pannello su 127.0.0.1:8081 (ADR-006)."""
+    53, il loopback sulla 53 (BIND lo apre sempre, dalla rete non si raggiunge) e il pannello su 127.0.0.1:8081 (ADR-006).
+    [H38] BIND apre la 53 anche sull'ULA del server, che sta su wg0: irraggiungibile, perche' tutto l'IPv6 da wg0 lo
+    rifiuta il PREROUTING e l'INPUT accetta il DNS solo in IPv4 dalla VPN."""
     return {"unbound": {("127.0.0.1", dns.PORTA_UNBOUND)},
-            "pihole-FTL": {(server, 53), ("127.0.0.1", 53), ("::1", 53), ("127.0.0.1", 8081)}}  # loopback: mai dalla rete
+            "pihole-FTL": {(server, 53), (server6, 53), ("127.0.0.1", 53), ("::1", 53), ("127.0.0.1", 8081)}}  # loopback: mai dalla rete
 
 
-def porte_fuori_inventario(server):
+def porte_fuori_inventario(server, server6):
     """Gli ascolti di unbound e pihole-FTL che l'inventario non dichiara, da `ss -H -lntup`: «processo indirizzo:porta»."""
     codice, uscita = _leggi("ss", "-H", "-lntup")
     if codice != 0:
         raise RuntimeError("ss non risponde: le porte in ascolto non si possono verificare")
-    ammessi, fuori = inventario(server), []
+    ammessi, fuori = inventario(server, server6), []
     for riga in uscita.splitlines():
         campi = riga.split()
         if len(campi) < 7 or "users:((" not in riga:
@@ -127,7 +129,7 @@ def controlla(cfg, db=None, wg_if=runtime.INTERFACCIA):
         esito(wg_if, True, f"{wg_if} accesa, in ascolto su {porta}, con la chiave del file")
 
     try:
-        attesi = runtime.nel_runtime(_registro(db))
+        attesi = runtime.nel_runtime(_registro(db), cfg["subnet6"])
         vivi = runtime.leggi_runtime(wg_if)
         diverse = len(set(vivi.items()) ^ set(attesi.items()))
         esito("peer", diverse == 0, f"{len(vivi)} nel runtime, {len(attesi)} attesi dal registro, differenze {diverse}")
@@ -162,7 +164,7 @@ def controlla(cfg, db=None, wg_if=runtime.INTERFACCIA):
         server = str(next(ipaddress.ip_network(cfg.get("subnet") or "10.66.0.0/24").hosts()))
         esito("pihole", _dns_risponde(server, 53), f"{server}:53 su {wg_if}, il resolver dei profili")
         try:
-            fuori = porte_fuori_inventario(server)
+            fuori = porte_fuori_inventario(server, str(runtime.indirizzo6(cfg["subnet6"], server)))
             esito("porte", not fuori, "unbound e pihole-FTL ascoltano solo dove dichiarato" if not fuori
                   else "in ascolto fuori dall'inventario: " + ", ".join(fuori))
         except RuntimeError as e:

@@ -47,16 +47,21 @@ def chiave_server(percorso=None):
     return True
 
 
-def interfaccia(nome, rete):
+def interfaccia(nome, rete, subnet6):
     rete = ipaddress.ip_network(rete)
-    server = f"{next(rete.hosts())}/{rete.prefixlen}"  # [H11] il primo host e' del server
+    primo = next(rete.hosts())  # [H11] il primo host e' del server
+    server = f"{primo}/{rete.prefixlen}"
+    # [H38] anche un IPv6 ULA: e' la sorgente del rifiuto ICMPv6 e la rotta che lo riporta al peer nel tunnel
+    server6 = f"{runtime.indirizzo6(subnet6, primo)}/{ipaddress.ip_network(subnet6).prefixlen}"
     try:
         _cmd("ip", "link", "show", nome)
     except RuntimeError:
         _cmd("ip", "link", "add", nome, "type", "wireguard")
     _cmd("ip", "address", "replace", server, "dev", nome)
+    _cmd("sysctl", "-qw", f"net/ipv6/conf/{nome}/disable_ipv6=0")  # solo su wg0, anche dove l'host ha spento IPv6
+    _cmd("ip", "address", "replace", server6, "dev", nome)
     _cmd("ip", "link", "set", nome, "up")
-    return server
+    return f"{server} {server6}"
 
 
 def _verificato(passo, ok):
@@ -85,9 +90,9 @@ def _passi_di_rete(cfg, wan_if, wg_if, db):
     return {
         "firewall": lambda: _verificato("firewall", firewall.applica(regole)["verificato"]),
         "sysctl": lambda: _verificato("sysctl", host.applica()["verificato"]),
-        "interfaccia": lambda: f"{wg_if} {interfaccia(wg_if, rete)}",
+        "interfaccia": lambda: f"{wg_if} {interfaccia(wg_if, rete, cfg['subnet6'])}",
         "riconciliazione": lambda: _verificato("riconciliazione", runtime.riconcilia(
-            peer.Archivio(db), wg_if, runtime.CHIAVE_SERVER, porta)["coincide"]),
+            peer.Archivio(db), wg_if, runtime.CHIAVE_SERVER, porta, cfg["subnet6"])["coincide"]),
     }
 
 

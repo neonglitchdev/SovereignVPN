@@ -4,8 +4,10 @@ Una tabella nftables propria, `inet sovereignvpn`, che si sostituisce in UN batc
 controllo), poi `nft -f -`; se il controllo fallisce non si applica niente e la tabella di prima resta (ANC-0187).
 - INPUT drop: loopback, connessioni gia' stabilite, ICMP essenziale, la porta UDP di WireGuard, SSH SOLO dalle sorgenti
   della configurazione (ANC-0182: mai un drop senza la via dell'amministratore), amministrazione e DNS solo dalla VPN.
+- PREROUTING: l'IPv6 dei peer rifiutato con ICMPv6 admin-prohibited, prima dell'instradamento: con l'inoltro IPv6
+  spento non arriverebbe mai al FORWARD, e cadrebbe in silenzio; cosi' fallisce subito e in modo esplicito (T-013, H38).
 - FORWARD drop: niente fra peer (FR-NET-002); il DNS dei peer verso l'esterno bloccato (FR-DNS-005, va ai resolver
-  interni); IPv6 dei peer respinto in modo esplicito, la 1.0 e' IPv4 (T-013, ANC-0186); i peer escono solo dalla WAN.
+  interni); i peer escono solo dalla WAN, e solo in IPv4 (ANC-0045, ANC-0186).
 - NAT: masquerade della subnet VPN verso la WAN.
 """
 import ipaddress, json, os, re, subprocess
@@ -58,6 +60,10 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
     r += [f'    iifname "{wg_if}" ip saddr {vpn} tcp dport {int(admin_port)} accept',
           f'    iifname "{wg_if}" ip saddr {vpn} meta l4proto {{ tcp, udp }} th dport 53 accept',
           "  }",
+          "  chain prerouting {",
+          "    type filter hook prerouting priority filter; policy accept;",
+          f'    iifname "{wg_if}" meta nfproto ipv6 reject with icmpv6 type admin-prohibited',
+          "  }",
           "  chain forward {",
           "    type filter hook forward priority filter; policy drop;",
           # FR-WG-006, solo dove serve: i SYN fra wg0 e la WAN, prima di ct established (il SYN-ACK e' gia' «established»).
@@ -81,7 +87,6 @@ def componi(subnet, wg_if="wg0", wg_port=51820, wan_if=None, admin_port=8443, ss
           # FR-PEER-008 [H33]: un peer con rotte esce solo verso le sue rotte (e la VPN): il limite e' nel firewall
           *[f'    iifname "{wg_if}" ip saddr {ipaddress.ip_address(ind)} ip daddr != {{ {vpn}, '
             + ", ".join(str(ipaddress.ip_network(r)) for r in rotte) + " } drop" for ind, rotte in limiti],
-          f'    iifname "{wg_if}" meta nfproto ipv6 reject with icmpv6 type admin-prohibited',
           f'    iifname "{wg_if}" ip saddr {vpn} oifname "{wan_if}" accept',
           "  }",
           "  chain postrouting {",

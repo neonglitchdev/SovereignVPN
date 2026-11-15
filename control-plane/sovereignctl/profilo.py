@@ -1,7 +1,9 @@
 """`sovereignctl profile export <id> --conferma` (FR-PEER-007, FR-WG-004, FR-WG-005; ANC-0254) [H18].
 
 Il profilo e' un file WireGuard full-tunnel: IPv4 0.0.0.0/0 nel tunnel, e anche ::/0, cosi' l'IPv6 non esce fuori dal
-tunnel (il server non lo inoltra, lo respinge): nessun fallback non dichiarato. Segreti: nessuno, e il file lo dice in
+tunnel: nessun fallback non dichiarato. Il peer ha anche un IPv6 ULA nel tunnel [H38]: senza, il suo IPv6 partirebbe con
+la sorgente nativa e WireGuard lo scarterebbe in silenzio sul server; con quello il server lo rifiuta subito con ICMPv6
+admin-prohibited, e il sistema del dispositivo mette IPv4 davanti (RFC 6724). Segreti: nessuno, e il file lo dice in
 testa. La chiave privata e' nata sul dispositivo [H2] e resta li': al suo posto c'e' un segnaposto da sostituire.
 Il file si scrive 0600 in una cartella 0700, solo su richiesta e con --conferma; a schermo vanno percorso e checksum,
 mai il contenuto, e nell'audit solo l'evento. Un peer revocato o scaduto non si esporta: serve un provisioning nuovo.
@@ -27,12 +29,17 @@ def componi(p, cfg, chiave_server_pubblica, keepalive=None):
             endpoint = f"[{endpoint}]"
     except ValueError:
         pass  # un nome host
-    tipo = "split-tunnel verso le rotte del peer" if p.get("rotte") else "full-tunnel"
+    if p.get("rotte"):
+        tipo, indirizzi = "split-tunnel verso le rotte del peer", f"{p['indirizzo']}/32"
+        ipv6 = "fuori dal tunnel, come tutto cio' che non e' nelle rotte"
+    else:
+        tipo, indirizzi = "full-tunnel", f"{p['indirizzo']}/32, {runtime.indirizzo6(cfg['subnet6'], p['indirizzo'])}/128"
+        ipv6 = "tutto nel tunnel, dove il server lo rifiuta subito (ICMPv6 admin-prohibited) [H38]"
     righe = [f"# SovereignVPN {VERSIONE} — profilo {tipo} del peer {p['id']} ({p['nome']})",
              "# SEGRETI: nessuno. La chiave privata e' nata sul dispositivo e resta li' [H2]:",
              f"# va scritta al posto di {SEGNAPOSTO} prima di importare il profilo.",
-             f"# Scadenza: {p['scade'] or 'nessuna'} (UTC). IPv6: tutto nel tunnel, dove il server lo respinge (FR-WG-004).",
-             "", "[Interface]", f"PrivateKey = {SEGNAPOSTO}", f"Address = {p['indirizzo']}/32", f"DNS = {dns}",
+             f"# Scadenza: {p['scade'] or 'nessuna'} (UTC). IPv6: {ipv6} (FR-WG-004).",
+             "", "[Interface]", f"PrivateKey = {SEGNAPOSTO}", f"Address = {indirizzi}", f"DNS = {dns}",
              f"MTU = {cfg.get('mtu', 1420)}",
              "", "[Peer]", f"PublicKey = {chiave_server_pubblica}", f"Endpoint = {endpoint}:{cfg.get('wg_port', 51820)}",
              "AllowedIPs = " + (", ".join(json.loads(p["rotte"]) + [str(rete)]) if p.get("rotte") else "0.0.0.0/0, ::/0")]

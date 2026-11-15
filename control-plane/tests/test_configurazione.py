@@ -72,6 +72,20 @@ class Rifiuti(unittest.TestCase):
     def test_subnet6_non_ula(self):
         self.rifiuto(BASE + 'subnet6 = "2001:db8::/64"\n', "config.subnet6")
 
+    def test_subnet6_dove_non_ci_stanno_i_32_bit_dell_ipv4(self):
+        self.rifiuto(BASE + 'subnet6 = "fd00::/112"\n', "config.subnet6")
+
+    def test_subnet6_di_base_ula_con_id_casuale(self):
+        """[H38] Senza subnet6, una ULA fd00::/8 (ID globale casuale, RFC 4193) /64; con subnet6, quella."""
+        import ipaddress
+        from sovereignctl import configurazione
+        base = configurazione.valida({"schema_version": 1, "endpoint": "vpn.example.org"})["subnet6"]
+        self.assertEqual(base, configurazione.SUBNET6)
+        self.assertTrue(ipaddress.ip_network(base).subnet_of(ipaddress.ip_network("fd00::/8")))
+        self.assertEqual(ipaddress.ip_network(base).prefixlen, 64)
+        dichiarata = configurazione.valida({"schema_version": 1, "endpoint": "vpn.example.org", "subnet6": "fd00:1:2::/96"})
+        self.assertEqual(dichiarata["subnet6"], "fd00:1:2::/96")
+
     def test_mtu_jumbo(self):
         self.rifiuto(BASE + "mtu = 9000\n", "config.mtu")
 

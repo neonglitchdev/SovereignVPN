@@ -6,8 +6,11 @@
   scarica INDIRIZZO PORTA BYTE           esce 0 se riceve «ok» e poi BYTE byte entro 5 s, 1 altrimenti
   tcp INDIRIZZO PORTA [SORGENTE]         esce 0 se la connessione riesce e la risposta arriva, 1 altrimenti (2 s)
   udp INDIRIZZO PORTA TESTO              manda un datagramma: UDP non ha esito, lo dice il file dell'ascoltatore
+  tenta INDIRIZZO PORTA SECONDI          una connessione TCP: stampa «ok», il nome dell'errno (EACCES...) o «timeout»,
+                                         e i secondi passati; esce sempre 0, l'esito lo legge chi chiama
+Gli indirizzi IPv6 vanno senza parentesi.
 """
-import socket, sys, threading
+import errno, socket, sys, threading, time
 
 
 def _rispondi(c, dati):
@@ -19,7 +22,7 @@ def _rispondi(c, dati):
 
 
 def ascolta(proto, indirizzo, porta, file, grande=0):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM if proto == "tcp" else socket.SOCK_DGRAM)
+    s = socket.socket(socket.AF_INET6 if ":" in indirizzo else socket.AF_INET, socket.SOCK_STREAM if proto == "tcp" else socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((indirizzo, porta))
     if proto == "tcp":
@@ -27,12 +30,12 @@ def ascolta(proto, indirizzo, porta, file, grande=0):
     open(file, "a").close()  # pronto
     while True:
         if proto == "tcp":  # un thread per connessione: una risposta ferma in un buco nero PMTUD non blocca le altre
-            c, (sorgente, _) = s.accept()
+            c, (sorgente, *_) = s.accept()  # in IPv6 l'indirizzo ha quattro campi
             with open(file, "a") as f:  # prima la riga, poi la risposta: chi riceve «ok» trova gia' la riga
                 f.write(sorgente + "\n")
             threading.Thread(target=_rispondi, args=(c, b"ok\n" + b"x" * grande), daemon=True).start()
         else:
-            dati, (sorgente, _) = s.recvfrom(512)
+            dati, (sorgente, *_) = s.recvfrom(512)
             with open(file, "a") as f:
                 f.write(f"{sorgente} {dati.decode(errors='replace')}\n")
 
@@ -44,6 +47,18 @@ def tcp(indirizzo, porta, sorgente=None):
             return 0 if c.recv(3) == b"ok\n" else 1
     except OSError:
         return 1
+
+
+def tenta(indirizzo, porta, secondi):
+    t0 = time.monotonic()
+    try:
+        with socket.create_connection((indirizzo, porta), timeout=secondi) as c:
+            esito = "ok" if c.recv(3) == b"ok\n" else "risposta-diversa"
+    except TimeoutError:  # prima di OSError: e' una sua sottoclasse, senza errno
+        esito = "timeout"
+    except OSError as e:
+        esito = errno.errorcode.get(e.errno, f"errno-{e.errno}")
+    return f"{esito} {time.monotonic() - t0:.3f}"
 
 
 def scarica(indirizzo, porta, attesi):
@@ -68,6 +83,8 @@ if __name__ == "__main__":
         sys.exit(scarica(a[1], int(a[2]), int(a[3])))
     elif a[:1] == ["tcp"] and len(a) in (3, 4):
         sys.exit(tcp(a[1], int(a[2]), *a[3:]))
+    elif a[:1] == ["tenta"] and len(a) == 4:
+        print(tenta(a[1], int(a[2]), float(a[3])))
     elif a[:1] == ["udp"] and len(a) == 4:
         socket.socket(socket.AF_INET, socket.SOCK_DGRAM).sendto(a[3].encode(), (a[1], int(a[2])))
     else:

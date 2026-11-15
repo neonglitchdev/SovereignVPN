@@ -4,6 +4,7 @@ Uso, da control-plane/: python3 -m unittest discover -s tests"""
 import base64, json, os, pathlib, sqlite3, stat, sys, tempfile, unittest
 from unittest import mock
 
+from test_configurazione import ESEMPIO
 from test_peer import Base, chiave
 
 FINTO = pathlib.Path(__file__).resolve().parent / "wg_finto.py"
@@ -27,7 +28,7 @@ class Riconciliazione(Base):
         self.env.stop(); super().tearDown()
 
     def riconcilia(self, *extra):
-        return self.cli("reconcile", "--server-key", str(self.file_chiave), "--json", *extra)
+        return self.cli("reconcile", "--server-key", str(self.file_chiave), "--config", str(ESEMPIO), "--json", *extra)
 
     def righe(self):
         db = sqlite3.connect(self.db)
@@ -44,7 +45,7 @@ class Riconciliazione(Base):
         s = json.loads(self.stato.read_text())
         self.assertEqual(s["argomenti"], ["syncconf", "wg0", "/dev/stdin"])
         self.assertTrue(s["chiave_privata_da_stdin"])
-        self.assertEqual(s["peer"], {k1: "10.66.0.2/32", k2: "10.66.0.3/32"})
+        self.assertEqual(s["peer"], {k1: "10.66.0.2/32,fdd3:5205:9303::a42:2/128", k2: "10.66.0.3/32,fdd3:5205:9303::a42:3/128"})
         self.assertNotIn(self.chiave_server, out + err)
         self.assertNotIn(self.chiave_server, self.reg.read_text())  # mai fra gli argomenti di wg
 
@@ -93,7 +94,7 @@ class Riconciliazione(Base):
 
     def test_chiave_del_server_assente_o_rovinata_senza_mostrarla(self):
         self.add("uno")
-        self.assertEqual(self.cli("reconcile", "--server-key", "/non/esiste.key")[0], 1)
+        self.assertEqual(self.cli("reconcile", "--server-key", "/non/esiste.key", "--config", str(ESEMPIO))[0], 1)
         self.file_chiave.write_text("non-una-chiave-segreta-xyz"); self.file_chiave.chmod(0o600)
         codice, _, err = self.riconcilia()
         self.assertEqual(codice, 1)
@@ -114,6 +115,31 @@ class Riconciliazione(Base):
             codice, _, err = self.riconcilia()
         self.assertEqual(codice, 0, err)
         self.assertEqual(self.righe()["uno"], ("REVOKED", "PENDING_APPLY"))
+
+    def test_la_subnet6_viene_dalla_configurazione(self):
+        """[H38] Il prefisso degli IPv6 dei peer e' quello di subnet6, lo stesso con cui init da' l'indirizzo a wg0."""
+        k = chiave(); self.add("uno", k)
+        cfg = pathlib.Path(self._t.name) / "server.toml"
+        cfg.write_text('subnet6 = "fd00:1:2::/64"\n' + ESEMPIO.read_text())  # prima di [flags]
+        codice, _, err = self.cli("reconcile", "--server-key", str(self.file_chiave), "--config", str(cfg))
+        self.assertEqual(codice, 0, err)
+        self.assertEqual(json.loads(self.stato.read_text())["peer"], {k: "10.66.0.2/32,fd00:1:2::a42:2/128"})
+        self.assertEqual(self.cli("reconcile", "--server-key", str(self.file_chiave), "--config", "/non/esiste.toml")[0], 2)
+
+
+class Confronto(unittest.TestCase):
+    def test_l_ordine_degli_allowedips_nel_kernel_non_conta(self):
+        """`wg show dump` li elenca nell'ordine del kernel: lo stesso insieme in un altro ordine non e' una differenza."""
+        from sovereignctl import runtime
+        dump = "privata\tpubblica\t51820\toff\nK\t(none)\t(none)\tfdd3:5205:9303::a42:2/128,10.66.0.2/32\t0\t0\t0\toff\n"
+        with mock.patch.object(runtime, "_wg", lambda *a, **k: (0, dump, "")):
+            self.assertEqual(runtime.leggi_runtime("wg0"), runtime.nel_runtime([("K", "10.66.0.2", "ACTIVE")], "fdd3:5205:9303::/64"))
+
+    def test_ogni_ipv4_ha_il_suo_ipv6(self):
+        from sovereignctl import runtime
+        visti = {runtime.indirizzo6("fd00::/96", f"10.66.{a}.{b}") for a in range(4) for b in range(256)}
+        self.assertEqual(len(visti), 4 * 256)
+        self.assertEqual(str(runtime.indirizzo6("fd00::/96", "10.66.0.3")), "fd00::a42:3")
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ endpoint = "vpn.example.org"          # IP o nome host pubblico del server
 wg_port = 51820                       # UDP, WireGuard (ANC-0173)
 admin_port = 8443                     # TCP, solo 127.0.0.1 o VPN (ADR-006) [H7]
 subnet = "10.66.0.0/24"               # IPv4 privata; se manca, la sceglie l'IPAM [H6]
-# subnet6 = "fd42:6a5f:1::/64"        # IPv6 ULA, se la 1.0 supporta IPv6 (ANC-0045, ambiguità n. 2)
+# subnet6 = "fdd3:5205:9303::/64"     # ULA nel tunnel, solo per rifiutare l'IPv6 in modo esplicito; al massimo /96 [H38]
 dns = []                              # resolver interni; vuoto = Pi-hole + Unbound della release
 mtu = 1420                            # [H9]
 # wan_interface = "ens3"              # mai presumere eth0 (ANC-0174)
