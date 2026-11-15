@@ -7,9 +7,13 @@ IFS=$'\n\t'
 ENDPOINT="${1:?endpoint mancante}"; SSH_RETE="${2:?rete SSH mancante}"
 RADICE="$(cd "$(dirname "$0")/.." && pwd)"
 export DEBIAN_FRONTEND=noninteractive
-if ! command -v wg >/dev/null || ! docker compose version >/dev/null 2>&1; then
+if ! command -v wg >/dev/null; then
   apt-get update -qq
-  apt-get install -y -qq wireguard-tools docker-compose-v2 >/dev/null
+  apt-get install -y -qq wireguard-tools >/dev/null
+fi
+if ! docker compose version >/dev/null 2>&1; then  # col Docker di colima c'e' gia'; altrimenti il plugin del suo repository
+  apt-get update -qq
+  apt-get install -y -qq docker-compose-plugin >/dev/null 2>&1 || apt-get install -y -qq docker-compose-v2 >/dev/null
 fi
 modprobe wireguard
 bash "$RADICE/ops/install.sh"
