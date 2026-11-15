@@ -79,6 +79,10 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "manifest del backup senza checksum": ("backup.py", '"sha256": hashlib.sha256(b).hexdigest()', '"sha256": ""'),
     "backup verso un destinatario qualunque": ("backup.py", 'if not configurazione.DESTINATARIO_AGE.match(destinatario or ""):', "if not destinatario:"),
     "registro nel backup col flag WAL": ("backup.py", "    dati[18] = dati[19] = 1", "    pass"),
+    "Unbound con un forwarder pubblico": ("dns.py", '             "  # ricorsione dalle radici, nessuna forward-zone (cap. 6); DNSSEC validato",', '             "forward-zone:", \'  name: "."\', "  forward-addr: 1.1.1.1",'),
+    "Unbound che registra le query": ("dns.py", '"  log-queries: no"', '"  log-queries: yes"'),
+    "Unbound in ascolto ovunque": ("dns.py", 'f"  interface: 127.0.0.1@{porta}"', 'f"  interface: 0.0.0.0@{porta}"'),
+    "immagine con un tag mobile": ("ops/dns/unbound/Dockerfile", "FROM debian:12-slim@sha256:", "FROM debian:latest\n# era debian:12-slim@sha256:"),
     "init --apply ignora il preflight":("__main__.py", "        if falliti:\n            print(f\"sovereignctl: init --apply rifiutato", "        if False:\n            print(f\"sovereignctl: init --apply rifiutato"),
     "redazione per eccesso: anche gli IP privati": ("registro.py", "if ipaddress.ip_address(m.group(0)).is_global else", "if True else"),
 }

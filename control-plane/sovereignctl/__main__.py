@@ -85,6 +85,8 @@ def main(argv=None):
     bc.add_argument("--out", help="cartella di destinazione (0700); di base /var/lib/sovereignvpn/backup")
     bc.add_argument("--db", default=peer.DB_PREDEFINITO)
     bc.add_argument("--json", action="store_true")
+    from . import dns
+    dns.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser_firewall(sotto, _Parser)
     peer.aggiungi_parser_host(sotto, _Parser)
@@ -97,6 +99,8 @@ def main(argv=None):
         return peer.esegui_host(a)
     if a.comando == "reconcile":
         return _ripristina(a)
+    if a.comando == "dns":
+        return dns.esegui(a)
     if a.comando == "profile":
         from . import profilo
         return profilo.esegui(a)
