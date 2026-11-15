@@ -14,5 +14,8 @@ chiude nel documento (regola di CLAUDE.md). Ognuna si rovescia cambiando una rig
 | H7 | Porta di amministrazione TCP 8443, solo su 127.0.0.1 o sulla VPN | ADR-006: API e dashboard non pubbliche; il numero non c'è | `preflight.PORTA_ADMIN` | Francesco |
 | H8 | La configurazione è un file TOML | `tomllib` è nella libreria standard dalla 3.11 (ANC-0334); YAML vorrebbe una dipendenza | `configurazione.leggi` | Francesco |
 | H9 | MTU predefinita 1420, ammessa fra 1280 e 1500 | 1420 è il valore abituale di WireGuard; 1280 è il minimo di IPv6 | `configurazione.valida` | primo test di PMTU (FR-WG) |
+| H10 | TTL di un peer da 1 a 365 giorni | ANC-0240 vuole un minimo e un massimo configurabili, senza numeri | `peer.TTL_MASSIMO_GIORNI` | Francesco |
+| H11 | Il primo host della subnet VPN è del server; i peer partono dal secondo | Convenzione WireGuard; il documento non assegna l'indirizzo del server | `Archivio.aggiungi` | Francesco |
+| H12 | Registro dei peer in /var/lib/sovereignvpn/registro.sqlite3, file 0600 | ANC-0244 dice SQLite, non il percorso; la cartella 0700 la crea l'installer | `peer.DB_PREDEFINITO` | Francesco |
 
 Chiuse dal documento, senza ipotesi: backend firewall nftables (ADR-005, ANC-0372); porta WireGuard UDP 51820 (ANC-0173).

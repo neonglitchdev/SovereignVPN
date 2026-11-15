@@ -1,0 +1,211 @@
+"""Registro dei peer (Slice B, primo pezzo; ANC-0347): modello, macchina a stati, archivio SQLite, comandi `peer`.
+
+Due dimensioni [H1]: lo STATO del peer (i sei di FR-PEER-003) e lo stato della SAGA che porta il registro nel runtime
+WireGuard (ANC-0244: PENDING_APPLY, APPLIED, ROLLBACK_REQUIRED, ERROR). Ogni comando che cambia stato lascia la saga in
+PENDING_APPLY: la applichera' la riconciliazione col runtime (pezzo successivo). Una revoca e' completata solo con
+REVOKED + APPLIED (ANC-0288). Chiave privata del peer mai sul server [H2]: si registra solo la pubblica (ANC-0148).
+Archivio: SQLite, BEGIN IMMEDIATE, vincoli univoci su nome, chiave e indirizzo (ANC-0244, FR-PEER-001), schema versionato
+(ANC-0242), file 0600. Ogni cambio e ogni rifiuto di transizione lascia un evento di audit (FR-PEER-003, ANC-0232).
+"""
+import base64, binascii, datetime, ipaddress, json, os, sqlite3, sys, unicodedata, uuid
+
+from . import preflight, registro
+from .preflight import InputNonValido
+
+VERSIONE_SCHEMA_DB = 1
+DB_PREDEFINITO = "/var/lib/sovereignvpn/registro.sqlite3"   # [H12] la cartella 0700 la crea l'installer
+TTL_MASSIMO_GIORNI = 365                                    # [H10] ANC-0240 vuole un massimo configurabile
+STATI = ("PENDING", "ACTIVE", "SUSPENDED", "EXPIRED", "REVOKED", "ERROR")   # FR-PEER-003, per intero
+TRANSIZIONI = {  # (stato, azione) -> nuovo stato; tutto il resto e' respinto. REVOKED non ha uscite (FR-PEER-006).
+    ("PENDING", "revoke"): "REVOKED", ("ACTIVE", "suspend"): "SUSPENDED", ("ACTIVE", "revoke"): "REVOKED",
+    ("SUSPENDED", "resume"): "ACTIVE", ("SUSPENDED", "revoke"): "REVOKED", ("EXPIRED", "revoke"): "REVOKED",
+    ("ERROR", "revoke"): "REVOKED",
+}
+
+
+class Conflitto(InputNonValido):
+    """Nome, chiave o indirizzo gia' presenti, o transizione non valida: codice 2 (ANC-0255), col motivo."""
+
+
+def ora():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def normalizza_nome(nome):
+    """ANC-0238: nome normalizzato (NFC, spazi compressi, confronto senza maiuscole), mai usato come percorso."""
+    n = " ".join(unicodedata.normalize("NFC", str(nome)).split())
+    if not 1 <= len(n) <= 64:
+        raise InputNonValido("--name: da 1 a 64 caratteri")
+    if any(c in n for c in "/\\\0") or n in (".", "..") or not all(c.isalnum() or c in " -_." for c in n):
+        raise InputNonValido("--name: solo lettere, cifre, spazio, trattino, trattino basso e punto")
+    return n, n.casefold()
+
+
+def valida_chiave(chiave):
+    try:
+        grezza = base64.b64decode(chiave, validate=True)
+    except (binascii.Error, ValueError, TypeError):
+        raise InputNonValido("--public-key: non e' base64")
+    if len(grezza) != 32 or base64.b64encode(grezza).decode() != chiave:
+        raise InputNonValido("--public-key: una chiave pubblica WireGuard e' di 32 byte in base64 (44 caratteri)")
+    return chiave
+
+
+class Archivio:
+    def __init__(self, percorso):
+        self.percorso = percorso
+        nuovo = not os.path.exists(percorso)
+        if nuovo:  # creato 0600 prima che sqlite ci scriva (NFR-SEC-004)
+            os.close(os.open(percorso, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+        self.db = sqlite3.connect(percorso, timeout=30, isolation_level=None)
+        self.db.execute("PRAGMA foreign_keys = ON")
+        self.db.execute("PRAGMA journal_mode = WAL")
+        with self.transazione() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS schema (versione INTEGER NOT NULL)")
+            v = c.execute("SELECT versione FROM schema").fetchone()
+            if v is None:
+                c.execute("INSERT INTO schema VALUES (?)", (VERSIONE_SCHEMA_DB,))
+                c.execute("""CREATE TABLE peer (
+                    id TEXT PRIMARY KEY, nome TEXT NOT NULL, nome_chiave TEXT NOT NULL UNIQUE,
+                    chiave_pubblica TEXT NOT NULL UNIQUE, indirizzo TEXT NOT NULL UNIQUE,
+                    stato TEXT NOT NULL CHECK (stato IN ('PENDING','ACTIVE','SUSPENDED','EXPIRED','REVOKED','ERROR')),
+                    saga TEXT NOT NULL CHECK (saga IN ('PENDING_APPLY','APPLIED','ROLLBACK_REQUIRED','ERROR')),
+                    creato TEXT NOT NULL, scade TEXT, revocato TEXT, sospeso TEXT)""")
+                c.execute("CREATE TABLE id_usati (id TEXT PRIMARY KEY)")  # ANC-0237: un UUID non si riusa mai
+                c.execute("CREATE TABLE audit (n INTEGER PRIMARY KEY AUTOINCREMENT, evento TEXT NOT NULL)")
+            elif v[0] != VERSIONE_SCHEMA_DB:
+                raise RuntimeError(f"schema del registro {v[0]}, questo sovereignctl conosce il {VERSIONE_SCHEMA_DB}: serve una migrazione")
+
+    class _T:
+        def __init__(self, db): self.db = db
+        def __enter__(self):
+            self.db.execute("BEGIN IMMEDIATE")  # un solo scrittore: l'allocazione non duplica (FR-PEER-001)
+            return self.db
+        def __exit__(self, tipo, *_):
+            self.db.execute("COMMIT" if tipo is None else "ROLLBACK")
+            return False
+
+    def transazione(self):
+        return self._T(self.db)
+
+    def audit(self, c, azione, esito, bersaglio=None, motivo=""):
+        c.execute("INSERT INTO audit (evento) VALUES (?)", (registro.evento_audit(
+            actor="sovereignctl", action=azione, target=bersaglio, outcome=esito, reason=motivo),))
+
+    def aggiungi(self, nome, chiave, rete, ttl_giorni=None):
+        nome, nome_chiave = normalizza_nome(nome)
+        chiave = valida_chiave(chiave)
+        if ttl_giorni is not None and not 1 <= ttl_giorni <= TTL_MASSIMO_GIORNI:
+            raise InputNonValido(f"--ttl-days: da 1 a {TTL_MASSIMO_GIORNI} [H10]")
+        rete = ipaddress.ip_network(rete)
+        rifiuto = None  # un rifiuto si registra (COMMIT del solo evento di audit) e si solleva dopo la transazione
+        with self.transazione() as c:
+            occupati = {r[0] for r in c.execute("SELECT indirizzo FROM peer")}
+            host = list(rete.hosts())[1:]  # [H11] il primo host e' del server
+            libero = next((str(h) for h in host if str(h) not in occupati), None)
+            if c.execute("SELECT 1 FROM peer WHERE nome_chiave = ?", (nome_chiave,)).fetchone():
+                rifiuto = Conflitto(f"--name: «{nome}» e' gia' in uso")
+            elif c.execute("SELECT 1 FROM peer WHERE chiave_pubblica = ?", (chiave,)).fetchone():
+                rifiuto = Conflitto("--public-key: chiave gia' registrata; una chiave revocata non torna (FR-PEER-006)")
+            elif libero is None:
+                rifiuto = Conflitto(f"subnet {rete} esaurita (SUBNET_EXHAUSTED, ANC-0261)")
+            if rifiuto:
+                self.audit(c, "peer.add", "denied", motivo=str(rifiuto).split(":")[0])
+        if rifiuto:
+            raise rifiuto
+        with self.transazione() as c:
+            occupati = {r[0] for r in c.execute("SELECT indirizzo FROM peer")}  # riletto dentro la transazione che scrive
+            libero = next((str(h) for h in host if str(h) not in occupati), None)
+            if libero is None:
+                raise Conflitto(f"subnet {rete} esaurita (SUBNET_EXHAUSTED, ANC-0261)")
+            nuovo = str(uuid.uuid4())
+            adesso = datetime.datetime.now(datetime.timezone.utc)
+            scade = None if ttl_giorni is None else (adesso + datetime.timedelta(days=ttl_giorni)).isoformat(timespec="seconds").replace("+00:00", "Z")
+            c.execute("INSERT INTO id_usati VALUES (?)", (nuovo,))
+            c.execute("INSERT INTO peer VALUES (?,?,?,?,?,?,?,?,?,NULL,NULL)",
+                      (nuovo, nome, nome_chiave, chiave, libero, "PENDING", "PENDING_APPLY", ora(), scade))
+            self.audit(c, "peer.add", "success", nuovo)
+        return self.mostra(nuovo)
+
+    def elenco(self):
+        cur = self.db.execute("SELECT id, nome, indirizzo, stato, saga, creato, scade FROM peer ORDER BY creato, nome")
+        return [dict(zip(("id", "nome", "indirizzo", "stato", "saga", "creato", "scade"), r)) for r in cur]
+
+    def mostra(self, id_peer):
+        try:
+            id_peer = str(uuid.UUID(id_peer))
+        except (ValueError, TypeError):
+            raise InputNonValido("id: serve l'UUID del peer")
+        cur = self.db.execute("SELECT * FROM peer WHERE id = ?", (id_peer,))
+        r = cur.fetchone()
+        if r is None:
+            raise InputNonValido(f"id: nessun peer {id_peer} (PEER_NOT_FOUND)")
+        d = dict(zip([x[0] for x in cur.description], r))
+        d.pop("nome_chiave")
+        d["chiave_privata_sul_server"] = False  # [H2]: non esiste, quindi non si puo' mostrare (ANC-0246)
+        return d
+
+    def transizione(self, id_peer, azione):
+        p = self.mostra(id_peer)
+        with self.transazione() as c:
+            stato = c.execute("SELECT stato FROM peer WHERE id = ?", (p["id"],)).fetchone()[0]
+            nuovo = TRANSIZIONI.get((stato, azione))
+            if nuovo is None:  # respinta E registrata (FR-PEER-003): il COMMIT tiene l'evento, l'errore esce dopo
+                self.audit(c, f"peer.{azione}", "denied", p["id"], f"transizione non valida da {stato}")
+        if nuovo is None:
+            raise Conflitto(f"{azione}: non si puo' da {stato}" + (" (la revoca e' irreversibile, FR-PEER-006)" if stato == "REVOKED" else ""))
+        with self.transazione() as c:
+            if c.execute("SELECT stato FROM peer WHERE id = ?", (p["id"],)).fetchone()[0] != stato:
+                raise Conflitto(f"{azione}: lo stato e' cambiato nel frattempo, riprovare (CONFLICT)")
+            campi = {"REVOKED": ", revocato = ?", "SUSPENDED": ", sospeso = ?"}.get(nuovo, "")
+            valori = (nuovo, "PENDING_APPLY") + ((ora(),) if campi else ()) + (p["id"],)
+            c.execute(f"UPDATE peer SET stato = ?, saga = ?{campi} WHERE id = ?", valori)
+            self.audit(c, f"peer.{azione}", "success", p["id"])
+        return self.mostra(p["id"])
+
+
+def aggiungi_parser(sotto, classe):
+    peer = sotto.add_parser("peer", help="registro dei peer")
+    az = peer.add_subparsers(dest="azione", required=True, parser_class=classe)
+    for nome in ("add", "list", "show", "suspend", "resume", "revoke"):
+        s = az.add_parser(nome)
+        s.add_argument("--db", default=DB_PREDEFINITO)
+        s.add_argument("--json", action="store_true")
+        if nome == "add":
+            s.add_argument("--name", required=True); s.add_argument("--public-key", required=True)
+            s.add_argument("--ttl-days", type=int); s.add_argument("--config")
+        if nome in ("show", "suspend", "resume", "revoke"):
+            s.add_argument("id")
+
+
+def esegui(a):
+    try:
+        archivio = Archivio(a.db)
+        if a.azione == "add":
+            from . import configurazione
+            cfg = configurazione.leggi(a.config) if a.config else {}
+            rete = cfg.get("subnet") or preflight.CANDIDATE_VPN[0]  # [H6] senza configurazione, la prima candidata
+            esito = archivio.aggiungi(a.name, a.public_key, rete, a.ttl_days)
+        elif a.azione == "list":
+            esito = archivio.elenco()
+        elif a.azione == "show":
+            esito = archivio.mostra(a.id)
+        else:
+            esito = archivio.transizione(a.id, a.azione)
+    except InputNonValido as e:
+        print(f"sovereignctl: input non valido: {registro.redigi(e)}", file=sys.stderr)
+        return 2
+    except (sqlite3.Error, OSError, RuntimeError) as e:
+        print(f"sovereignctl: errore del registro ({type(e).__name__}): {registro.redigi(e)}", file=sys.stderr)
+        return 1
+    if a.json:
+        print(json.dumps(esito, ensure_ascii=False, indent=1))
+    elif isinstance(esito, list):
+        print(f"Peer nel registro: {len(esito)}")
+        for p in esito:
+            print(f"  {p['id']}  {p['nome']:<20} {p['indirizzo']:<15} {p['stato']:<9} saga {p['saga']}" + (f"  scade {p['scade']}" if p["scade"] else ""))
+    else:
+        print(f"{esito['id']}  {esito['nome']}  {esito['indirizzo']}  stato {esito['stato']}, saga {esito['saga']}")
+        if esito["saga"] == "PENDING_APPLY":
+            print("  Il registro e' aggiornato; il runtime WireGuard no: lo allinea la riconciliazione (ANC-0244, ANC-0288).")
+    return 0

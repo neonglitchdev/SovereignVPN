@@ -6,7 +6,7 @@ Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [
 """
 import argparse, json, sys
 
-from . import VERSIONE, configurazione, manifest, preflight, registro
+from . import VERSIONE, configurazione, manifest, peer, preflight, registro
 
 
 class _Parser(argparse.ArgumentParser):
@@ -24,7 +24,10 @@ def main(argv=None):
     init.add_argument("--wg-port"); init.add_argument("--admin-port"); init.add_argument("--subnet")
     init.add_argument("--config", help="file TOML della configurazione, schema v1 (config/examples/server.toml)")
     init.add_argument("--json", action="store_true", help="rapporto in JSON")
+    peer.aggiungi_parser(sotto, _Parser)
     a = p.parse_args(argv)
+    if a.comando == "peer":
+        return peer.esegui(a)
     try:
         cfg = configurazione.leggi(a.config) if a.config else {}
         valori, nomi = {}, {}
