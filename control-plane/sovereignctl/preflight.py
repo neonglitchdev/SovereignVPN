@@ -67,6 +67,20 @@ def _porta_libera(proto, porta):
         s.close()
 
 
+def _ascolto_53_loopback():
+    """Chi ascolta su 127.0.0.1:53 (udp o tcp), da `ss -H -lntup`: [] se libera, None se ss non risponde. Pi-hole in
+    modo BIND apre sempre anche il loopback: un altro resolver li' lo fa cadere in CRIT «Address in use» [H49]."""
+    codice, uscita = _comando("ss", "-H", "-lntup")
+    if codice != 0:
+        return None
+    chi = set()
+    for riga in uscita.splitlines():
+        campi = riga.split()
+        if len(campi) >= 5 and campi[4] == "127.0.0.1:53":
+            chi.add(riga.split('users:(("', 1)[1].split('"', 1)[0] if 'users:(("' in riga else "processo sconosciuto")
+    return sorted(chi)
+
+
 def _reti_host(escludi=None):
     """Reti IPv4 dell'host e di Docker; `escludi` toglie un'interfaccia (la wg0 di un'installazione esistente)."""
     reti = []
@@ -114,6 +128,7 @@ def raccogli(imp):
                          f"tcp/{imp['admin_port']}": _porta_libera("tcp", imp["admin_port"])},
         "installato": installato,
         "porta_di_wg0": int(porta_wg0[1]) if porta_wg0[0] == 0 and porta_wg0[1].isdigit() else None,
+        "ascolto_53": _ascolto_53_loopback(),
         "reti_host": _reti_host(escludi=runtime.INTERFACCIA if installato else None),
     }
 
@@ -175,6 +190,13 @@ def valuta(fatti, imp):
         esito(f"porta-{proto}-{porta}", f"Porta {proto.upper()} {porta}", libera or nostra,
               "libera" if libera else ("di wg0, di questa installazione: init la riusa" if nostra else "gia' in uso"),
               f"Liberare la porta {porta}/{proto} o sceglierne un'altra con --{'wg' if proto == 'udp' else 'admin'}-port (T-004).")
+    chi = fatti.get("ascolto_53")
+    nostro = chi == ["pihole-FTL"] and bool(fatti.get("installato"))  # il Pi-hole di questa installazione
+    esito("dns-loopback", "Porta 53 su 127.0.0.1", chi == [] or nostro,
+          "libera" if chi == [] else "di pihole-FTL, di questa installazione" if nostro
+          else "non verificabile (serve ss di iproute2)" if chi is None else f"gia' in uso: {', '.join(chi)}",
+          "Pi-hole ascolta sempre anche su 127.0.0.1:53: fermare il resolver locale o toglierlo dal loopback "
+          "(dnsmasq: except-interface=lo; unbound o bind9: niente 127.0.0.1 negli indirizzi d'ascolto) [H49].")
     rete, collisioni = scegli_subnet(imp, fatti["reti_host"])
     if not fatti["reti_host"]:  # zero reti lette non vuol dire zero collisioni: vuol dire che non si e' guardato
         collisioni = ["nessuna rete dell'host letta (serve `ip` di iproute2)"]
