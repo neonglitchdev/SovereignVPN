@@ -7,12 +7,36 @@ drop e tutte le regole dichiarate; i sysctl; le unita' systemd abilitate. Mai la
 Ogni controllo e' OK o GUASTO; cio' che la release non ha ancora (il DNS interno) si elenca a parte e non conta.
 Codici (ANC-0255): 0 tutto OK; 1 almeno un GUASTO; 3 se la chiave del server e' leggibile da altri (security gate).
 """
-import json, os, pathlib, sqlite3, subprocess, sys
+import ipaddress, json, os, pathlib, socket, sqlite3, subprocess, sys
 
-from . import VERSIONE, bootstrap, firewall, host, peer, preflight, registro, runtime
+from . import VERSIONE, bootstrap, dns, firewall, host, peer, preflight, registro, runtime
 
 UNITA = ("sovereignvpn-reconcile.service", "sovereignvpn-expire.timer")
-NON_CONSEGNATI = ["DNS interno (Pi-hole + Unbound): non ancora nella release, il suo controllo arriva con lui"]
+
+
+def dns_applicato():
+    return os.path.exists(os.path.join(dns.CARTELLA_DNS, "unbound.conf"))
+
+
+def non_applicati():
+    """Cio' che su questo host non e' ancora stato messo in opera: si elenca e non conta ne' come OK ne' come GUASTO."""
+    return [] if dns_applicato() else ["DNS interno (Unbound + Pi-hole): `sovereignctl dns apply` non eseguito qui"]
+
+
+def _dns_risponde(indirizzo, porta, attesa=2):
+    """Una domanda vera («.» NS, ricorsiva), in libreria standard: vale se torna una risposta con lo stesso id e rcode 0."""
+    ident = os.urandom(2)
+    domanda = ident + b"\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00" + b"\x00\x00\x02\x00\x01"
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(attesa)
+    try:
+        s.sendto(domanda, (indirizzo, porta))
+        r, _ = s.recvfrom(4096)
+    except OSError:
+        return False
+    finally:
+        s.close()
+    return len(r) >= 12 and r[:2] == ident and bool(r[2] & 0x80) and (r[3] & 0x0F) == 0
 
 
 def _leggi(*argomenti, ingresso=None):
@@ -106,6 +130,10 @@ def controlla(cfg, db=None, wg_if=runtime.INTERFACCIA):
     ok = codice == 0 and stati == ["enabled"] * len(UNITA)
     esito("avvio", ok, ", ".join(f"{u} {s}" for u, s in zip(UNITA, stati)) if stati else
           "systemd non risponde: niente ripristino al riavvio ne' scadenze")
+    if dns_applicato():  # NFR-AVL-002: il servizio che risponde, non il container acceso
+        esito("unbound", _dns_risponde("127.0.0.1", dns.PORTA_UNBOUND), f"127.0.0.1:{dns.PORTA_UNBOUND}, ricorsivo con DNSSEC")
+        server = str(next(ipaddress.ip_network(cfg.get("subnet") or "10.66.0.0/24").hosts()))
+        esito("pihole", _dns_risponde(server, 53), f"{server}:53 su {wg_if}, il resolver dei profili")
     return c, esposta
 
 
@@ -119,14 +147,14 @@ def esegui(a):
     controlli, esposta = controlla(cfg, a.db)
     superati = sum(1 for x in controlli if x["esito"] == "OK")
     r = {"versione": VERSIONE, "comando": "status", "controlli_eseguiti": len(controlli), "superati": superati,
-         "controlli": controlli, "non_consegnati": NON_CONSEGNATI}
+         "controlli": controlli, "non_consegnati": non_applicati()}
     if a.json:
         print(json.dumps(r, ensure_ascii=False, indent=1))
     else:
         print(f"SovereignVPN {VERSIONE} — status: {superati} controlli superati su {len(controlli)}")
         for x in controlli:
             print(f"  [{x['esito']:6}] {x['nome']}: {x['dettaglio']}")
-        for n in NON_CONSEGNATI:
+        for n in r["non_consegnati"]:
             print(f"  [ASSENTE] {n}")
     if esposta:
         return 3

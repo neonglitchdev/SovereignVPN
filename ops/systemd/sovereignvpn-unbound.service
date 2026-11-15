@@ -1,0 +1,17 @@
+# SovereignVPN — Unbound (FR-DNS-003/004) [H22, H24]: il container dell'immagine nostra, in rete host su 127.0.0.1:5335,
+# con la configurazione scritta da `sovereignctl dns apply`. Parte solo dove quel file c'e'.
+[Unit]
+Description=SovereignVPN: Unbound, DNS ricorsivo con DNSSEC solo su 127.0.0.1
+Requires=docker.service
+After=docker.service
+ConditionPathExists=/etc/sovereignvpn/dns/unbound.conf
+
+[Service]
+ExecStartPre=-/usr/bin/docker rm -f sovereignvpn-unbound
+ExecStart=/usr/bin/docker run --rm --name sovereignvpn-unbound --network host -v /etc/sovereignvpn/dns/unbound.conf:/etc/unbound/unbound.conf:ro sovereignvpn-unbound:14.0.0
+ExecStop=/usr/bin/docker stop sovereignvpn-unbound
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

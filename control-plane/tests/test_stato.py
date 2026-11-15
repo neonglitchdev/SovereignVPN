@@ -109,6 +109,19 @@ class Status(unittest.TestCase):
         self.chiave.chmod(0o644)
         self.assertEqual(self.status()[0], 3)
 
+    def test_col_dns_applicato_contano_unbound_e_pihole(self):
+        (pathlib.Path(self._t.name) / "dns").mkdir()
+        (pathlib.Path(self._t.name) / "dns/unbound.conf").write_text("server:\n")
+        risposte = {("127.0.0.1", 5335): True, ("10.66.0.1", 53): True}
+        with mock.patch.object(stato.dns, "CARTELLA_DNS", str(pathlib.Path(self._t.name) / "dns")), \
+                mock.patch.object(stato, "_dns_risponde", lambda i, p: risposte[(i, p)]):
+            codice, r, testo = self.status()
+            self.assertEqual((codice, r["superati"], r["controlli_eseguiti"], r["non_consegnati"]), (0, 9, 9, []), testo)
+            risposte[("10.66.0.1", 53)] = False
+            codice, r, _ = self.status()
+        self.assertEqual(codice, 1)
+        self.assertEqual([n for n, e in self.esiti(r).items() if e != "OK"], ["pihole"])
+
     def test_solo_letture(self):
         prima = hashlib.sha256(pathlib.Path(self.db).read_bytes()).hexdigest()
         self.status()
@@ -119,6 +132,22 @@ class Status(unittest.TestCase):
         self.assertEqual({c["nome"]: c["esito"] for c in json.loads(out)["controlli"]}["peer"], "GUASTO")
         self.assertFalse(os.path.exists(assente))
 
+
+
+class DomandaDns(unittest.TestCase):
+    """La domanda vera di status, contro un server UDP finto: risposta buona si', SERVFAIL no, nessun server no."""
+    def server(self, rcode):
+        import socket, threading
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind(("127.0.0.1", 0)); porta = s.getsockname()[1]
+        def rispondi():
+            d, a = s.recvfrom(512); s.sendto(d[:2] + bytes([0x81, 0x80 | rcode]) + d[4:], a); s.close()
+        threading.Thread(target=rispondi, daemon=True).start()
+        return porta
+
+    def test_solo_una_risposta_buona_vale(self):
+        self.assertTrue(stato._dns_risponde("127.0.0.1", self.server(0)))
+        self.assertFalse(stato._dns_risponde("127.0.0.1", self.server(2)))  # SERVFAIL
+        self.assertFalse(stato._dns_risponde("127.0.0.1", 9, attesa=0.5))  # nessuno ascolta
 
 if __name__ == "__main__":
     unittest.main()
