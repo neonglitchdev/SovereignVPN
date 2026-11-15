@@ -6,7 +6,7 @@ from unittest import mock
 from sovereignctl import __main__ as cli, firewall, uscite
 
 BUONA = """[Interface]
-PrivateKey = cHJpdmF0YXByaXZhdGFwcml2YXRhcHJpdmF0YXByaXY=
+PrivateKey = cHJpdmF0YXByaXZhdGFwcml2YXRhcHJpdmF0YXByaXY=  # gitleaks:allow (chiave finta della prova, T-025)
 Address = 10.64.12.7/32, fc00:bbbb::7/128
 DNS = 10.64.0.1
 [Peer]
