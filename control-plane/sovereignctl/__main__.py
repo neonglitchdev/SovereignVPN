@@ -8,6 +8,7 @@ Uso: python3 -m sovereignctl init --check [--config server.toml] [--wg-port N] [
      python3 -m sovereignctl status [--config server.toml] [--db FILE] [--json]           (solo letture)
      python3 -m sovereignctl audit run [--config server.toml] [--db FILE] [--json]        (security audit, ANC-0307)
      python3 -m sovereignctl diagnostics collect [--extended --conferma] [--out DIR] [--json]  (bundle senza segreti)
+     python3 -m sovereignctl exit import FILE --paese IT | list | set IT|it-2|off | rotation MINUTI | tick  (FR-NET-008)
 """
 import argparse, json, sys
 
@@ -117,6 +118,8 @@ def main(argv=None):
     peer.aggiungi_parser(sotto, _Parser)
     peer.aggiungi_parser_firewall(sotto, _Parser)
     peer.aggiungi_parser_host(sotto, _Parser)
+    from . import uscite
+    uscite.aggiungi_parser(sotto, _Parser)
     a = p.parse_args(argv)
     if a.comando == "peer":
         return peer.esegui(a)
@@ -124,6 +127,8 @@ def main(argv=None):
         return peer.esegui_firewall(a)
     if a.comando == "host":
         return peer.esegui_host(a)
+    if a.comando == "exit":
+        return uscite.esegui(a)
     if a.comando == "reconcile":
         return _ripristina(a)
     if a.comando == "dns":

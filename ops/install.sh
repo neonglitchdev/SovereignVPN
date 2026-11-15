@@ -51,6 +51,7 @@ SORGENTE="$(cd "$(dirname "$0")/.." && pwd)/control-plane/sovereignctl"
 SORGENTE_UNITA="$(cd "$(dirname "$0")" && pwd)/systemd"
 SORGENTE_DNS="$(cd "$(dirname "$0")" && pwd)/dns"
 UNITA_NOMI=(sovereignvpn-reconcile.service sovereignvpn-expire.service sovereignvpn-expire.timer
+            sovereignvpn-exit.service sovereignvpn-exit.timer
             sovereignvpn-unbound.service sovereignvpn-pihole.service)
 OPT="$RADICE/opt/sovereignvpn"
 ETC="$RADICE/etc/sovereignvpn"
@@ -184,7 +185,7 @@ for u in "${UNITA_NOMI[@]}"; do
 done
 if [ -z "$RADICE" ] && [ -d /run/systemd/system ]; then
   systemctl daemon-reload
-  systemctl enable --quiet sovereignvpn-reconcile.service sovereignvpn-expire.timer sovereignvpn-unbound.service sovereignvpn-pihole.service
+  systemctl enable --quiet sovereignvpn-reconcile.service sovereignvpn-expire.timer sovereignvpn-exit.timer sovereignvpn-unbound.service sovereignvpn-pihole.service
 fi
 
 # 6. immagine di Unbound, costruita dalla base pin-nata per digest (Pi-hole si scarica per digest al primo avvio)

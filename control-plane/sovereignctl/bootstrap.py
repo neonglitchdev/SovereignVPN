@@ -4,11 +4,12 @@ Si arriva qui solo col preflight tutto OK. Passi, ognuno idempotente: manifest (
 c'e'), chiave del server (solo se manca, `wg genkey`, file 0600 aperto in esclusiva, mai stampata, FR-WG-002),
 interfaccia WireGuard col primo host della subnet, sysctl, firewall, riconciliazione. Il rapporto elenca i passi
 fatti: un errore dopo almeno un passo esce col codice 4 (applicato in parte, serve recovery, ANC-0255), prima con 1.
-`reconcile` (ripristina) rifa' a ogni avvio i passi di rete, col firewall per primo (FR-NET-007).
+`reconcile` (ripristina) rifa' a ogni avvio i passi di rete, col firewall per primo (FR-NET-007), e l'uscita per
+paese scelta (H48) prima dei peer.
 """
 import ipaddress, json, os, sqlite3, subprocess, uuid
 
-from . import dns, firewall, host, manifest, peer, registro, runtime
+from . import dns, firewall, host, manifest, peer, registro, runtime, uscite
 
 MANIFEST = "/var/lib/sovereignvpn/manifest.json"
 
@@ -105,6 +106,7 @@ def _passi_di_rete(cfg, wan_if, wg_if, db):
         "sysctl": lambda: _verificato("sysctl", host.applica()["verificato"]),
         "interfaccia": lambda: f"{wg_if} {interfaccia(wg_if, rete, cfg['subnet6'])}",
         "riconciliazione": _riconciliazione,
+        "uscita": lambda: uscite.ripristina(cfg, wg_if),  # [H48] kill switch prima che i peer tornino nel runtime
     }
 
 
@@ -116,7 +118,7 @@ def esegui(fatti, cfg, percorso_config, wan_if, wg_if="wg0", db=peer.DB_PREDEFIN
                       *((n, rete[n]) for n in ("interfaccia", "sysctl", "firewall", "riconciliazione"))])
 
 
-AL_RIAVVIO = ("firewall", "sysctl", "interfaccia", "riconciliazione")
+AL_RIAVVIO = ("firewall", "sysctl", "interfaccia", "uscita", "riconciliazione")
 
 
 def ripristina(cfg, wan_if, wg_if="wg0", db=peer.DB_PREDEFINITO):

@@ -80,6 +80,8 @@ jobs:
           sudo bash control-plane/tests/prova_backup_vero.sh
       - name: Traffico vero fra due peer WireGuard e una internet finta (isolamento, DNS, SSH, amministrazione, revoca)
         run: sudo bash control-plane/tests/prova_traffico_vero.sh
+      - name: Uscite per paese vere (due uscite finte, cambio, rotazione, failover, kill switch, reconcile, off)
+        run: sudo bash control-plane/tests/prova_uscite_vero.sh
       - name: DNS vero, Unbound e Pi-hole (DNSSEC, solo nel tunnel, deny, nessun nome nei log)
         run: sudo bash control-plane/tests/prova_dns_vero.sh
       - name: Unita' del DNS (systemd-analyze verify; Unbound avviato da systemd risponde col flag AD)

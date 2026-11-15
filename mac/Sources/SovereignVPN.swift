@@ -3,6 +3,7 @@
 // del server: le chiavi private nascono sui dispositivi (H2).
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 let PROFILO = "sovereignvpn"
 let CONFIG = "/etc/sovereignvpn/server.toml"
@@ -30,8 +31,8 @@ func esegui(_ argomenti: [String], ingresso: Data? = nil) async -> Comando {
 }
 
 /// `sovereignctl` nella VM, come root.
-func sovereignctl(_ a: [String]) async -> Comando {
-    await esegui(["colima", "ssh", "--profile", PROFILO, "--", "sudo", "/usr/local/bin/sovereignctl"] + a)
+func sovereignctl(_ a: [String], ingresso: Data? = nil) async -> Comando {
+    await esegui(["colima", "ssh", "--profile", PROFILO, "--", "sudo", "/usr/local/bin/sovereignctl"] + a, ingresso: ingresso)
 }
 
 
@@ -44,18 +45,21 @@ final class Server: ObservableObject {
     @Published var installato = false
     @Published var peer: [Peer] = []
     @Published var audit: RapportoAudit?
+    @Published var uscite: RapportoUscite?
     @Published var lavoro: String?
     @Published var messaggio: String?
 
     func aggiorna() async {
         let s = await esegui(["colima", "status", "--profile", PROFILO])
         vm = s.codice == 0 ? .accesa : .ferma
-        guard vm == .accesa else { status = nil; peer = []; installato = false; return }  // mai dati vecchi a VM spenta
+        guard vm == .accesa else { status = nil; peer = []; uscite = nil; installato = false; return }  // mai dati vecchi a VM spenta
         let st = await sovereignctl(["status", "--config", CONFIG, "--json"])
         status = try? JSONDecoder().decode(RapportoStatus.self, from: Data(st.uscita.utf8))
         installato = status != nil
         let pl = await sovereignctl(["peer", "list", "--json"])
         peer = (try? JSONDecoder().decode([Peer].self, from: Data(pl.uscita.utf8))) ?? []
+        let us = await sovereignctl(["exit", "list", "--json"])
+        uscite = try? JSONDecoder().decode(RapportoUscite.self, from: Data(us.uscita.utf8))
     }
 
     func fai(_ titolo: String, _ corpo: @escaping () async -> Comando) async {
@@ -113,6 +117,17 @@ final class Server: ObservableObject {
             return c
         }
     }
+    /// Uscite per paese [H48]: il file del provider entra da stdin (mai copiato nella VM fuori dal pool 0600).
+    func importaUscita(_ file: URL, paese: String, nome: String) async {
+        await fai("Import dell'uscita") {
+            guard let dati = try? Data(contentsOf: file), dati.count <= 65536 else { return Comando(codice: 2, uscita: "", errore: "file illeggibile o oltre 64 KB") }
+            return await sovereignctl(["exit", "import", "-", "--paese", paese.uppercased(), "--json"] + (nome.isEmpty ? [] : ["--nome", nome]), ingresso: dati)
+        }
+    }
+    func scegliUscita(_ chi: String) async { await fai(chi == "off" ? "Uscita dal server" : "Uscita \(chi)") { await sovereignctl(["exit", "set", chi, "--config", CONFIG, "--json"]) } }
+    func rotazione(_ minuti: Int) async { await fai("Rotazione") { await sovereignctl(["exit", "rotation", String(minuti), "--json"]) } }
+    func togliUscita(_ u: Uscita) async { await fai("Uscita \(u.id) tolta") { await sovereignctl(["exit", "remove", u.id, "--json"]) } }
+
     func eseguiAudit() async {
         lavoro = "Security audit"
         let r = await sovereignctl(["audit", "run", "--config", CONFIG, "--json"])
@@ -123,7 +138,7 @@ final class Server: ObservableObject {
 }
 
 func colore(_ stato: String) -> Color {
-    switch stato { case "OK", "PASS", "ACTIVE": return .green; case "WARN", "PENDING", "SUSPENDED": return .orange
+    switch stato { case "OK", "PASS", "ACTIVE", "ATTIVA": return .green; case "WARN", "PENDING", "SUSPENDED": return .orange
     case "FAIL", "GUASTO", "ERROR", "REVOKED", "EXPIRED": return .red; default: return .secondary }
 }
 
@@ -135,11 +150,12 @@ struct Etichetta: View {
     }
 }
 
-enum Sezione: String, CaseIterable, Identifiable { case stato = "Stato", dispositivi = "Dispositivi", audit = "Security audit"; var id: String { rawValue } }
+enum Sezione: String, CaseIterable, Identifiable { case stato = "Stato", dispositivi = "Dispositivi", uscite = "Uscite", audit = "Security audit"; var id: String { rawValue } }
 
 struct Contenuto: View {
     @EnvironmentObject var server: Server
-    @State private var sezione: Sezione? = .stato
+    // `open SovereignVPN.app --args -sezione Uscite` apre su una sezione (gli argomenti -chiave valore finiscono in UserDefaults)
+    @State private var sezione: Sezione? = Sezione(rawValue: UserDefaults.standard.string(forKey: "sezione") ?? "") ?? .stato
     var body: some View {
         NavigationSplitView {
             List(Sezione.allCases, selection: $sezione) { s in Text(s.rawValue).tag(s) }.navigationSplitViewColumnWidth(170)
@@ -148,6 +164,7 @@ struct Contenuto: View {
                 switch sezione ?? .stato {
                 case .stato: VistaStato()
                 case .dispositivi: VistaDispositivi()
+                case .uscite: VistaUscite()
                 case .audit: VistaAudit()
                 }
                 if let m = server.messaggio { Text(m).font(.callout).padding(10).frame(maxWidth: .infinity, alignment: .leading).background(.quaternary) }
@@ -233,6 +250,116 @@ struct VistaDispositivi: View {
             Button("Revoca", role: .destructive) { if let p = daRevocare { Task { await server.revoca(p) } }; daRevocare = nil }
             Button("Annulla", role: .cancel) { daRevocare = nil }
         }
+    }
+}
+
+func nomePaese(_ codice: String) -> String { Locale.current.localizedString(forRegionCode: codice) ?? codice }
+
+/// Il paese dal nome del file del provider (mullvad-de-fra-wg-001.conf -> DE): solo un suggerimento, si corregge a mano.
+func paeseDalFile(_ u: URL) -> String {
+    let regioni = Set(Locale.Region.isoRegions.map(\.identifier))
+    return u.deletingPathExtension().lastPathComponent.uppercased().split(whereSeparator: { !$0.isLetter }).map(String.init)
+        .first { $0.count == 2 && regioni.contains($0) } ?? ""
+}
+
+struct VistaUscite: View {
+    @EnvironmentObject var server: Server
+    @State private var file: URL?
+    @State private var paese = ""
+    @State private var nome = ""
+    @State private var daTogliere: Uscita?
+    static let rotazioni = [0, 5, 15, 30, 60, 180]
+
+    var body: some View {
+        let r = server.uscite
+        Form {
+            Section("Uscita attuale") {
+                if let a = r?.uscite.first(where: { $0.attiva }) {
+                    HStack(spacing: 12) {
+                        Text(a.bandierina).font(.system(size: 40))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(nomePaese(a.paese)) — \(a.nome)").font(.title3.bold())
+                            Text("I siti vedono l'IP del server d'uscita, non quello del server SovereignVPN. Server d'uscita: \(a.endpoint)").foregroundStyle(.secondary)
+                            if let s = r?.prossimo_cambio_secondi { Text("Prossimo cambio d'IP fra \(max(1, (s + 59) / 60)) min").foregroundStyle(.secondary) }
+                        }
+                    }
+                    Text("Se l'uscita cade, i dispositivi restano senza Internet finche' non torna o non si passa a un'altra uscita dello stesso paese: mai un'uscita diretta dal server (kill switch).")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("Nessuna: i dispositivi escono con l'IP del server SovereignVPN.").foregroundStyle(.secondary)
+                }
+            }
+            Section("Paese") {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), alignment: .leading)], alignment: .leading, spacing: 8) {
+                    Button { Task { await server.scegliUscita("off") } } label: {
+                        Label("Dal server", systemImage: "server.rack").frame(maxWidth: .infinity, alignment: .leading)
+                    }.buttonStyle(.bordered).tint(r?.scelta == nil ? Color.accentColor : nil)
+                    ForEach(r?.paesi ?? []) { p in
+                        Button { Task { await server.scegliUscita(p.paese) } } label: {
+                            HStack { Text(p.bandierina); Text(nomePaese(p.paese)).lineLimit(1); Spacer(); Text("\(p.uscite)").foregroundStyle(.secondary) }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }.buttonStyle(.bordered).tint(r?.scelta == p.paese ? Color.accentColor : nil)
+                    }
+                }.disabled(!server.installato || server.lavoro != nil)
+                if (r?.paesi ?? []).isEmpty {
+                    Text("Nessun paese ancora: importa i file WireGuard del provider, uno per server d'uscita.").foregroundStyle(.secondary)
+                }
+            }
+            Section("Rotazione dell'IP") {
+                Picker("Cambia uscita", selection: Binding(get: { r?.rotazione_minuti ?? 0 }, set: { m in Task { await server.rotazione(m) } })) {
+                    ForEach(Self.rotazioni, id: \.self) { m in Text(m == 0 ? "Mai (IP statico)" : m < 60 ? "Ogni \(m) minuti" : "Ogni \(m / 60) ore").tag(m) }
+                }.disabled(!server.installato || server.lavoro != nil)
+                Text("Si ruota fra le uscite dello stesso paese: con una sola uscita l'IP resta quello.").font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                ForEach(r?.uscite ?? []) { u in
+                    HStack {
+                        Text(u.bandierina); Text(u.nome).bold(); Text(u.id).monospaced().foregroundStyle(.secondary)
+                        Text(u.endpoint).monospaced().foregroundStyle(.secondary)
+                        Spacer()
+                        if u.attiva { Etichetta(testo: "ATTIVA") } else {
+                            Button("Usa questa") { Task { await server.scegliUscita(u.id) } }
+                            Button("Togli", role: .destructive) { daTogliere = u }
+                        }
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Uscite nel pool")
+                    Spacer()
+                    Button("Importa un file del provider…") { apri() }.disabled(!server.installato)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .sheet(isPresented: Binding(get: { file != nil }, set: { if !$0 { file = nil } })) {
+            Form {
+                Text("Nuova uscita").font(.headline)
+                LabeledContent("File", value: file?.lastPathComponent ?? "")
+                TextField("Paese (codice di due lettere: IT, DE, JP…)", text: $paese)
+                if paese.count == 2 { Text(nomePaese(paese.uppercased())).foregroundStyle(.secondary) }
+                TextField("Nome (facoltativo)", text: $nome)
+                Text("Il file contiene la chiave privata dell'uscita: resta sul server in un file 0600 e non si mostra mai.").font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Spacer()
+                    Button("Annulla") { file = nil }
+                    Button("Importa") { if let f = file { file = nil; Task { await server.importaUscita(f, paese: paese, nome: nome) } } }
+                        .keyboardShortcut(.defaultAction).disabled(paese.count != 2)
+                }
+            }.padding().frame(width: 460)
+        }
+        .confirmationDialog("Togliere l'uscita «\(daTogliere?.nome ?? "")» dal pool?", isPresented: Binding(get: { daTogliere != nil }, set: { if !$0 { daTogliere = nil } }), titleVisibility: .visible) {
+            Button("Togli", role: .destructive) { if let u = daTogliere { Task { await server.togliUscita(u) } }; daTogliere = nil }
+            Button("Annulla", role: .cancel) { daTogliere = nil }
+        }
+    }
+
+    func apri() {
+        let p = NSOpenPanel()
+        p.allowsMultipleSelection = false; p.canChooseDirectories = false
+        p.allowedContentTypes = [UTType(filenameExtension: "conf") ?? .data]
+        p.message = "Il file WireGuard del server d'uscita, dal sito del provider"
+        if p.runModal() == .OK, let u = p.url { paese = paeseDalFile(u); nome = ""; file = u }
     }
 }
 
