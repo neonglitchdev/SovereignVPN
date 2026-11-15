@@ -39,6 +39,17 @@ class Ruleset(unittest.TestCase):
         self.assertIn('iifname "wg0" ip saddr 10.66.0.0/24 tcp dport 8443 accept', r)
         self.assertFalse(any("dport 8443" in x and "wg0" not in x for x in r))
 
+    def test_mss_solo_sui_syn_fra_wg0_e_wan_e_prima_di_established(self):
+        """FR-WG-006: verso la WAN la MSS del peer scende a MTU - 40 solo se piu' alta; verso il peer rt mtu (wg0)."""
+        r = righe()
+        verso_wan = 'iifname "wg0" oifname "ens3" tcp flags syn / syn,rst tcp option maxseg size > 1380 tcp option maxseg size set 1380'
+        verso_peer = 'iifname "ens3" oifname "wg0" tcp flags syn / syn,rst tcp option maxseg size set rt mtu'
+        stabilite = r.index("ct state established,related accept", r.index("chain forward {"))
+        self.assertLess(r.index(verso_wan), stabilite)
+        self.assertLess(r.index(verso_peer), stabilite)
+        self.assertIn('iifname "wg0" oifname "ens3" tcp flags syn / syn,rst tcp option maxseg size > 1240 tcp option maxseg size set 1240',
+                      righe(mtu=1280))  # segue la MTU della configurazione
+
     def test_ordine_del_forward(self):
         """Isolamento fra peer e DNS esterno bloccati PRIMA dell'uscita verso la WAN: dopo non servirebbero a niente."""
         r = righe()
