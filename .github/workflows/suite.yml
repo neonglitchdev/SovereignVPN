@@ -59,7 +59,20 @@ jobs:
           /usr/local/bin/sovereignctl status --help >/dev/null
           echo "OK: rollback alla release precedente e ritorno, sul sistema vero (FR-OPS-005)"
           echo prova-dato | sudo tee /etc/sovereignvpn/prova-dato >/dev/null
+          # [H48] i pezzi di un'uscita accesa, e una regola d'altri alla stessa priorita' che deve restare
+          sudo ip link add wgx0 type wireguard
+          (cd control-plane && python3 -c 'from sovereignctl import uscite; print(uscite.kill_switch())') | sudo nft -f -
+          sudo ip rule add fwmark 0x5e48 lookup main priority 5198
+          sudo ip rule add iif wg0 lookup 51888 priority 5199
+          sudo ip rule add iif lo lookup 51999 priority 5199
+          sudo ip route add unreachable default metric 4294967295 table 51888
           sudo bash ops/install.sh --uninstall
+          if sudo nft list table inet sovereignvpn_uscita >/dev/null 2>&1; then echo "ROSSO: l'uninstall ha lasciato il kill switch dell'uscita"; exit 1; fi
+          if ip rule show | grep -qE "lookup 51888|fwmark 0x5e48"; then echo "ROSSO: l'uninstall ha lasciato le regole dell'uscita"; exit 1; fi
+          [ -z "$(ip route show table 51888)" ] || { echo "ROSSO: l'uninstall ha lasciato le rotte dell'uscita"; exit 1; }
+          ip rule show priority 5199 | grep -q "lookup 51999" || { echo "ROSSO: l'uninstall ha tolto una regola d'altri"; exit 1; }
+          ip link show wgx0 >/dev/null 2>&1 || { echo "ROSSO: senza manifest l'uninstall ha tolto una wgx0 che non risulta nostra"; exit 1; }
+          sudo ip rule del iif lo lookup 51999 priority 5199
           for f in /usr/local/bin/sovereignctl /opt/sovereignvpn /etc/systemd/system/sovereignvpn-reconcile.service; do
             if [ -e "$f" ]; then echo "ROSSO: l'uninstall ha lasciato $f"; exit 1; fi
           done
@@ -67,8 +80,11 @@ jobs:
           [ "$(sudo cat /etc/sovereignvpn/prova-dato)" = prova-dato ] || { echo "ROSSO: l'uninstall senza scelta ha toccato i dati"; exit 1; }
           if sudo bash ops/install.sh --uninstall --elimina-dati; then echo "ROSSO: dati eliminati senza --conferma"; exit 1; fi
           sudo test -e /etc/sovereignvpn/prova-dato || { echo "ROSSO: un rifiuto ha cancellato i dati"; exit 1; }
+          echo '{}' | sudo tee /var/lib/sovereignvpn/manifest.json >/dev/null  # ora l'installazione risulta nostra
           sudo bash ops/install.sh --uninstall --elimina-dati --conferma
           if sudo test -e /etc/sovereignvpn || sudo test -e /var/lib/sovereignvpn; then echo "ROSSO: --elimina-dati --conferma ha lasciato i dati"; exit 1; fi
+          if ip link show wgx0 >/dev/null 2>&1; then echo "ROSSO: col manifest l'uninstall ha lasciato wgx0 (il tunnel del provider)"; exit 1; fi
+          echo "OK: l'uninstall toglie kill switch, regole e rotte dell'uscita, lascia la regola d'altri e wgx0 senza manifest, toglie wgx0 col manifest (H48)"
           sudo bash ops/install.sh >/dev/null
           systemctl is-enabled sovereignvpn-reconcile.service sovereignvpn-expire.timer >/dev/null
           echo "OK: uninstall sul sistema vero: prodotto tolto, dati conservati; senza --conferma niente cancellato, con --conferma cancellati; reinstallato (FR-OPS-007)"

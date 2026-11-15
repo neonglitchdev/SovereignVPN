@@ -191,7 +191,7 @@ class Host(unittest.TestCase):
         uscite.scegli("DE", self.c); uscite.scegli("off", self.c)
         self.applica()
         comandi = [c for c, _ in self.fatti]
-        for atteso in ("ip rule del priority 5198", "ip rule del priority 5199", "ip route flush table 51888",
+        for atteso in ("ip rule del fwmark 0x5e48 lookup main priority 5198", "ip rule del iif wg0 lookup 51888 priority 5199", "ip route flush table 51888",
                        "ip link del wgx0", "nft delete table inet sovereignvpn_uscita"):
             self.assertIn(atteso, comandi)
 

@@ -265,16 +265,22 @@ def conf_wg(campi):
     return "\n".join(righe) + "\n"
 
 
-def _togli_regole():
-    for prio in (PRIO_MARK, PRIO_PEER):
+def _regole(wg_if):
+    """Le due regole dell'uscita con la firma completa: si tolgono solo queste, mai un'altra alla stessa priorita'."""
+    return (("fwmark", f"{MARK:#x}", "lookup", "main", "priority", str(PRIO_MARK)),
+            ("iif", wg_if, "lookup", str(TABELLA_ROTTE), "priority", str(PRIO_PEER)))
+
+
+def _togli_regole(wg_if):
+    for regola in _regole(wg_if):
         for _ in range(10):  # piu' copie della stessa regola possono esserci: si tolgono tutte
-            if _cmd("ip", "rule", "del", "priority", str(prio), tollera=True)[0] != 0:
+            if _cmd("ip", "rule", "del", *regola, tollera=True)[0] != 0:
                 break
 
 
-def spegni():
+def spegni(wg_if="wg0"):
     """Nessuna uscita: i peer tornano a uscire dal server (scelta esplicita di chi amministra)."""
-    _togli_regole()
+    _togli_regole(wg_if)
     _cmd("ip", "route", "flush", "table", str(TABELLA_ROTTE), tollera=True)
     _cmd("ip", "link", "del", INTERFACCIA, tollera=True)
     _cmd("nft", "delete", "table", "inet", TABELLA_NFT, tollera=True)
@@ -286,7 +292,7 @@ def applica(cfg, wg_if="wg0", cartella=None):
     cartella = cartella or CARTELLA
     st = stato(cartella)
     if not st["attiva"]:
-        spegni()
+        spegni(wg_if)
         return {"attiva": None, "salita": True, "dettaglio": "nessuna uscita: i peer escono dal server"}
     with open(os.path.join(cartella, st["attiva"] + ".conf"), encoding="utf-8") as f:
         campi = _analizza(f.read())
@@ -295,9 +301,9 @@ def applica(cfg, wg_if="wg0", cartella=None):
     t = str(TABELLA_ROTTE)
     _cmd("ip", "route", "replace", "unreachable", "default", "metric", "4294967295", "table", t)
     _cmd("ip", "route", "replace", rete, "dev", wg_if, "table", t)  # ritorno: la subnet VPN resta su wg0
-    _togli_regole()
-    _cmd("ip", "rule", "add", "fwmark", f"{MARK:#x}", "lookup", "main", "priority", str(PRIO_MARK))
-    _cmd("ip", "rule", "add", "iif", wg_if, "lookup", t, "priority", str(PRIO_PEER))
+    _togli_regole(wg_if)
+    for regola in _regole(wg_if):  # prima il mark (i pacchetti cifrati di wgx0 nella main), poi i peer nella tabella
+        _cmd("ip", "rule", "add", *regola)
     try:
         if _cmd("ip", "link", "show", INTERFACCIA, tollera=True)[0] != 0:
             _cmd("ip", "link", "add", INTERFACCIA, "type", "wireguard")

@@ -148,7 +148,7 @@ echo "OK: de-2 morta = niente fuori; dopo 3 minuti senza handshake il timer pass
 
 # 7. riavvio: tutto perso, il passo «uscita» di reconcile lo rifa' (prima dei peer)
 ns usrv ip link del wgx0; ns usrv nft delete table inet sovereignvpn_uscita
-ns usrv ip rule del priority 5199; ns usrv ip rule del priority 5198; ns usrv ip route flush table 51888
+ns usrv ip rule del iif wg0 lookup 51888 priority 5199; ns usrv ip rule del fwmark 0x5e48 lookup main priority 5198; ns usrv ip route flush table 51888
 [ "$(vede)" = "203.0.113.1" ] || rosso "controllo: senza nessuna parte dell'uscita il peer dovrebbe uscire dal server"
 ns usrv python3 -c 'import sys; from sovereignctl import configurazione, uscite; print(uscite.ripristina(configurazione.leggi(sys.argv[1]), cartella=sys.argv[2]))' "$CONFIG" "$D/uscite" >/dev/null
 [ "$(vede)" = "203.0.113.11" ] || rosso "il passo di reconcile non ha rifatto l'uscita"
