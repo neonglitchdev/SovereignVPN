@@ -115,8 +115,11 @@ class Pool(unittest.TestCase):
         for testo, paese in ((BUONA, "de"), (BUONA, "ITA"), (BUONA.replace("0.0.0.0/0, ", ""), "IT"),
                              (BUONA.replace("Endpoint = 185.1.2.3:51820\n", ""), "IT"),
                              (BUONA + "[Peer]\nPublicKey = x\n", "IT"), (BUONA.replace("MTU", "X") + "Pippo = 1\n", "IT"),
-                             (BUONA.replace("185.1.2.3:51820", "de1.provider.example:51820"), "DE"),  # niente DNS al riavvio
+                             (BUONA.replace("185.1.2.3:51820", "-casa.example:51820"), "DE"),  # nome host non valido
+                             (BUONA.replace("185.1.2.3:51820", "1.2.3:51820"), "DE"),  # numeri: getaddrinfo li leggerebbe come IPv4
+                             (BUONA.replace("185.1.2.3:51820", "casa.example:0"), "DE"),
                              (BUONA.replace("185.1.2.3:51820", "[2001:db8::1]:51820"), "DE"),
+                             (BUONA.replace("185.1.2.3:51820", "2001:db8::1:51820"), "DE"),  # IPv6 senza parentesi
                              (BUONA.replace("185.1.2.3:51820", "185.1.2.3:0"), "DE"),
                              (BUONA.replace("10.64.12.7/32, ", ""), "DE"),  # solo IPv6
                              (BUONA.replace("DNS = 10.64.0.1", "MTU = 9000"), "DE")):
@@ -216,6 +219,69 @@ class Rotazione(unittest.TestCase):
         self.assertEqual(uscite.da_cambiare(self.st(scelta="JP", attiva="jp-1", rotazione_minuti=1), self.SCHEDE, 9999, None), (None, None))
         self.assertEqual(uscite.da_cambiare(self.st(scelta="de-1", rotazione_minuti=1), self.SCHEDE, 9999, None), (None, None))
         self.assertEqual(uscite.da_cambiare(self.st(attiva=None), self.SCHEDE, 9999, None), (None, None))
+
+
+class NomeHost(unittest.TestCase):
+    """[H50] Il server di casa col DNS dinamico: il nome si risolve all'import e al failover; wg riceve sempre l'IP."""
+    COL_NOME = BUONA.replace("185.1.2.3:51820", "Casa.Example:51820")
+
+    def setUp(self):
+        self.c = os.path.join(tempfile.mkdtemp(), "uscite")
+
+    def test_nome_risolto_all_import_salvato_con_l_ip(self):
+        s = uscite.importa(self.COL_NOME, "DE", cartella=self.c, risolvi=lambda n: "198.51.100.7")
+        self.assertEqual((s["endpoint"], s["nome_endpoint"]), ("198.51.100.7:51820", "casa.example:51820"))
+        with self.assertRaises(uscite.UscitaNonValida):  # la stessa uscita, anche se il nome ora da' un altro IP
+            uscite.importa(self.COL_NOME, "DE", cartella=self.c, risolvi=lambda n: "198.51.100.8")
+
+    def test_nome_che_non_si_risolve_rifiutato(self):
+        def nessuno(n):
+            raise uscite.UscitaNonValida(f"il nome {n} non si risolve in un indirizzo IPv4")
+        with self.assertRaises(uscite.UscitaNonValida):
+            uscite.importa(self.COL_NOME, "DE", cartella=self.c, risolvi=nessuno)
+        self.assertEqual(uscite.pool(self.c), [])
+        with self.assertRaises(uscite.UscitaNonValida):  # il resolver vero: .invalid non si risolve mai (RFC 6761)
+            uscite._risolvi("nessuno.invalid")
+
+    def test_wg_riceve_l_ip_e_non_il_nome(self):
+        uscite.importa(self.COL_NOME, "DE", cartella=self.c, risolvi=lambda n: "198.51.100.7")
+        uscite.scegli("DE", self.c)
+        conf = []
+        def cmd(*a, ingresso=None, tollera=False):
+            if a[:2] == ("wg", "setconf"):
+                conf.append(ingresso)
+            return (1, "") if tollera else (0, "")
+        with mock.patch.object(uscite, "_cmd", cmd), mock.patch.object(firewall, "applica_tabella", lambda r: None):
+            uscite.applica({"subnet": "10.66.0.0/24"}, cartella=self.c)
+        self.assertIn("Endpoint = 198.51.100.7:51820", conf[0])
+        self.assertNotIn("casa.example", conf[0])
+
+    def tick(self, ip, eta=300):
+        uscite.importa(self.COL_NOME, "DE", cartella=self.c, risolvi=lambda n: "198.51.100.7")
+        uscite.importa(altra(1), "DE", cartella=self.c)
+        uscite.scegli("DE", self.c)  # il paese: due candidate, quindi il failover e' possibile
+        self.assertEqual(uscite.stato(self.c)["attiva"], "de-1")
+        applicate = []
+        with mock.patch.object(uscite, "eta_handshake", lambda *a: eta), mock.patch.object(uscite, "viva", lambda: True), \
+             mock.patch.object(uscite, "applica", lambda *a, **k: applicate.append(uscite.stato(self.c)["attiva"]) or {"salita": True}):
+            adesso = uscite.stato(self.c)["ultimo_cambio"] + 600  # 10 minuti dopo la scelta
+            return uscite.tick({"subnet": "10.66.0.0/24"}, cartella=self.c, adesso=adesso, risolvi=lambda n: ip), applicate
+
+    def test_al_failover_prima_si_risolve_di_nuovo_il_nome(self):
+        esito, applicate = self.tick("198.51.100.9")
+        self.assertEqual((esito["cambio"], esito["motivo"]), (None, "indirizzo nuovo per casa.example -> 198.51.100.9"))
+        self.assertEqual(applicate, ["de-1"])  # la stessa uscita, riapplicata
+        self.assertEqual(uscite.pool(self.c)[0]["endpoint"], "198.51.100.9:51820")
+
+    def test_stesso_ip_allora_failover(self):
+        esito, applicate = self.tick("198.51.100.7")
+        self.assertEqual(esito["cambio"], "de-2")
+        self.assertEqual(uscite.pool(self.c)[0]["endpoint"], "198.51.100.7:51820")
+
+    def test_handshake_recente_non_si_risolve(self):
+        esito, applicate = self.tick("198.51.100.9", eta=20)
+        self.assertEqual(esito["cambio"], None)
+        self.assertEqual(uscite.pool(self.c)[0]["endpoint"], "198.51.100.7:51820")
 
 
 class Host(unittest.TestCase):

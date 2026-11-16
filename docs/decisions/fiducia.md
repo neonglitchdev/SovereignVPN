@@ -22,13 +22,15 @@ ogni feature che apre un confine nuovo o un traffico nuovo verso fuori (NFR-SEC-
 | Traffico verso fuori | Perché | Prova |
 | --- | --- | --- |
 | Unbound interroga i server DNS autorevoli, dalle radici, con DNSSEC: nessun forwarder pubblico | DNS ricorsivo proprio (cap. 6) | `test_dns.py` (`test_ricorsivo_dalle_radici_con_dnssec`); `prova_dns_vero.sh` (isc.org col flag AD, dnssec-failed.org SERVFAIL) |
-| I peer escono verso internet solo dalla WAN, in IPv4 mascherato | è la VPN | `prova_traffico_vero.sh` sezioni 1 e 9 |
+| I peer escono verso internet solo dalla WAN, in IPv4 mascherato; con un'uscita scelta (H48) solo dall'uscita, mai dalla WAN, e se l'uscita cade niente esce | è la VPN; l'uscita la sceglie l'amministratore | `prova_traffico_vero.sh` sezioni 1 e 9; `prova_uscite_vero.sh` sezioni 3, 5 e 6 (kill switch: ognuno dei due livelli basta da solo) |
+| Un'uscita vede il traffico dei peer che non è cifrato, e i siti vedono il suo indirizzo: è un altro server SovereignVPN, dell'amministratore o di una persona fidata, o un server dell'amministratore (H50) | le uscite vengono da server propri, non da servizi VPN | `prova_uscite_vero.sh` sezione 3 (il sito vede l'uscita); `test_uscite.py` (Federazione) |
+| Il nome di un'uscita (il server di casa col DNS dinamico) si chiede al resolver del server solo all'import e quando l'uscita non fa handshake da 180 s; al riavvio vale l'IP salvato, senza DNS (H50) | il server di casa cambia IP | `test_uscite.py` (NomeHost); `prova_uscite_vero.sh` (la seconda uscita ha un nome); `test_fiducia.py` ammette `socket` in `uscite.py` per questo |
 | Nessun DNS dei peer verso fuori (salvo la DNS policy «libero», H34), DoT bloccato (H25) | il DNS resta dell'amministratore | sezioni 3, 3b, 6c; AUD-15, AUD-16 |
 | Nessun IPv6 dei peer verso fuori: rifiutato subito nel tunnel (H38) | blocco verificato della 1.0 | sezione 9 (contatore lato server, fuga vista solo col profilo guastato) |
 | Pi-hole non sincronizza l'ora e non ha server NTP; le liste di blocco sono file locali versionati, non URL | niente traffico implicito | `test_dns.py`; `prova_dns_vero.sh` (inventario delle porte) |
 | All'installazione: le immagini dei container scaricate per digest (Pi-hole) o costruite dalla base pin-nata (Unbound) | la release è riproducibile | `test_dns.py` (`test_immagine_pin_nata_per_digest`); AUD-24 |
 | Il backup è cifrato con age verso una chiave che non sta sul server; uscire dal server lo fa l'amministratore | il server non decide dove va | `prova_backup_vero.sh` (un'altra chiave non decifra) |
-| Nessuna telemetria, nessun controllo di aggiornamenti, nessun crash report verso fuori | per costruzione | `test_fiducia.py`: nessun modulo importa librerie di rete; `socket` solo nello status (domande DNS in locale) e nel preflight (un bind per sapere se una porta è libera). Una chiamata nuova verso fuori fa diventare rossa la prova e va dichiarata qui |
+| Nessuna telemetria, nessun controllo di aggiornamenti, nessun crash report verso fuori | per costruzione | `test_fiducia.py`: nessun modulo importa librerie di rete; `socket` solo nello status (domande DNS in locale), nel preflight (un bind per sapere se una porta è libera) e nelle uscite (il nome dell'uscita, riga sopra). Una chiamata nuova verso fuori fa diventare rossa la prova e va dichiarata qui |
 | La diagnostica non esce da sola: scrive un file locale redatto, e mandarlo è una scelta | ANC-0312 | `test_diagnostica.py`; gitleaks nel giro 5b |
 
 ## Confini dentro il server

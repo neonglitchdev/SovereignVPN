@@ -11,6 +11,8 @@ IFS=$'\n\t'
 [ "$(id -u)" -eq 0 ] || { echo "prova_uscite_vero: serve root"; exit 1; }
 for c in wg nft ip; do command -v "$c" >/dev/null || { echo "prova_uscite_vero: serve $c"; exit 1; }; done
 NSS=(uinet usrv up1 ux1 ux2)
+# il nome della seconda uscita si risolve dal file hosts del namespace del server (ip netns exec lo monta su /etc/hosts)
+[ ! -e /etc/netns/usrv ] || { echo "prova_uscite_vero: /etc/netns/usrv esiste gia' e non e' di questa prova"; exit 1; }
 D="$(mktemp -d)"
 PIDS=()
 pulizia() {
@@ -18,7 +20,8 @@ pulizia() {
   # kill $! colpisce la subshell di bash, non il processo dentro il namespace, e ip netns del non uccide nessuno:
   # si uccide ogni processo del namespace prima di toglierlo (prima restavano vivi gli ascoltatori)
   for n in "${NSS[@]}"; do ip netns pids "$n" 2>/dev/null | xargs -r kill 2>/dev/null || true; ip netns del "$n" 2>/dev/null || true; done
-  rm -rf "$D"
+  rm -rf "$D" /etc/netns/usrv
+  rmdir /etc/netns 2>/dev/null || true
 }
 trap pulizia EXIT
 cd "$(dirname "$0")/.."
@@ -55,8 +58,8 @@ uscita_finta() {  # ns numero chiave_privata_del_server [testo al posto della pr
   ns "$1" ip link set wge up
   ns "$1" nft -f - <<<"table ip nat { chain post { type nat hook postrouting priority srcnat; oifname \"e0\" masquerade; }; }"
   # il file che darebbe il provider (con ::/0 e DNS, come i file veri)
-  printf '[Interface]\nPrivateKey = %s\nAddress = 10.64.%s.2/32\nDNS = 10.64.%s.1\n[Peer]\nPublicKey = %s\nEndpoint = 203.0.113.1%s:51820\nAllowedIPs = 0.0.0.0/0, ::/0\n' \
-    "${4:-$(cat "$3")}" "$2" "$2" "$(wg pubkey < "$D/x$2.key")" "$2" > "$D/uscita$2.conf"
+  printf '[Interface]\nPrivateKey = %s\nAddress = 10.64.%s.2/32\nDNS = 10.64.%s.1\n[Peer]\nPublicKey = %s\nEndpoint = %s:51820\nAllowedIPs = 0.0.0.0/0, ::/0\n' \
+    "${4:-$(cat "$3")}" "$2" "$2" "$(wg pubkey < "$D/x$2.key")" "${5:-203.0.113.1$2}" > "$D/uscita$2.conf"
 }
 uscita_finta ux1 1 "$D/c1.key"
 # [H50] la seconda e' un altro server SovereignVPN: conosce la chiave nata qui con `exit key`, e il suo profilo
@@ -65,7 +68,10 @@ PUB_USCITA="$(sovctl key --json | python3 -c 'import json,sys; print(json.load(s
 [ "$PUB_USCITA" = "$(wg pubkey < "$D/uscite/chiave-uscita.key")" ] || rosso "exit key non stampa la pubblica della chiave che ha creato"
 [ "$(stat -c '%a' "$D/uscite/chiave-uscita.key")" = "600" ] || rosso "la chiave d'uscita del server non e' 0600"
 if sovctl key | grep -qF "$(cat "$D/uscite/chiave-uscita.key")"; then rosso "exit key stampa la chiave privata"; fi
-uscita_finta ux2 2 "$D/uscite/chiave-uscita.key" "<CHIAVE_PRIVATA_DEL_DISPOSITIVO>"
+# ... e il server di casa ha un nome (DNS dinamico), non un IP: exit import lo risolve e salva l'IP
+mkdir -p /etc/netns/usrv
+printf '127.0.0.1 localhost\n203.0.113.12 casa-b.example\n' > /etc/netns/usrv/hosts
+uscita_finta ux2 2 "$D/uscite/chiave-uscita.key" "<CHIAVE_PRIVATA_DEL_DISPOSITIVO>" casa-b.example
 grep -qF "PrivateKey = <CHIAVE_PRIVATA_DEL_DISPOSITIVO>" "$D/uscita2.conf" || rosso "il profilo della seconda uscita non ha il segnaposto"
 
 # server: wg0, sysctl, firewall e un peer, come init
@@ -109,6 +115,8 @@ for n in 1 2; do
   if grep -qF "$(cat "${PRIVATE[$((n - 1))]}")" <<<"$OUT"; then rosso "import stampa la chiave privata dell'uscita"; fi
 done
 grep -qF "PrivateKey = $(cat "$D/uscite/chiave-uscita.key")" "$D/uscite/de-2.conf" || rosso "exit import non ha scritto la chiave del server al posto del segnaposto"
+SCHEDA2="$(sovctl list --json | python3 -c 'import json,sys; s=[u for u in json.load(sys.stdin)["uscite"] if u["id"]=="de-2"][0]; print(s["endpoint"], s.get("nome_endpoint"))')"
+[ "$SCHEDA2" = "203.0.113.12:51820 casa-b.example:51820" ] || rosso "l'uscita col nome non ha nome e IP risolto nella scheda: $SCHEDA2"
 LISTA="$(sovctl list --json)"
 for k in "${PRIVATE[@]}"; do if grep -qF "$(cat "$k")" <<<"$LISTA"; then rosso "list stampa una chiave privata"; fi; done
 [ "$(stat -c '%a' "$D/uscite/de-1.conf")" = "600" ] || rosso "il file dell'uscita non e' 0600"
