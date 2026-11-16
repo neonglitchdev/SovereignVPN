@@ -118,6 +118,12 @@ class AvvioDns(unittest.TestCase):
         # la 53 non si apre dove le porte privilegiate partono dalla 1024 (misurato sul runner, CI 43748141024)
         self.assertNotIn("no-new-privileges", dns.VINCOLI_PIHOLE)
         self.assertNotIn("no-new-privileges", pihole)
+        for nome, unita in (("unbound", unbound), ("pihole", pihole)):
+            # le immagini si scaricano all'installazione, mai all'avvio: senza --pull never un'immagine mancante al
+            # riavvio (16/11, VM colima) faceva cercare a Docker «sovereignvpn-unbound» su Docker Hub, un nome che
+            # chiunque potrebbe registrare; e un riavvio di Docker lasciava il DNS spento
+            self.assertIn(f"docker run --rm --pull never --name sovereignvpn-{nome} ", unita)
+            self.assertIn("\nPartOf=docker.service\n", unita)
         etichetta = re.search(r"(sovereignvpn-unbound:[\w.]+)", unbound).group(1)
         self.assertIn(f"docker build --network host -q -t {etichetta} ", (ops / "install.sh").read_text())
 
