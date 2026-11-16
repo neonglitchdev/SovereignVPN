@@ -199,6 +199,12 @@ def _main(argv=None):
         if not a.config or not wan:
             print("sovereignctl: input non valido: init --apply vuole --config e --wan-interface (o wan_interface nella config)", file=sys.stderr)
             return 2
+        if not cfg.get("subnet") or (a.subnet and a.subnet != cfg["subnet"]):
+            # [H6] la rete scelta dall'IPAM non si salva da sola: senza subnet nel file ogni comando userebbe 10.66.0.0/24,
+            # mentre il preflight ne ha appena controllata un'altra (scelta a caso)
+            print(f"sovereignctl: input non valido: init --apply vuole la subnet scritta in {a.config} (e --subnet, se c'e', "
+                  f"uguale): l'IPAM propone {rete}, quindi: subnet = \"{rete}\"", file=sys.stderr)
+            return 2
         from . import bootstrap
         try:
             passi, errore = bootstrap.esegui(fatti, cfg, a.config, wan)

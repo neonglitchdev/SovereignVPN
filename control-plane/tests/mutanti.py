@@ -176,6 +176,7 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "wg riceve il nome e non l'IP salvato": ("uscite.py", '        campi["Peer"]["Endpoint"] = scheda["endpoint"]', "        pass"),
     "nome dell'uscita mai risolto di nuovo": ("uscite.py", "    nuovo = _indirizzo_nuovo(st, cartella, adesso, eta, risolvi)", "    nuovo = None"),
     "nome host numerico accettato": ("uscite.py", 'and not re.fullmatch(r"[0-9.]+", host)', ""),
+    "init --apply senza subnet nel file": ("__main__.py", '        if not cfg.get("subnet") or (a.subnet and a.subnet != cfg["subnet"]):', "        if False:"),
     "IPAM sempre la prima rete libera": ("preflight.py", "        return secrets.choice(libere), []", "        return libere[0], []"),
     "uscita nella rete dei peer accettata": ("uscite.py", "            if ipaddress.ip_interface(ind).network.overlaps(rete):", "            if False:"),
     "exit import senza la rete dei peer": ("uscite.py", 'subnet=cfg.get("subnet") or "10.66.0.0/24")', "subnet=None)"),

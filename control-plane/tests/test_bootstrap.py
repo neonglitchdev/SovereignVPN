@@ -85,6 +85,19 @@ class Apply(unittest.TestCase):
         self.assertEqual(codice, 2)
         self.assertIn("--wan-interface", err)
 
+    def test_senza_subnet_nel_file_esce_con_2_senza_toccare_niente(self):
+        senza = pathlib.Path(tempfile.mkdtemp()) / "server.toml"
+        testo = ESEMPIO.read_text()
+        self.assertIn('subnet = "10.66.0.0/24"', testo)
+        senza.write_text(testo.replace('subnet = "10.66.0.0/24"', ""))
+        for cfg, extra in ((senza, []), (ESEMPIO, ["--subnet", "10.70.0.0/24"])):
+            with self.subTest(cfg=cfg.name, extra=extra):
+                codice, _, err = esegui(["init", "--apply", "--config", str(cfg), "--wan-interface", "ens3", *extra], BUONI)
+                self.assertEqual(codice, 2, err)
+                self.assertIn("subnet = ", err)
+                self.assertEqual(self.comandi, [])
+                self.assertFalse(self.manifest.exists())
+
     def test_wan_non_valida_esce_con_2_senza_toccare_niente(self):
         codice, _, err = self.apply_wan("ens3;drop")
         self.assertEqual(codice, 2, err)
