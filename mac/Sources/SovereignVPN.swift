@@ -46,6 +46,7 @@ final class Server: ObservableObject {
     @Published var peer: [Peer] = []
     @Published var audit: RapportoAudit?
     @Published var uscite: RapportoUscite?
+    @Published var chiaveUscita: String?
     @Published var lavoro: String?
     @Published var messaggio: String?
 
@@ -117,15 +118,31 @@ final class Server: ObservableObject {
             return c
         }
     }
-    /// Uscite per paese [H48]: il file del provider entra da stdin (mai copiato nella VM fuori dal pool 0600).
+    /// Uscite per paese [H48, H50]: il file entra da stdin (mai copiato nella VM fuori dal pool 0600). Dal bundle che esporta
+    /// un altro server SovereignVPN (.tar.gz) si prende il solo .conf: col segnaposto, che exit import riempie con la chiave di qui.
     func importaUscita(_ file: URL, paese: String, nome: String) async {
         await fai("Import dell'uscita") {
-            guard let dati = try? Data(contentsOf: file), dati.count <= 65536 else { return Comando(codice: 2, uscita: "", errore: "file illeggibile o oltre 64 KB") }
+            var dati = try? Data(contentsOf: file)
+            if file.pathExtension == "gz" {
+                let estratto = await esegui(["tar", "-xzOf", file.path, "*.conf"])
+                dati = estratto.codice == 0 ? Data(estratto.uscita.utf8) : nil
+            }
+            guard let dati, !dati.isEmpty, dati.count <= 65536 else { return Comando(codice: 2, uscita: "", errore: "file illeggibile, senza un .conf o oltre 64 KB") }
             return await sovereignctl(["exit", "import", "-", "--paese", paese.uppercased(), "--json"] + (nome.isEmpty ? [] : ["--nome", nome]), ingresso: dati)
         }
     }
     func scegliUscita(_ chi: String) async { await fai(chi == "off" ? "Uscita dal server" : "Uscita \(chi)") { await sovereignctl(["exit", "set", chi, "--config", CONFIG, "--json"]) } }
     func rotazione(_ minuti: Int) async { await fai("Rotazione") { await sovereignctl(["exit", "rotation", String(minuti), "--json"]) } }
+    /// [H50] La chiave pubblica di questo server per usarne un altro come uscita: nasce nella VM (0600), a schermo solo la pubblica.
+    func mostraChiaveUscita() async {
+        await fai("Chiave di questo server") {
+            let r = await sovereignctl(["exit", "key", "--json"])
+            if r.codice == 0, let j = try? JSONSerialization.jsonObject(with: Data(r.uscita.utf8)) as? [String: Any] {
+                self.chiaveUscita = j["chiave_pubblica"] as? String
+            }
+            return r
+        }
+    }
     func togliUscita(_ u: Uscita) async { await fai("Uscita \(u.id) tolta") { await sovereignctl(["exit", "remove", u.id, "--json"]) } }
 
     func eseguiAudit() async {
@@ -288,7 +305,7 @@ struct VistaUscite: View {
                             if let s = r?.prossimo_cambio_secondi { Text("Prossimo cambio d'IP fra \(max(1, (s + 59) / 60)) min").foregroundStyle(.secondary) }
                         }
                     }
-                    Text("Se l'uscita cade, i dispositivi restano senza Internet finche' non torna o non si passa a un'altra uscita dello stesso paese: mai un'uscita diretta dal server (kill switch).")
+                    Text("Se l'uscita cade, i dispositivi restano senza Internet finché non torna o non si passa a un'altra uscita dello stesso paese: mai un'uscita diretta dal server (kill switch).")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
                     Text("Nessuna: i dispositivi escono con l'IP del server SovereignVPN.").foregroundStyle(.secondary)
@@ -307,7 +324,7 @@ struct VistaUscite: View {
                     }
                 }.disabled(!server.installato || server.lavoro != nil)
                 if (r?.paesi ?? []).isEmpty {
-                    Text("Nessun paese ancora: importa i file WireGuard del provider, uno per server d'uscita.").foregroundStyle(.secondary)
+                    Text("Nessun paese ancora: un'uscita è un altro server SovereignVPN, tuo o di una persona di cui ti fidi (sotto, come si fa).").foregroundStyle(.secondary)
                 }
             }
             Section("Rotazione dell'IP") {
@@ -315,6 +332,23 @@ struct VistaUscite: View {
                     ForEach(Self.rotazioni, id: \.self) { m in Text(m == 0 ? "Mai (IP statico)" : m < 60 ? "Ogni \(m) minuti" : "Ogni \(m / 60) ore").tag(m) }
                 }.disabled(!server.installato || server.lavoro != nil)
                 Text("Si ruota fra le uscite dello stesso paese: con una sola uscita l'IP resta quello.").font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Usa un altro server come uscita") {
+                Text("1. Dai questa chiave a chi gestisce l'altro server SovereignVPN: la aggiunge come dispositivo (Aggiungi…) e ti manda il bundle del profilo.")
+                HStack {
+                    if let k = server.chiaveUscita {
+                        Text(k).monospaced().textSelection(.enabled).lineLimit(1)
+                        Spacer()
+                        Button("Copia") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(k, forType: .string) }.buttonStyle(.bordered)
+                    } else {
+                        Text("La chiave nasce su questo server; si mostra solo la parte pubblica.").foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Mostra la chiave") { Task { await server.mostraChiaveUscita() } }.buttonStyle(.bordered).disabled(!server.installato || server.lavoro != nil)
+                    }
+                }
+                Text("2. Importa qui sotto il bundle (.tar.gz) o il profilo (.conf), col paese di quel server: la chiave privata di questo server la scrive l'import, non passa mai di mano.")
+                Text("Le reti interne dei due server devono essere diverse; il server dell'amico va bene anche con un indirizzo di casa che cambia (DNS dinamico).")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 ForEach(r?.uscite ?? []) { u in
@@ -332,7 +366,7 @@ struct VistaUscite: View {
                 HStack {
                     Text("Uscite nel pool")
                     Spacer()
-                    Button("Importa un file del provider…") { apri() }.disabled(!server.installato)
+                    Button("Importa un'uscita…") { apri() }.buttonStyle(.bordered).disabled(!server.installato)
                 }
             }
         }
@@ -344,7 +378,7 @@ struct VistaUscite: View {
                 TextField("Paese (codice di due lettere: IT, DE, JP…)", text: $paese)
                 if paese.count == 2 { Text(nomePaese(paese.uppercased())).foregroundStyle(.secondary) }
                 TextField("Nome (facoltativo)", text: $nome)
-                Text("Il file contiene la chiave privata dell'uscita: resta sul server in un file 0600 e non si mostra mai.").font(.caption).foregroundStyle(.secondary)
+                Text("Il profilo resta sul server in un file 0600 e la chiave privata non si mostra mai.").font(.caption).foregroundStyle(.secondary)
                 HStack {
                     Spacer()
                     Button("Annulla") { file = nil }
@@ -362,8 +396,8 @@ struct VistaUscite: View {
     func apri() {
         let p = NSOpenPanel()
         p.allowsMultipleSelection = false; p.canChooseDirectories = false
-        p.allowedContentTypes = [UTType(filenameExtension: "conf") ?? .data]
-        p.message = "Il file WireGuard del server d'uscita, dal sito del provider"
+        p.allowedContentTypes = [UTType(filenameExtension: "conf") ?? .data, .gzip]
+        p.message = "Il bundle (.tar.gz) o il profilo (.conf) che ti ha dato l'altro server SovereignVPN"
         if p.runModal() == .OK, let u = p.url { paese = paeseDalFile(u); nome = ""; file = u }
     }
 }
