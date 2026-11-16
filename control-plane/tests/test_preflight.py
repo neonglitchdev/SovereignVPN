@@ -32,7 +32,23 @@ class Preflight(unittest.TestCase):
         self.assertEqual(codice, 0)
         self.assertIn("Controlli eseguiti: 12 su 12; superati: 12; falliti: 0", out)
         self.assertIn("Piano (da approvare", out)
-        self.assertIn("10.66.0.0/24", out)
+        self.assertRegex(out, r"10\.(6[6-9]|[7-9][0-9])\.0\.0/24")
+
+    def test_rete_scelta_a_caso_fra_le_libere(self):
+        imp = {"subnet": None}
+        scelte = {preflight.scegli_subnet(imp, ["192.168.1.0/24"])[0] for _ in range(40)}
+        self.assertGreater(len(scelte), 1, "sempre la stessa rete: due server federati nascerebbero uguali (H50)")
+        self.assertTrue(scelte <= set(preflight.CANDIDATE_VPN))
+        occupate = [c for c in preflight.CANDIDATE_VPN if c != "10.80.0.0/24"]  # tutte occupate tranne una
+        self.assertEqual(preflight.scegli_subnet(imp, occupate), ("10.80.0.0/24", []))
+        self.assertEqual(preflight.scegli_subnet(imp, preflight.CANDIDATE_VPN)[0], None)
+        self.assertEqual(preflight.scegli_subnet({"subnet": "10.50.0.0/24"}, [])[0], "10.50.0.0/24")  # quella data resta
+
+    def test_la_rete_scelta_esce_nel_json(self):
+        codice, out, _ = esegui(["init", "--check", "--json"], BUONI)
+        r = json.loads(out)
+        self.assertIn(r["subnet"], preflight.CANDIDATE_VPN)
+        self.assertIn(r["subnet"], next(c["dettaglio"] for c in r["controlli"] if c["id"] == "subnet"))
 
     def test_sistema_non_supportato_fallisce_col_rimedio(self):
         codice, out, _ = esegui(["init", "--check"], con(os=("ubuntu", "22.04")))
@@ -52,9 +68,10 @@ class Preflight(unittest.TestCase):
         self.assertIn("[FALLITO] Porta TCP 8443: gia' in uso", out)
 
     def test_ipam_salta_le_reti_occupate(self):
-        codice, out, _ = esegui(["init", "--check", "--json"], con(reti_host=["10.66.0.0/16"]))
-        self.assertEqual(codice, 0)
-        self.assertIn("10.67.0.0/24", out)
+        for _ in range(20):  # la scelta e' a caso: piu' giri, mai la rete occupata
+            codice, out, _ = esegui(["init", "--check", "--json"], con(reti_host=["10.66.0.0/16"]))
+            self.assertEqual(codice, 0)
+            self.assertIn(json.loads(out)["subnet"], preflight.CANDIDATE_VPN[1:])  # tutte tranne 10.66.0.0/24
         self.assertIn('"mutazioni_eseguite": 0', out)
 
     def test_zero_reti_lette_non_e_nessuna_collisione(self):

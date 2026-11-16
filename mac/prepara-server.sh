@@ -18,12 +18,16 @@ fi
 modprobe wireguard
 bash "$RADICE/ops/install.sh"
 if [ ! -f /etc/sovereignvpn/server.toml ]; then
+  # la rete dei peer: una /24 libera scelta a caso dall'IPAM, una volta sola (server.toml non si riscrive): due server
+  # federati non nascono con la stessa rete [H50]
+  SUBNET="$(sovereignctl init --check --json 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["subnet"] or "")' || true)"
+  [ -n "$SUBNET" ] || { echo "prepara-server: l'IPAM non ha trovato una /24 libera fra 10.66 e 10.99"; exit 1; }
   cat > /etc/sovereignvpn/server.toml <<EOF
 # SovereignVPN per Mac: configurazione scritta da prepara-server.sh
 schema_version = 1
 endpoint = "$ENDPOINT"
 wan_interface = "eth0"
-subnet = "10.66.0.0/24"
+subnet = "$SUBNET"
 admin_ssh_sources = ["$SSH_RETE"]   # colima entra da qui: senza, il firewall chiuderebbe fuori l'app (ANC-0182)
 EOF
   chmod 0600 /etc/sovereignvpn/server.toml

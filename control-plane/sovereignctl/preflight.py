@@ -4,14 +4,14 @@ Due tempi separati: `raccogli()` legge l'host senza scrivere niente, `valuta()` 
 Cosi' le prove girano con fatti finti su qualunque macchina, e il dry-run non ha un punto dove potrebbe mutare.
 Le soglie che il documento non fissa sono ipotesi [H] dichiarate nel rapporto: docs/decisions/ipotesi.md.
 """
-import ipaddress, json, os, platform, shutil, socket, subprocess
+import ipaddress, json, os, platform, secrets, shutil, socket, subprocess
 
 SISTEMI = {("debian", "12"), ("ubuntu", "24.04")}        # ANC-0086
 KERNEL_MINIMO = (5, 6)                                     # [H4] WireGuard e' nel kernel dalla 5.6
 DISCO_MINIMO = 10 * 1024 ** 3                              # [H5] 10 GiB liberi
 PORTA_WG = 51820                                           # ANC-0173, UDP
 PORTA_ADMIN = 8443                                         # [H7] TCP, solo su indirizzo locale (ADR-006)
-CANDIDATE_VPN = [f"10.{n}.0.0/24" for n in range(66, 100)]  # [H6] IPAM: la prima /24 che non collide
+CANDIDATE_VPN = [f"10.{n}.0.0/24" for n in range(66, 100)]  # [H6] IPAM: una /24 che non collide, scelta a caso [H50]
 
 
 class InputNonValido(ValueError):
@@ -144,15 +144,15 @@ def _versione(testo):
 
 
 def scegli_subnet(imp, reti_host):
-    """La subnet VPN: quella data, se non collide; altrimenti la prima candidata libera. (rete, collisioni)."""
+    """La subnet VPN: quella data, se non collide; altrimenti una candidata libera scelta a caso, perche' due server
+    federati non nascano con la stessa rete (H50: un'uscita nella rete dei peer si rifiuta). (rete, collisioni)."""
     occupate = [ipaddress.ip_network(r) for r in reti_host]
     if imp["subnet"]:
         rete = ipaddress.ip_network(imp["subnet"])
         return str(rete), [str(o) for o in occupate if o.overlaps(rete)]
-    for c in CANDIDATE_VPN:
-        rete = ipaddress.ip_network(c)
-        if not any(o.overlaps(rete) for o in occupate):
-            return c, []
+    libere = [c for c in CANDIDATE_VPN if not any(o.overlaps(ipaddress.ip_network(c)) for o in occupate)]
+    if libere:
+        return secrets.choice(libere), []
     return None, ["nessuna /24 libera fra 10.66.0.0 e 10.99.0.0"]
 
 
