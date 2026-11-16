@@ -76,6 +76,7 @@ class Immagine(unittest.TestCase):
         self.assertRegex(base_unbound, r"@sha256:[0-9a-f]{64}$")  # per digest, mai un tag mobile
         self.assertIn(f"FROM {base_unbound}\n", tor_df)
         self.assertIn("\nUSER debian-tor\n", tor_df)  # Tor non gira come root
+        self.assertIn(" tor tor-geoipdb ", tor_df)  # ExitNodes {xx} vuole la tabella dei paesi dei relay
         self.assertIn('CMD ["tor", "-f", "/etc/tor/torrc"]', tor_df)
 
     def test_unita_come_quelle_del_dns(self):
