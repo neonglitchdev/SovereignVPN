@@ -133,6 +133,10 @@ echo "OK: il sito vede l'uscita scelta (de-1 203.0.113.11, poi de-2 203.0.113.12
 sovctl set DE >/dev/null  # stesso paese: resta de-2
 sovctl rotation 1 >/dev/null
 indietro() { python3 -c 'import json,sys; p=sys.argv[1]; s=json.load(open(p)); s["ultimo_cambio"]-=int(sys.argv[2]); json.dump(s,open(p,"w"))' "$D/uscite/stato.json" "$1"; }
+# l'ultimo cambio ad adesso prima di spostarlo: i tempi della prova non devono dipendere da quanto e' lenta la macchina
+# (nella VM emulata, il 16/11, fra la scelta e il tick passavano piu' di 30 s, e la rotazione scattava «prima del minuto»)
+azzera() { python3 -c 'import json,sys,time; p=sys.argv[1]; s=json.load(open(p)); s["ultimo_cambio"]=int(time.time()); json.dump(s,open(p,"w"))' "$D/uscite/stato.json"; }
+azzera
 indietro 30
 sovctl tick >/dev/null
 [ "$(vede)" = "203.0.113.12" ] || rosso "la rotazione e' scattata prima del minuto"
@@ -155,9 +159,8 @@ ns usrv ip route del unreachable default metric 4294967295 table 51888
 echo "OK: wgx0 tolta = niente fuori; la tabella nft e la rotta unreachable bastano ciascuna da sola; tolte entrambe il sito vede 203.0.113.1 (la prova vede)"
 
 # 6. riparazione dal timer, poi failover: l'uscita 2 muore, quella attiva diventa la 2 e il timer passa alla 1
-# l'ultimo cambio ad adesso: la riparazione non deve dipendere da quanto e' durata la sezione 5 (oltre 180 s senza
-# handshake il timer farebbe il failover; nella VM emulata, il 16/11, la 5 e' durata di piu' e la prova e' caduta)
-python3 -c 'import json,sys,time; p=sys.argv[1]; s=json.load(open(p)); s["ultimo_cambio"]=int(time.time()); json.dump(s,open(p,"w"))' "$D/uscite/stato.json"
+# la riparazione non deve dipendere da quanto e' durata la sezione 5: oltre 180 s senza handshake il timer farebbe il failover
+azzera
 sovctl tick >/dev/null
 [ "$(vede)" = "203.0.113.11" ] || rosso "il giro del timer non ha riparato l'uscita"
 ns ux2 ip link set wge down
