@@ -124,6 +124,11 @@ class AvvioDns(unittest.TestCase):
             # chiunque potrebbe registrare; e un riavvio di Docker lasciava il DNS spento
             self.assertIn(f"docker run --rm --pull never --name sovereignvpn-{nome} ", unita)
             self.assertIn("\nPartOf=docker.service\n", unita)
+            self.assertIn("\nWantedBy=multi-user.target docker.service\n", unita)
+        # con --pull never l'immagine di Pi-hole deve arrivare all'installazione (prima arrivava al primo avvio)
+        installa = (ops / "install.sh").read_text()
+        self.assertIn('docker pull -q "$IMMAGINE_PIHOLE"', installa)
+        self.assertIn(re.search(r"pihole/pihole:[^ ]*@sha256:[0-9a-f]+", pihole).group(0), dns.IMMAGINE_PIHOLE)
         etichetta = re.search(r"(sovereignvpn-unbound:[\w.]+)", unbound).group(1)
         self.assertIn(f"docker build --network host -q -t {etichetta} ", (ops / "install.sh").read_text())
 

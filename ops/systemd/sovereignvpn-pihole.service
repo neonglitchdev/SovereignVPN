@@ -15,4 +15,6 @@ Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+# docker.service: ogni avvio di Docker accende il DNS (PartOf ne propaga solo arresto e riavvio, non l'avvio:
+# su colima Docker si riavvia dopo aver montato il disco dati, e il DNS restava spento)
+WantedBy=multi-user.target docker.service
