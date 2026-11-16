@@ -492,6 +492,7 @@ def aggiungi_parser(sotto, classe):
     se = az.add_parser("set", help="paese (IT), uscita (it-2) o off; applica subito"); se.add_argument("scelta")
     ro = az.add_parser("rotation", help="minuti fra un cambio e l'altro nel paese scelto; 0 = statica"); ro.add_argument("minuti", type=int)
     az.add_parser("tick", help="rotazione, failover e riparazione: lo lancia il timer ogni minuto")
+    tr = az.add_parser("tor", help="uscita da Tor in un paese (DE, NL...) o off; spegne prima le uscite WireGuard [H52]"); tr.add_argument("scelta")
     az.add_parser("key", help="chiave pubblica di questo server per usare un altro server SovereignVPN come uscita [H50]")
     for p in az.choices.values():
         p.add_argument("--cartella", help=f"di base {CARTELLA} (0700)")
@@ -533,6 +534,19 @@ def _scrivi(a, configurazione):
         cfg = configurazione.leggi(a.config)  # la rete dei peer, per rifiutare un'uscita che ci si sovrappone [H50]
         esito = importa(testo, a.paese, a.nome, a.cartella, subnet=cfg.get("subnet") or "10.66.0.0/24")
         umano = f"{esito['bandierina']} {esito['id']} ({esito['paese']}) aggiunta: {esito['endpoint']}"
+    elif a.azione == "tor":
+        from . import tor
+        cfg = configurazione.leggi(a.config)
+        if a.scelta == "off":
+            tor.spegni()
+            esito, umano = {"tor": None}, "uscita Tor spenta: i peer escono dal server"
+        else:
+            if stato(a.cartella)["attiva"]:  # [H52] mai un'uscita WireGuard e Tor insieme: prima giu' quella
+                scegli("off", a.cartella)
+                applica(cfg, cartella=a.cartella)
+            paese = a.scelta.upper()
+            tor.accendi(paese, cfg.get("subnet") or "10.66.0.0/24")
+            esito, umano = {"tor": paese}, f"{bandierina(paese)} uscita Tor da {paese} accesa (lenta: tre relay di volontari)"
     elif a.azione == "key":
         esito = {"chiave_pubblica": chiave_uscita(a.cartella)}
         umano = (f"{esito['chiave_pubblica']}\nDalla al server che ti fa da uscita: sovereignctl peer add --public-key ..., "

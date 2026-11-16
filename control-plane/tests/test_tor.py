@@ -52,6 +52,21 @@ class Accendi(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(c, "torrc")))
 
 
+class Cli(unittest.TestCase):
+    def test_exit_tor_spegne_prima_l_uscita_wireguard(self):
+        import contextlib, io, os, pathlib, tempfile
+        from unittest import mock
+        from sovereignctl import __main__ as cli
+        esempio = str(pathlib.Path(__file__).resolve().parents[2] / "config/examples/server.toml")
+        c, fatti = os.path.join(tempfile.mkdtemp(), "uscite"), []
+        os.makedirs(c, mode=0o700)
+        pathlib.Path(c, "stato.json").write_text('{"scelta": "DE", "attiva": "de-1", "rotazione_minuti": 0, "ultimo_cambio": 0}')
+        with mock.patch.object(uscite, "applica", lambda cfg, **k: fatti.append(("giu", uscite.stato(c)["attiva"])) or {"salita": False}), \
+             mock.patch.object(tor, "accendi", lambda p, s, **k: fatti.append(("tor", p, s))), \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cli.main(["exit", "tor", "nl", "--cartella", c, "--config", esempio]), 0)
+        self.assertEqual(fatti, [("giu", None), ("tor", "NL", "10.66.0.0/24")])
+
 class Immagine(unittest.TestCase):
     def test_stessa_base_pin_nata_di_unbound_e_mai_root(self):
         import pathlib
