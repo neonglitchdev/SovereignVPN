@@ -4,6 +4,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import CryptoKit
 
 let PROFILO = "sovereignvpn"
 let CONFIG = "/etc/sovereignvpn/server.toml"
@@ -47,6 +48,7 @@ final class Server: ObservableObject {
     @Published var audit: RapportoAudit?
     @Published var uscite: RapportoUscite?
     @Published var chiaveUscita: String?
+    @Published var qr: QRDispositivo?
     @Published var lavoro: String?
     @Published var messaggio: String?
 
@@ -98,6 +100,25 @@ final class Server: ObservableObject {
         await fai("Aggiunta di «\(nome)»") {
             let r = await sovereignctl(["peer", "add", "--name", nome, "--public-key", chiave, "--config", CONFIG, "--json"])
             return r.codice == 0 ? await sovereignctl(["reconcile", "--config", CONFIG]) : r
+        }
+    }
+    /// [H2, H51] La chiave del telefono nasce qui (CryptoKit Curve25519, una chiave WireGuard): il server riceve solo la
+    /// pubblica; la privata vive solo nel QR a schermo, non si scrive su disco ne' nella VM, e sparisce con la finestra.
+    func aggiungiConQR(nome: String) async {
+        await fai("Dispositivo «\(nome)» col QR") {
+            let chiave = Curve25519.KeyAgreement.PrivateKey()
+            let aggiunto = await sovereignctl(["peer", "add", "--name", nome, "--public-key", chiave.publicKey.rawRepresentation.base64EncodedString(), "--config", CONFIG, "--json"])
+            guard aggiunto.codice == 0, let j = try? JSONSerialization.jsonObject(with: Data(aggiunto.uscita.utf8)) as? [String: Any], let id = j["id"] as? String else { return aggiunto }
+            let r = await sovereignctl(["reconcile", "--config", CONFIG])
+            guard r.codice == 0 else { return r }
+            let ex = await sovereignctl(["profile", "export", id, "--conferma", "--config", CONFIG, "--json"])
+            guard ex.codice == 0, let e = try? JSONSerialization.jsonObject(with: Data(ex.uscita.utf8)) as? [String: Any], let percorso = e["percorso"] as? String else { return ex }
+            let profilo = await esegui(["colima", "ssh", "--profile", PROFILO, "--", "sudo", "cat", percorso])
+            guard profilo.codice == 0, let conf = confPerQR(profilo.uscita, privata: chiave.rawRepresentation.base64EncodedString()), let img = codiceQR(conf) else {
+                return Comando(codice: 1, uscita: "", errore: "profilo senza la riga della chiave: niente QR")
+            }
+            self.qr = QRDispositivo(nome: nome, immagine: img)
+            return profilo
         }
     }
     func rinomina(_ p: Peer, in nome: String) async { await fai("Rinomina") { await sovereignctl(["peer", "rename", p.id, "--name", nome, "--json"]) } }
@@ -226,13 +247,20 @@ struct VistaStato: View {
 struct VistaDispositivi: View {
     @EnvironmentObject var server: Server
     @State private var nuovo = false
+    @State private var nuovoQR = false
     @State private var nome = ""
     @State private var chiave = ""
     @State private var daRinominare: Peer?
     @State private var daRevocare: Peer?
     var body: some View {
         VStack(alignment: .leading) {
-            HStack { Text("Dispositivi").font(.title2.bold()); Spacer(); Button("Aggiungi…") { nome = ""; chiave = ""; nuovo = true }.disabled(!server.installato) }.padding()
+            HStack {
+                Text("Dispositivi").font(.title2.bold()); Spacer()
+                Group {  // col riquadro e della stessa misura
+                    Button { nome = ""; nuovoQR = true } label: { Text("Aggiungi col QR…").frame(width: 130) }
+                    Button { nome = ""; chiave = ""; nuovo = true } label: { Text("Aggiungi…").frame(width: 130) }
+                }.buttonStyle(.bordered).disabled(!server.installato || server.lavoro != nil)
+            }.padding()
             Table(server.peer) {
                 TableColumn("Nome") { p in Text(p.nome) }
                 TableColumn("Indirizzo") { p in Text(p.indirizzo).monospaced() }
@@ -255,6 +283,23 @@ struct VistaDispositivi: View {
                 Text("La chiave privata nasce e resta sul dispositivo: qui solo la pubblica.").font(.caption).foregroundStyle(.secondary)
                 HStack { Spacer(); Button("Annulla") { nuovo = false }; Button("Aggiungi") { nuovo = false; Task { await server.aggiungi(nome: nome, chiave: chiave) } }.keyboardShortcut(.defaultAction).disabled(nome.isEmpty || chiave.isEmpty) }
             }.padding().frame(width: 460)
+        }
+        .sheet(isPresented: $nuovoQR) {
+            Form {
+                Text("Nuovo dispositivo col QR").font(.headline)
+                TextField("Nome (Telefono di Francesco…)", text: $nome)
+                Text("La chiave del dispositivo nasce qui sul Mac; il server riceve solo la parte pubblica. Il QR la porta al telefono e non si salva da nessuna parte.").font(.caption).foregroundStyle(.secondary)
+                HStack { Spacer(); Button("Annulla") { nuovoQR = false }; Button("Crea il QR") { nuovoQR = false; Task { await server.aggiungiConQR(nome: nome) } }.keyboardShortcut(.defaultAction).disabled(nome.isEmpty) }
+            }.padding().frame(width: 460)
+        }
+        .sheet(item: $server.qr) { q in
+            VStack(spacing: 14) {
+                Text("Inquadra con l'app WireGuard").font(.headline)
+                Image(nsImage: q.immagine).interpolation(.none).resizable().frame(width: 320, height: 320)
+                Text("Sul telefono: app WireGuard › + › Scansiona codice QR, nome «\(q.nome)».").multilineTextAlignment(.center)
+                Text("Il codice contiene la chiave privata del telefono: non fotografarlo e chiudi la finestra dopo la scansione.").font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Button("Fatto") { server.qr = nil }.keyboardShortcut(.defaultAction).buttonStyle(.bordered)
+            }.padding(24).frame(width: 420)
         }
         .sheet(item: $daRinominare) { p in
             Form {

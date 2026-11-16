@@ -10,7 +10,7 @@ ogni feature che apre un confine nuovo o un traffico nuovo verso fuori (NFR-SEC-
 | Condizione | Prova che la smentirebbe |
 | --- | --- |
 | Il tunnel termina sul server dell'amministratore: WireGuard del kernel su `wg0`, nessun relay di terzi | `prova_wg_vero.sh`; `prova_traffico_vero.sh` sezione 1 (il sito vede l'indirizzo del server) |
-| Le chiavi dei peer nascono sui dispositivi: il server non ne ha la privata (H2) | `test_peer.py`; il profilo esportato porta un segnaposto (`test_profilo.py`) |
+| Le chiavi dei peer nascono sui dispositivi, o nell'app del Mac che le porta al telefono solo col QR a schermo, senza scriverle su disco né nella VM (H51): il server non ne ha mai la privata (H2) | `test_peer.py`; il profilo esportato porta un segnaposto (`test_profilo.py`); `mac/prova-qr.sh` (il QR riletto è il profilo con la chiave; un profilo senza segnaposto è rifiutato) |
 | La chiave del server è un file 0600 che non esce mai: né output, né log, né bundle | `prova_init_vero.sh` giri 1 e 5b; AUD-02; `test_diagnostica.py` e gitleaks nel giro 5b |
 | Il pannello e l'API non esistono nella 1.0: niente in ascolto sulla porta di amministrazione fuori da loopback e VPN (H37) | AUD-19; `prova_traffico_vero.sh` sezione 4 (dal WAN fermo) |
 | SSH si raggiunge solo dalle sorgenti dichiarate | `prova_traffico_vero.sh` sezione 5; AUD-12 avvisa se una sorgente è /0 |
