@@ -88,6 +88,9 @@ class Immagine(unittest.TestCase):
         self.assertIn("\nPartOf=docker.service\n", u)
         self.assertIn("\nWantedBy=multi-user.target docker.service\n", u)
         self.assertIn("\nConditionPathExists=/etc/sovereignvpn/tor/torrc\n", u)
+        installa = (pathlib.Path(__file__).resolve().parents[2] / "ops/install.sh").read_text()
+        etichetta = re.search(r"(sovereignvpn-tor:[\w.]+)", u).group(1)
+        self.assertIn(f"docker build --network host -q -t {etichetta} ", installa)  # con --pull never l'immagine nasce qui
 
 if __name__ == "__main__":
     unittest.main()

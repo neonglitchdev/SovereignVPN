@@ -218,6 +218,7 @@ fi
 if [ -z "$RADICE" ] && command -v docker >/dev/null 2>&1; then
   # rete host: su un server gia' inizializzato il FORWARD in drop del firewall chiuderebbe il bridge della build
   docker build --network host -q -t sovereignvpn-unbound:14.0.0 "$SORGENTE_DNS/unbound" >/dev/null
+  docker build --network host -q -t sovereignvpn-tor:14.0.0 "$SORGENTE_DNS/../tor" >/dev/null  # [H52] l'uscita Tor, ferma finche' serve
   IMMAGINE_PIHOLE="$(grep -o 'pihole/pihole:[^ ]*@sha256:[0-9a-f]*' "$UNITA/sovereignvpn-pihole.service")"
   docker pull -q "$IMMAGINE_PIHOLE" >/dev/null
 fi
