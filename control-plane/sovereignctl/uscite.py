@@ -147,10 +147,19 @@ def lucchetto(cartella=None):
         os.close(fd)
 
 
-def importa(testo, paese, nome=None, cartella=None):
-    """Aggiunge un'uscita al pool: file 0600 col testo originale, scheda pubblica in pool.json. Restituisce la scheda."""
+def importa(testo, paese, nome=None, cartella=None, subnet=None):
+    """Aggiunge un'uscita al pool: file 0600 col testo originale, scheda pubblica in pool.json. Restituisce la scheda.
+
+    `subnet` e' la rete dei peer di questo server: un'uscita col suo indirizzo li' dentro si rifiuta (route overlap,
+    ANC-0273). Succede col profilo di un altro server SovereignVPN che usa la stessa rete [H50]."""
     cartella = cartella or CARTELLA
     u = leggi(testo, paese)
+    if subnet:
+        rete = ipaddress.ip_network(subnet)
+        for ind in u["indirizzi"]:
+            if ipaddress.ip_interface(ind).network.overlaps(rete):
+                raise UscitaNonValida(f"l'indirizzo dell'uscita {ind} sta nella rete dei peer di questo server ({rete}): "
+                                      "i due server usano la stessa rete. Uno dei due va installato con un'altra subnet")
     if nome is not None and not NOME.match(nome):
         raise UscitaNonValida("--nome: da 1 a 40 fra lettere, cifre, spazi e . - ( )")
     os.makedirs(cartella, mode=0o700, exist_ok=True)
@@ -432,7 +441,8 @@ def _scrivi(a, configurazione):
         else:
             with open(a.file, encoding="utf-8") as f:
                 testo = f.read(65536)
-        esito = importa(testo, a.paese, a.nome, a.cartella)
+        cfg = configurazione.leggi(a.config)  # la rete dei peer, per rifiutare un'uscita che ci si sovrappone [H50]
+        esito = importa(testo, a.paese, a.nome, a.cartella, subnet=cfg.get("subnet") or "10.66.0.0/24")
         umano = f"{esito['bandierina']} {esito['id']} ({esito['paese']}) aggiunta: {esito['endpoint']}"
     elif a.azione == "remove":
         togli(a.id, a.cartella)

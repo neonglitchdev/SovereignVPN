@@ -3,7 +3,7 @@ rotazione e failover, ordine dei comandi sull'host (kill switch per primo), CLI 
 import contextlib, fcntl, io, json, os, pathlib, stat, tempfile, unittest
 from unittest import mock
 
-from sovereignctl import __main__ as cli, firewall, uscite
+from sovereignctl import __main__ as cli, firewall, profilo, uscite
 
 BUONA = """[Interface]
 PrivateKey = cHJpdmF0YXByaXZhdGFwcml2YXRhcHJpdmF0YXByaXY=  # gitleaks:allow (chiave finta della prova, T-025)
@@ -15,11 +15,38 @@ Endpoint = 185.1.2.3:51820
 AllowedIPs = 0.0.0.0/0, ::/0
 """
 PRIVATA = "cHJpdmF0YXByaXZhdGFwcml2YXRhcHJpdmF0YXByaXY="
+ESEMPIO = str(pathlib.Path(__file__).resolve().parents[2] / "config" / "examples" / "server.toml")  # subnet 10.66.0.0/24
 
 
 def altra(n):
     """Un'altra uscita valida: chiave pubblica ed endpoint diversi."""
     return BUONA.replace("185.1.2.3", f"185.1.2.{10 + n}").replace("cHViYmxpY2Fw", f"cHViYmxpY{n}Fw")
+
+
+class Federazione(unittest.TestCase):
+    """[H50] Un altro server SovereignVPN come uscita: il profilo di un suo dispositivo e' gia' un file d'uscita."""
+    CHIAVE_A = "c2VydmVyYXNlcnZlcmFzZXJ2ZXJhc2VydmVyYXNlcnY="
+
+    def profilo_di_a(self, subnet_a):
+        cfg_a = {"endpoint": "203.0.113.10", "subnet": subnet_a, "subnet6": "fdd3:5205:9303::/64"}
+        p = {"id": "nodo-b", "nome": "Nodo B", "indirizzo": str(next(__import__("ipaddress").ip_network(subnet_a).hosts()) + 6),
+             "rotte": None, "scade": None}
+        return profilo.componi(p, cfg_a, self.CHIAVE_A).replace(profilo.SEGNAPOSTO, PRIVATA)
+
+    def test_il_profilo_di_un_altro_server_e_un_uscita(self):
+        c = tempfile.mkdtemp()
+        s = uscite.importa(self.profilo_di_a("10.77.0.0/24"), "DE", cartella=c, subnet="10.66.0.0/24")
+        self.assertEqual((s["endpoint"], s["indirizzi"], s["chiave_pubblica"]), ("203.0.113.10:51820", ["10.77.0.7/32"], self.CHIAVE_A))
+
+    def test_stessa_rete_dei_peer_rifiutata(self):
+        c = tempfile.mkdtemp()
+        with self.assertRaises(uscite.UscitaNonValida) as e:
+            uscite.importa(self.profilo_di_a("10.66.0.0/24"), "DE", cartella=c, subnet="10.66.0.0/24")
+        self.assertIn("stessa rete", str(e.exception))
+        self.assertEqual(uscite.pool(c), [])  # niente nel pool, niente file
+        self.assertEqual([x for x in os.listdir(c) if x.endswith(".conf")], [])
+        with self.assertRaises(uscite.UscitaNonValida):  # anche una rete piu' larga che la contiene
+            uscite.importa(BUONA.replace("10.64.12.7/32", "10.0.0.2/8"), "DE", cartella=c, subnet="10.66.0.0/24")
 
 
 class Pool(unittest.TestCase):
@@ -229,8 +256,11 @@ class Cli(unittest.TestCase):
         c = os.path.join(tempfile.mkdtemp(), "uscite")
         f = os.path.join(os.path.dirname(c), "de.conf")
         pathlib.Path(f).write_text(BUONA)
-        for argomenti, codice in ((["exit", "import", f, "--paese", "DE", "--cartella", c], 0),
-                                  (["exit", "import", f, "--paese", "DE", "--cartella", c], 2),
+        nella_rete = os.path.join(os.path.dirname(c), "stessa-rete.conf")
+        pathlib.Path(nella_rete).write_text(altra(3).replace("10.64.12.7/32", "10.66.0.9/32"))
+        for argomenti, codice in ((["exit", "import", f, "--paese", "DE", "--cartella", c, "--config", ESEMPIO], 0),
+                                  (["exit", "import", f, "--paese", "DE", "--cartella", c, "--config", ESEMPIO], 2),
+                                  (["exit", "import", nella_rete, "--paese", "DE", "--cartella", c, "--config", ESEMPIO], 2),
                                   (["exit", "list", "--json", "--cartella", c], 0)):
             out = io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
