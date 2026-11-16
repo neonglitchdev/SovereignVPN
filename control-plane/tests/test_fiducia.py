@@ -1,12 +1,13 @@
 """Prova della riga «nessuna telemetria, per costruzione» di docs/decisions/fiducia.md (NFR-SEC-006) [H46]: nessun modulo
-del control plane importa librerie di rete; `socket` solo in stato.py (domande DNS ai resolver locali) e in preflight.py
-(un bind locale per sapere se una porta e' libera).
+del control plane importa librerie di rete; `socket` solo in stato.py (domande DNS ai resolver locali), in preflight.py
+(un bind locale per sapere se una porta e' libera) e in uscite.py (il nome di un'uscita al resolver del server, H50).
 Uso, da control-plane/: python3 -m unittest discover -s tests"""
 import ast, pathlib, tempfile, unittest
 
 CARTELLA = pathlib.Path(__file__).resolve().parents[1] / "sovereignctl"
 VIETATI = {"urllib", "http", "requests", "httpx", "smtplib", "ftplib", "telnetlib", "xmlrpc", "asyncio"}
-SOCKET_AMMESSO = {"stato.py", "preflight.py"}  # status: domande DNS in locale; preflight: un bind per sapere se la porta e' libera
+SOCKET_AMMESSO = {"stato.py", "preflight.py", "uscite.py"}  # status: domande DNS in locale; preflight: un bind per sapere
+# se la porta e' libera; uscite: il nome dell'uscita all'import e al failover (H50, dichiarato in docs/decisions/fiducia.md)
 
 
 def importati(file):

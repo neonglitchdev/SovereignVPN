@@ -17,9 +17,9 @@ Rotazione: statica (0) o ogni N minuti fra le uscite dello stesso paese; failove
 HANDSHAKE_MASSIMO secondi si passa alla successiva dello stesso paese. Lo fa `exit tick`, dal timer ogni minuto.
 Il DNS dei peer resta Pi-hole e Unbound sul server: i nomi si risolvono dall'IP del server, i siti vedono l'uscita.
 """
-import contextlib, fcntl, ipaddress, json, os, re, subprocess, sys, time
+import contextlib, fcntl, ipaddress, json, os, re, socket, subprocess, sys, time
 
-from . import firewall, peer, profilo, registro
+from . import configurazione, firewall, peer, profilo, registro
 from .preflight import InputNonValido
 
 CARTELLA = "/var/lib/sovereignvpn/uscite"
@@ -91,10 +91,12 @@ def leggi(testo, paese):
         raise UscitaNonValida("AllowedIPs del Peer deve contenere 0.0.0.0/0: e' l'uscita di tutto il traffico dei peer")
     host, _, porta = campi["Peer"]["Endpoint"].rpartition(":")
     try:
-        if ipaddress.ip_address(host).version != 4 or not 1 <= int(porta) <= 65535:
-            raise ValueError
-    except ValueError:
-        raise UscitaNonValida("Endpoint: un IPv4 letterale con la porta (al riavvio non c'e' DNS, e la scelta del paese non passa da un DNS)")
+        ip = ipaddress.ip_address(host)
+    except ValueError:  # [H50] un nome (il server di casa col DNS dinamico): si risolve all'import, al riavvio vale l'IP salvato
+        ip = None
+    nome_valido = ip is None and configurazione.NOME_HOST.match(host) and not re.fullmatch(r"[0-9.]+", host)
+    if not (porta.isdigit() and 1 <= int(porta) <= 65535) or not (nome_valido or (ip and ip.version == 4)):
+        raise UscitaNonValida("Endpoint: un IPv4 o un nome host, con la porta (l'IPv6 dell'uscita non si usa nella 1.0)")
     try:
         indirizzi = _ipv4(campi)
         if "MTU" in campi["Interface"] and not 1280 <= int(campi["Interface"]["MTU"]) <= 1500:
@@ -104,7 +106,15 @@ def leggi(testo, paese):
     if not indirizzi:
         raise UscitaNonValida("Address: serve un indirizzo IPv4 del tunnel d'uscita (l'IPv6 dei peer e' bloccato nella 1.0)")
     return {"paese": paese, "bandierina": bandierina(paese), "endpoint": campi["Peer"]["Endpoint"],
-            "indirizzi": indirizzi, "chiave_pubblica": campi["Peer"]["PublicKey"]}
+            "indirizzi": indirizzi, "chiave_pubblica": campi["Peer"]["PublicKey"], "nome": host.lower() if nome_valido else None}
+
+
+def _risolvi(nome):
+    """Il primo IPv4 di un nome, dal resolver del server. Solleva UscitaNonValida se non ce n'e'."""
+    try:
+        return socket.getaddrinfo(nome, None, socket.AF_INET, socket.SOCK_DGRAM)[0][4][0]
+    except (socket.gaierror, IndexError, UnicodeError):
+        raise UscitaNonValida(f"il nome {nome} non si risolve in un indirizzo IPv4")
 
 
 # --- pool e stato su disco ------------------------------------------------------------------------------------------
@@ -154,7 +164,7 @@ def lucchetto(cartella=None):
         os.close(fd)
 
 
-def importa(testo, paese, nome=None, cartella=None, subnet=None):
+def importa(testo, paese, nome=None, cartella=None, subnet=None, risolvi=None):
     """Aggiunge un'uscita al pool: file 0600 col testo originale, scheda pubblica in pool.json. Restituisce la scheda.
 
     `subnet` e' la rete dei peer di questo server: un'uscita col suo indirizzo li' dentro si rifiuta (route overlap,
@@ -173,7 +183,12 @@ def importa(testo, paese, nome=None, cartella=None, subnet=None):
     os.makedirs(cartella, mode=0o700, exist_ok=True)
     os.chmod(cartella, 0o700)
     schede = pool(cartella)
-    doppia = [s["id"] for s in schede if s["chiave_pubblica"] == u["chiave_pubblica"] and s["endpoint"] == u["endpoint"]]
+    if u["nome"]:  # la scheda tiene il nome e l'IP di adesso: wg riceve sempre l'IP [H50]
+        porta = u["endpoint"].rpartition(":")[2]
+        u["nome_endpoint"] = f"{u['nome']}:{porta}"
+        u["endpoint"] = f"{(risolvi or _risolvi)(u['nome'])}:{porta}"
+    doppia = [s["id"] for s in schede if s["chiave_pubblica"] == u["chiave_pubblica"]
+              and s.get("nome_endpoint", s["endpoint"]) == u.get("nome_endpoint", u["endpoint"])]
     if doppia:
         raise UscitaNonValida(f"uscita gia' nel pool come {doppia[0]}")
     ids, n = {s["id"] for s in schede}, 1
@@ -184,6 +199,8 @@ def importa(testo, paese, nome=None, cartella=None, subnet=None):
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(testo)
     scheda = {"id": ident, "nome": nome or ident, **{k: u[k] for k in ("paese", "endpoint", "indirizzi", "chiave_pubblica")}}
+    if u["nome"]:
+        scheda["nome_endpoint"] = u["nome_endpoint"]
     _scrivi_json(os.path.join(cartella, "pool.json"), schede + [scheda])
     return {**scheda, "bandierina": u["bandierina"]}
 
@@ -345,6 +362,9 @@ def applica(cfg, wg_if="wg0", cartella=None):
         return {"attiva": None, "salita": True, "dettaglio": "nessuna uscita: i peer escono dal server"}
     with open(os.path.join(cartella, st["attiva"] + ".conf"), encoding="utf-8") as f:
         campi = _analizza(f.read())
+    scheda = next((s for s in pool(cartella) if s["id"] == st["attiva"]), None)
+    if scheda:  # l'IP della scheda: per un'uscita col nome e' quello risolto, e al riavvio non serve il DNS
+        campi["Peer"]["Endpoint"] = scheda["endpoint"]
     rete = str(ipaddress.ip_network(cfg.get("subnet") or "10.66.0.0/24"))
     firewall.applica_tabella(kill_switch(wg_if))  # per primo: da qui in poi niente esce dalla WAN
     t = str(TABELLA_ROTTE)
@@ -388,13 +408,40 @@ def viva():
             and _cmd("ip", "link", "show", INTERFACCIA, tollera=True)[0] == 0)
 
 
-def tick(cfg, wg_if="wg0", cartella=None, adesso=None):
+def _indirizzo_nuovo(st, cartella, adesso, eta, risolvi=None):
+    """Uscita col nome senza handshake da HANDSHAKE_MASSIMO: si risolve di nuovo; se l'IP e' cambiato si aggiorna la scheda
+    e si restituisce «nome -> IP»; altrimenti None (e decide il failover)."""
+    if adesso - st["ultimo_cambio"] < HANDSHAKE_MASSIMO or (eta is not None and eta < HANDSHAKE_MASSIMO):
+        return None
+    schede = pool(cartella)
+    s = next((x for x in schede if x["id"] == st["attiva"] and x.get("nome_endpoint")), None)
+    if not s:
+        return None
+    nome, _, porta = s["nome_endpoint"].rpartition(":")
+    try:
+        ip = (risolvi or _risolvi)(nome)
+    except UscitaNonValida:
+        return None
+    if s["endpoint"] == f"{ip}:{porta}":
+        return None
+    s["endpoint"] = f"{ip}:{porta}"
+    _scrivi_json(os.path.join(cartella, "pool.json"), schede)
+    return f"{nome} -> {ip}"
+
+
+def tick(cfg, wg_if="wg0", cartella=None, adesso=None, risolvi=None):
     """Dal timer, ogni minuto: rotazione, failover e riparazione. {cambio, motivo, applicato}."""
     cartella, adesso = cartella or CARTELLA, int(adesso if adesso is not None else time.time())
     st = stato(cartella)
     if not st["attiva"]:
         return {"cambio": None, "motivo": None, "applicato": None}
-    nuova, motivo = da_cambiare(st, pool(cartella), adesso, eta_handshake(adesso))
+    eta = eta_handshake(adesso)
+    nuovo = _indirizzo_nuovo(st, cartella, adesso, eta, risolvi)
+    if nuovo:  # prima del failover: il server di casa ha solo cambiato IP
+        st["ultimo_cambio"] = adesso
+        _salva_stato(st, cartella)
+        return {"cambio": None, "motivo": f"indirizzo nuovo per {nuovo}", "applicato": applica(cfg, wg_if, cartella)}
+    nuova, motivo = da_cambiare(st, pool(cartella), adesso, eta)
     if nuova:
         st.update(attiva=nuova, ultimo_cambio=adesso)
         _salva_stato(st, cartella)
@@ -461,7 +508,8 @@ def esegui(a):
             print(json.dumps(esito, ensure_ascii=False, indent=1) if a.json else
                   "\n".join([f"scelta: {esito['scelta'] or 'nessuna (i peer escono dal server)'}; rotazione: "
                              + (f"ogni {esito['rotazione_minuti']} minuti" if esito['rotazione_minuti'] else "statica")]
-                            + [f"  {u['bandierina']} {u['id']:8} {u['nome']:20} {u['endpoint']}" + ("  <- attiva" if u["attiva"] else "")
+                            + [f"  {u['bandierina']} {u['id']:8} {u['nome']:20} {u['endpoint']}"
+                               + (f" ({u['nome_endpoint']})" if u.get("nome_endpoint") else "") + ("  <- attiva" if u["attiva"] else "")
                                for u in esito["uscite"]]))
             return 0
         with lucchetto(a.cartella):
