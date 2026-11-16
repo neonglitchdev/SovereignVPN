@@ -4,11 +4,13 @@
 Description=SovereignVPN: Unbound, DNS ricorsivo con DNSSEC solo su 127.0.0.1
 Requires=docker.service
 After=docker.service
+# un riavvio di Docker (colima monta il suo disco dati dopo l'avvio e lo riavvia) riavvia anche questa unita'
+PartOf=docker.service
 ConditionPathExists=/etc/sovereignvpn/dns/unbound.conf
 
 [Service]
 ExecStartPre=-/usr/bin/docker rm -f sovereignvpn-unbound
-ExecStart=/usr/bin/docker run --rm --name sovereignvpn-unbound --network host --read-only --cap-drop ALL --cap-add SETUID --cap-add SETGID --security-opt no-new-privileges -v /etc/sovereignvpn/dns/unbound.conf:/etc/unbound/unbound.conf:ro sovereignvpn-unbound:14.0.0
+ExecStart=/usr/bin/docker run --rm --pull never --name sovereignvpn-unbound --network host --read-only --cap-drop ALL --cap-add SETUID --cap-add SETGID --security-opt no-new-privileges -v /etc/sovereignvpn/dns/unbound.conf:/etc/unbound/unbound.conf:ro sovereignvpn-unbound:14.0.0
 ExecStop=/usr/bin/docker stop sovereignvpn-unbound
 Restart=on-failure
 RestartSec=5
