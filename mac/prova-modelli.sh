@@ -12,7 +12,7 @@ python3 -m sovereignctl status --config ../config/examples/server.toml --db "$D/
 python3 -m sovereignctl audit run --config ../config/examples/server.toml --db "$D/r.db" --json > "$D/audit.json" || true
 printf '[Interface]\nPrivateKey = %s\nAddress = 10.64.1.2/32\n[Peer]\nPublicKey = %s\nEndpoint = 185.1.2.3:51820\nAllowedIPs = 0.0.0.0/0\n' \
   "$(python3 -c 'import base64,os; print(base64.b64encode(os.urandom(32)).decode())')" "$(python3 -c 'import base64,os; print(base64.b64encode(os.urandom(32)).decode())')" \
-  | python3 -m sovereignctl exit import - --paese DE --nome Francoforte --cartella "$D/uscite" >/dev/null
+  | python3 -m sovereignctl exit import - --paese DE --nome Francoforte --cartella "$D/uscite" --config ../config/examples/server.toml >/dev/null
 python3 -m sovereignctl exit list --cartella "$D/uscite" --json > "$D/uscite.json"
 "$D/prova" "$D/peer.json" "$D/status.json" "$D/audit.json" "$D/uscite.json"
 python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); del r["controlli"][0]["evidenza"]; json.dump(r, open(sys.argv[2],"w"))' "$D/audit.json" "$D/audit-rotto.json"
