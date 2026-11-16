@@ -179,6 +179,7 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "Unbound scarica l'immagine all'avvio": ("ops/systemd/sovereignvpn-unbound.service", "docker run --rm --pull never --name", "docker run --rm --name"),
     "Tor scarica l'immagine all'avvio": ("ops/systemd/sovereignvpn-tor.service", "docker run --rm --pull never --name sovereignvpn-tor", "docker run --rm --name sovereignvpn-tor"),
     "uscita Tor senza blocco dell'inoltro": ("tor.py", "drop  # niente inoltro dei peer con Tor", "accept  # niente inoltro dei peer con Tor"),
+    "Tor acceso prima delle regole": ("tor.py", "    firewall.applica_tabella(tabella)\n    _cmd(\"systemctl\", \"restart\", UNITA)\n", "    _cmd(\"systemctl\", \"restart\", UNITA)\n    firewall.applica_tabella(tabella)\n"),
     "Tor gira come root nel container": ("ops/tor/Dockerfile", "USER debian-tor\n", ""),
     "Tor esce da qualunque paese": ("tor.py", '        "StrictNodes 1",', '        "StrictNodes 0",'),
     "TransPort di Tor aperta a tutti": ("tor.py", 'f"TransPort 127.0.0.1:{PORTA_TRANS}"', 'f"TransPort 0.0.0.0:{PORTA_TRANS}"'),

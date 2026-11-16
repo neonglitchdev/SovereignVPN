@@ -35,6 +35,23 @@ class Regole(unittest.TestCase):
             tor.regole("10.71.0.0/33")
 
 
+class Accendi(unittest.TestCase):
+    def test_regole_prima_di_tor_e_tor_giu_prima_delle_regole(self):
+        import os, tempfile
+        from unittest import mock
+        from sovereignctl import firewall, uscite as u
+        c, fatti = os.path.join(tempfile.mkdtemp(), "tor"), []
+        cmd = lambda *a, ingresso=None, tollera=False: fatti.append(" ".join(a)) or (0, "")
+        with mock.patch.object(u, "_cmd", cmd), mock.patch.object(firewall, "applica_tabella", lambda r: fatti.append("nft " + r.split()[2])):
+            tor.accendi("DE", "10.66.0.0/24", cartella=c)
+            self.assertEqual(fatti, ["nft sovereignvpn_tor", "systemctl restart sovereignvpn-tor.service"])
+            self.assertIn("ExitNodes {de}", open(os.path.join(c, "torrc")).read())
+            fatti.clear()
+            tor.spegni(cartella=c)
+            self.assertEqual(fatti, ["systemctl stop sovereignvpn-tor.service", "nft delete table inet sovereignvpn_tor"])
+            self.assertFalse(os.path.exists(os.path.join(c, "torrc")))
+
+
 class Immagine(unittest.TestCase):
     def test_stessa_base_pin_nata_di_unbound_e_mai_root(self):
         import pathlib

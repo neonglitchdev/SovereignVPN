@@ -4,7 +4,7 @@ Primo pezzo: solo il testo di torrc, provato. Disegno (handoff del 16/11): il TC
 TransPort, il DNS dei peer da Unbound alla DNSPort, l'UDP scartato, il kill switch di H48 invariato; rotazione con
 NEWNYM sulla ControlSocket. Tutto ascolta solo su 127.0.0.1: nessuna porta di Tor e' raggiungibile da fuori.
 """
-import ipaddress
+import ipaddress, os
 
 from .uscite import PAESE, UscitaNonValida
 
@@ -52,3 +52,37 @@ def regole(subnet, wg_if="wg0"):
         "  }",
         "}",
     ]) + "\n"
+
+
+CARTELLA = "/etc/sovereignvpn/tor"
+UNITA = "sovereignvpn-tor.service"
+
+
+def accendi(paese, subnet, wg_if="wg0", cartella=None):
+    """Uscita Tor dal paese: torrc scritto (atomico, 0644: niente segreti), regole su PRIMA di Tor (mai un istante in
+    cui il TCP dei peer esce dalla WAN), poi l'unita'. Restituisce il torrc scritto."""
+    from . import firewall
+    from .uscite import _cmd
+    cartella = cartella or CARTELLA
+    testo, tabella = torrc(paese), regole(subnet, wg_if)
+    os.makedirs(cartella, mode=0o755, exist_ok=True)
+    tmp = os.path.join(cartella, "torrc.nuovo")
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(testo)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, os.path.join(cartella, "torrc"))
+    firewall.applica_tabella(tabella)
+    _cmd("systemctl", "restart", UNITA)
+    return testo
+
+
+def spegni(cartella=None):
+    """Tor giu' PRIMA di togliere le regole; poi la tabella e il torrc (l'unita' non riparte senza torrc)."""
+    from .uscite import _cmd
+    cartella = cartella or CARTELLA
+    _cmd("systemctl", "stop", UNITA, tollera=True)
+    _cmd("nft", "delete", "table", "inet", TABELLA_NFT, tollera=True)
+    try:
+        os.remove(os.path.join(cartella, "torrc"))
+    except FileNotFoundError:
+        pass
