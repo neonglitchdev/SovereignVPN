@@ -73,7 +73,8 @@ SORGENTE_UNITA="$(cd "$(dirname "$0")" && pwd)/systemd"
 SORGENTE_DNS="$(cd "$(dirname "$0")" && pwd)/dns"
 UNITA_NOMI=(sovereignvpn-reconcile.service sovereignvpn-expire.service sovereignvpn-expire.timer
             sovereignvpn-exit.service sovereignvpn-exit.timer
-            sovereignvpn-unbound.service sovereignvpn-pihole.service)
+            sovereignvpn-unbound.service sovereignvpn-pihole.service
+            sovereignvpn-tor.service)  # [H52] installata ma ferma: parte solo dopo `exit tor`, col torrc
 OPT="$RADICE/opt/sovereignvpn"
 ETC="$RADICE/etc/sovereignvpn"
 VAR="$RADICE/var/lib/sovereignvpn"
@@ -217,6 +218,7 @@ fi
 if [ -z "$RADICE" ] && command -v docker >/dev/null 2>&1; then
   # rete host: su un server gia' inizializzato il FORWARD in drop del firewall chiuderebbe il bridge della build
   docker build --network host -q -t sovereignvpn-unbound:14.0.0 "$SORGENTE_DNS/unbound" >/dev/null
+  docker build --network host -q -t sovereignvpn-tor:14.0.0 "$SORGENTE_DNS/../tor" >/dev/null  # [H52] l'uscita Tor, ferma finche' serve
   IMMAGINE_PIHOLE="$(grep -o 'pihole/pihole:[^ ]*@sha256:[0-9a-f]*' "$UNITA/sovereignvpn-pihole.service")"
   docker pull -q "$IMMAGINE_PIHOLE" >/dev/null
 fi
