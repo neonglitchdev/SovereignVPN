@@ -1,6 +1,6 @@
 """Prove delle uscite per paese (FR-NET-008) [H48]: file del provider letti e rifiutati, pool su disco, scelta,
 rotazione e failover, ordine dei comandi sull'host (kill switch per primo), CLI senza chiavi a schermo."""
-import contextlib, fcntl, io, json, os, pathlib, stat, tempfile, unittest
+import base64, contextlib, fcntl, io, json, os, pathlib, stat, tempfile, unittest
 from unittest import mock
 
 from sovereignctl import __main__ as cli, firewall, profilo, uscite
@@ -26,12 +26,52 @@ def altra(n):
 class Federazione(unittest.TestCase):
     """[H50] Un altro server SovereignVPN come uscita: il profilo di un suo dispositivo e' gia' un file d'uscita."""
     CHIAVE_A = "c2VydmVyYXNlcnZlcmFzZXJ2ZXJhc2VydmVyYXNlcnY="
+    PUB_B = base64.b64encode(b"chiave-pubblica-del-server-b-32b").decode()
 
-    def profilo_di_a(self, subnet_a):
+    def profilo_di_a(self, subnet_a, privata=PRIVATA):
         cfg_a = {"endpoint": "203.0.113.10", "subnet": subnet_a, "subnet6": "fdd3:5205:9303::/64"}
         p = {"id": "nodo-b", "nome": "Nodo B", "indirizzo": str(next(__import__("ipaddress").ip_network(subnet_a).hosts()) + 6),
              "rotte": None, "scade": None}
-        return profilo.componi(p, cfg_a, self.CHIAVE_A).replace(profilo.SEGNAPOSTO, PRIVATA)
+        testo = profilo.componi(p, cfg_a, self.CHIAVE_A)
+        return testo.replace(profilo.SEGNAPOSTO, privata) if privata else testo
+
+    def finto_wg(self, chiamate):
+        def wg(*a, ingresso=None, tollera=False):
+            chiamate.append(a[:2])
+            return 0, (PRIVATA if a[1] == "genkey" else self.PUB_B) + "\n"
+        return wg
+
+    def test_exit_key_nasce_una_volta_0600(self):
+        c, chiamate = os.path.join(tempfile.mkdtemp(), "uscite"), []
+        with mock.patch.object(uscite, "_cmd", self.finto_wg(chiamate)):
+            self.assertEqual(uscite.chiave_uscita(c), self.PUB_B)
+            self.assertEqual(uscite.chiave_uscita(c), self.PUB_B)
+        self.assertEqual(chiamate, [("wg", "genkey"), ("wg", "pubkey"), ("wg", "pubkey")])  # una sola genkey
+        self.assertEqual(stat.S_IMODE(os.stat(os.path.join(c, uscite.CHIAVE_USCITA)).st_mode), 0o600)
+        self.assertEqual(stat.S_IMODE(os.stat(c).st_mode), 0o700)
+
+    def test_profilo_col_segnaposto_prende_la_chiave_del_server(self):
+        c = os.path.join(tempfile.mkdtemp(), "uscite")
+        with mock.patch.object(uscite, "_cmd", self.finto_wg([])):
+            uscite.chiave_uscita(c)
+        s = uscite.importa(self.profilo_di_a("10.77.0.0/24", privata=None), "DE", cartella=c, subnet="10.66.0.0/24")
+        salvato = pathlib.Path(c, s["id"] + ".conf").read_text()
+        self.assertIn(f"PrivateKey = {PRIVATA}", salvato)
+        self.assertNotIn(f"PrivateKey = {profilo.SEGNAPOSTO}", salvato)
+
+    def test_segnaposto_senza_chiave_del_server_rifiutato(self):
+        c = tempfile.mkdtemp()
+        with self.assertRaises(uscite.UscitaNonValida) as e:
+            uscite.importa(self.profilo_di_a("10.77.0.0/24", privata=None), "DE", cartella=c, subnet="10.66.0.0/24")
+        self.assertIn("exit key", str(e.exception))
+        self.assertEqual(uscite.pool(c), [])
+
+    def test_exit_key_dalla_cli_stampa_la_pubblica_e_mai_la_privata(self):
+        c, out = os.path.join(tempfile.mkdtemp(), "uscite"), io.StringIO()
+        with mock.patch.object(uscite, "_cmd", self.finto_wg([])), contextlib.redirect_stdout(out):
+            self.assertEqual(cli.main(["exit", "key", "--cartella", c, "--config", ESEMPIO, "--json"]), 0)
+        self.assertEqual(json.loads(out.getvalue()), {"chiave_pubblica": self.PUB_B})
+        self.assertNotIn(PRIVATA, out.getvalue())
 
     def test_il_profilo_di_un_altro_server_e_un_uscita(self):
         c = tempfile.mkdtemp()
@@ -55,6 +95,15 @@ class Pool(unittest.TestCase):
         self.assertEqual((u["paese"], u["bandierina"], u["endpoint"]), ("DE", "\U0001F1E9\U0001F1EA", "185.1.2.3:51820"))
         self.assertEqual(u["indirizzi"], ["10.64.12.7/32"])  # l'IPv6 dei peer e' bloccato: wgx0 solo IPv4
         self.assertNotIn("PrivateKey", repr(u))  # la chiave privata non esce dal file
+
+    def test_chiavi_non_valide_rifiutate_senza_ripeterle(self):
+        pubblica = "cHViYmxpY2FwdWJibGljYXB1YmJsaWNhcHViYmxpY2E="
+        for vecchio, nuovo in ((PRIVATA, "cortissima"), (pubblica, "cHViYmxpY2E="), (PRIVATA, profilo.SEGNAPOSTO),
+                               (pubblica, pubblica[:-2] + "F=")):  # base64 non canonico: bit di riempimento a 1
+            with self.subTest(nuovo=nuovo), self.assertRaises(uscite.UscitaNonValida) as e:
+                uscite.leggi(BUONA.replace(vecchio, nuovo), "DE")
+            self.assertIn("non e' una chiave WireGuard", str(e.exception))
+            self.assertNotIn(nuovo, str(e.exception).replace(profilo.SEGNAPOSTO, ""))
 
     def test_script_rifiutati(self):
         for script in ("PostUp", "PreUp", "PostDown", "PreDown", "SaveConfig", "Table", "FwMark"):

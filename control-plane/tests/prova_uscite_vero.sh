@@ -46,20 +46,27 @@ collega ux1 e0 203.0.113.11/24
 collega ux2 e0 203.0.113.12/24
 
 # le due uscite finte: WireGuard in ascolto, inoltro acceso, masquerade verso il ponte col proprio IP
-(umask 077; for k in srv p1 x1 x2 c1 c2; do wg genkey > "$D/$k.key"; done)
-uscita_finta() {  # ns numero
+(umask 077; for k in srv p1 x1 x2 c1; do wg genkey > "$D/$k.key"; done)
+uscita_finta() {  # ns numero chiave_privata_del_server [testo al posto della privata nel file]
   ns "$1" sysctl -qw net.ipv4.ip_forward=1
   ns "$1" ip link add wge type wireguard
-  ns "$1" wg set wge listen-port 51820 private-key "$D/x$2.key" peer "$(wg pubkey < "$D/c$2.key")" allowed-ips "10.64.$2.2/32"
+  ns "$1" wg set wge listen-port 51820 private-key "$D/x$2.key" peer "$(wg pubkey < "$3")" allowed-ips "10.64.$2.2/32"
   ns "$1" ip address add "10.64.$2.1/24" dev wge
   ns "$1" ip link set wge up
   ns "$1" nft -f - <<<"table ip nat { chain post { type nat hook postrouting priority srcnat; oifname \"e0\" masquerade; }; }"
   # il file che darebbe il provider (con ::/0 e DNS, come i file veri)
   printf '[Interface]\nPrivateKey = %s\nAddress = 10.64.%s.2/32\nDNS = 10.64.%s.1\n[Peer]\nPublicKey = %s\nEndpoint = 203.0.113.1%s:51820\nAllowedIPs = 0.0.0.0/0, ::/0\n' \
-    "$(cat "$D/c$2.key")" "$2" "$2" "$(wg pubkey < "$D/x$2.key")" "$2" > "$D/uscita$2.conf"
+    "${4:-$(cat "$3")}" "$2" "$2" "$(wg pubkey < "$D/x$2.key")" "$2" > "$D/uscita$2.conf"
 }
-uscita_finta ux1 1
-uscita_finta ux2 2
+uscita_finta ux1 1 "$D/c1.key"
+# [H50] la seconda e' un altro server SovereignVPN: conosce la chiave nata qui con `exit key`, e il suo profilo
+# porta il segnaposto al posto della privata, che exit import scrive da solo
+PUB_USCITA="$(sovctl key --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["chiave_pubblica"])')"
+[ "$PUB_USCITA" = "$(wg pubkey < "$D/uscite/chiave-uscita.key")" ] || rosso "exit key non stampa la pubblica della chiave che ha creato"
+[ "$(stat -c '%a' "$D/uscite/chiave-uscita.key")" = "600" ] || rosso "la chiave d'uscita del server non e' 0600"
+if sovctl key | grep -qF "$(cat "$D/uscite/chiave-uscita.key")"; then rosso "exit key stampa la chiave privata"; fi
+uscita_finta ux2 2 "$D/uscite/chiave-uscita.key" "<CHIAVE_PRIVATA_DEL_DISPOSITIVO>"
+grep -qF "PrivateKey = <CHIAVE_PRIVATA_DEL_DISPOSITIVO>" "$D/uscita2.conf" || rosso "il profilo della seconda uscita non ha il segnaposto"
 
 # server: wg0, sysctl, firewall e un peer, come init
 ns usrv python3 -c 'import sys; from sovereignctl import bootstrap, configurazione; c = configurazione.leggi(sys.argv[1]); bootstrap.interfaccia("wg0", c["subnet"], c["subnet6"])' "$CONFIG"
@@ -96,12 +103,14 @@ non_esce() {  # $1 motivo: il peer non arriva al sito, e il sito non riceve nien
 echo "OK: senza uscita il peer esce dal server (203.0.113.1)"
 
 # 2. il pool: due uscite tedesche; a schermo mai la chiave privata
+PRIVATE=("$D/c1.key" "$D/uscite/chiave-uscita.key")
 for n in 1 2; do
   OUT="$(sovctl import "$D/uscita$n.conf" --paese DE --json)"
-  if grep -qF "$(cat "$D/c$n.key")" <<<"$OUT"; then rosso "import stampa la chiave privata dell'uscita"; fi
+  if grep -qF "$(cat "${PRIVATE[$((n - 1))]}")" <<<"$OUT"; then rosso "import stampa la chiave privata dell'uscita"; fi
 done
+grep -qF "PrivateKey = $(cat "$D/uscite/chiave-uscita.key")" "$D/uscite/de-2.conf" || rosso "exit import non ha scritto la chiave del server al posto del segnaposto"
 LISTA="$(sovctl list --json)"
-if grep -qF "$(cat "$D/c1.key")" <<<"$LISTA"; then rosso "list stampa una chiave privata"; fi
+for k in "${PRIVATE[@]}"; do if grep -qF "$(cat "$k")" <<<"$LISTA"; then rosso "list stampa una chiave privata"; fi; done
 [ "$(stat -c '%a' "$D/uscite/de-1.conf")" = "600" ] || rosso "il file dell'uscita non e' 0600"
 echo "OK: due uscite DE nel pool, file 0600, nessuna chiave privata a schermo"
 

@@ -19,7 +19,8 @@ Il DNS dei peer resta Pi-hole e Unbound sul server: i nomi si risolvono dall'IP 
 """
 import contextlib, fcntl, ipaddress, json, os, re, subprocess, sys, time
 
-from . import firewall, registro
+from . import firewall, peer, profilo, registro
+from .preflight import InputNonValido
 
 CARTELLA = "/var/lib/sovereignvpn/uscite"
 INTERFACCIA = firewall.INTERFACCIA_USCITA
@@ -80,6 +81,12 @@ def leggi(testo, paese):
     for s, k in (("Interface", "PrivateKey"), ("Interface", "Address"), ("Peer", "PublicKey"), ("Peer", "Endpoint")):
         if k not in campi[s]:
             raise UscitaNonValida(f"manca {k} in [{s}]")
+    for s, k in (("Interface", "PrivateKey"), ("Peer", "PublicKey")):  # una chiave sbagliata cadrebbe solo all'accensione
+        try:
+            peer.valida_chiave(campi[s][k])
+        except InputNonValido:
+            raise UscitaNonValida(f"{k} in [{s}] non e' una chiave WireGuard (32 byte in base64)" + (
+                ": e' ancora il segnaposto del profilo" if campi[s][k] == profilo.SEGNAPOSTO else ""))
     if "0.0.0.0/0" not in [x.strip() for x in campi["Peer"].get("AllowedIPs", "").split(",")]:
         raise UscitaNonValida("AllowedIPs del Peer deve contenere 0.0.0.0/0: e' l'uscita di tutto il traffico dei peer")
     host, _, porta = campi["Peer"]["Endpoint"].rpartition(":")
@@ -153,6 +160,7 @@ def importa(testo, paese, nome=None, cartella=None, subnet=None):
     `subnet` e' la rete dei peer di questo server: un'uscita col suo indirizzo li' dentro si rifiuta (route overlap,
     ANC-0273). Succede col profilo di un altro server SovereignVPN che usa la stessa rete [H50]."""
     cartella = cartella or CARTELLA
+    testo = _con_la_chiave(testo, cartella)  # il file salvato porta la chiave vera, non il segnaposto
     u = leggi(testo, paese)
     if subnet:
         rete = ipaddress.ip_network(subnet)
@@ -178,6 +186,38 @@ def importa(testo, paese, nome=None, cartella=None, subnet=None):
     scheda = {"id": ident, "nome": nome or ident, **{k: u[k] for k in ("paese", "endpoint", "indirizzi", "chiave_pubblica")}}
     _scrivi_json(os.path.join(cartella, "pool.json"), schede + [scheda])
     return {**scheda, "bandierina": u["bandierina"]}
+
+
+CHIAVE_USCITA = "chiave-uscita.key"  # [H50] la privata di questo server verso le uscite federate: nasce qui, mai stampata
+
+
+def chiave_uscita(cartella=None):
+    """La chiave pubblica di questo server per le uscite federate; la privata si crea qui se manca (wg genkey, 0600)."""
+    cartella = cartella or CARTELLA
+    os.makedirs(cartella, mode=0o700, exist_ok=True)
+    os.chmod(cartella, 0o700)
+    percorso = os.path.join(cartella, CHIAVE_USCITA)
+    if not os.path.exists(percorso):
+        privata = _cmd("wg", "genkey")[1].strip()
+        fd = os.open(percorso, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)  # in esclusiva: mai sopra una chiave esistente
+        with os.fdopen(fd, "w", encoding="ascii") as f:
+            f.write(privata + "\n")
+    with open(percorso, encoding="ascii") as f:
+        return _cmd("wg", "pubkey", ingresso=f.read().strip() + "\n")[1].strip()
+
+
+def _con_la_chiave(testo, cartella):
+    """Il profilo di un altro server SovereignVPN porta il segnaposto al posto della privata: ci va quella di `exit key`."""
+    riga = re.compile(r"^(\s*PrivateKey\s*=\s*)" + re.escape(profilo.SEGNAPOSTO) + r"\s*$", re.M)
+    if not riga.search(testo):
+        return testo
+    percorso = os.path.join(cartella, CHIAVE_USCITA)
+    if not os.path.exists(percorso):
+        raise UscitaNonValida("il profilo ha il segnaposto della chiave privata: crea la chiave di questo server con "
+                              "`sovereignctl exit key` e dai la pubblica al server che ti fa da uscita")
+    with open(percorso, encoding="ascii") as f:
+        privata = f.read().strip()
+    return riga.sub(lambda m: m.group(1) + privata, testo)
 
 
 def togli(ident, cartella=None):
@@ -405,6 +445,7 @@ def aggiungi_parser(sotto, classe):
     se = az.add_parser("set", help="paese (IT), uscita (it-2) o off; applica subito"); se.add_argument("scelta")
     ro = az.add_parser("rotation", help="minuti fra un cambio e l'altro nel paese scelto; 0 = statica"); ro.add_argument("minuti", type=int)
     az.add_parser("tick", help="rotazione, failover e riparazione: lo lancia il timer ogni minuto")
+    az.add_parser("key", help="chiave pubblica di questo server per usare un altro server SovereignVPN come uscita [H50]")
     for p in az.choices.values():
         p.add_argument("--cartella", help=f"di base {CARTELLA} (0700)")
         p.add_argument("--config", default="/etc/sovereignvpn/server.toml")
@@ -444,6 +485,10 @@ def _scrivi(a, configurazione):
         cfg = configurazione.leggi(a.config)  # la rete dei peer, per rifiutare un'uscita che ci si sovrappone [H50]
         esito = importa(testo, a.paese, a.nome, a.cartella, subnet=cfg.get("subnet") or "10.66.0.0/24")
         umano = f"{esito['bandierina']} {esito['id']} ({esito['paese']}) aggiunta: {esito['endpoint']}"
+    elif a.azione == "key":
+        esito = {"chiave_pubblica": chiave_uscita(a.cartella)}
+        umano = (f"{esito['chiave_pubblica']}\nDalla al server che ti fa da uscita: sovereignctl peer add --public-key ..., "
+                 "poi importa qui il suo profilo con exit import")
     elif a.azione == "remove":
         togli(a.id, a.cartella)
         esito, umano = {"tolta": a.id}, f"{a.id} tolta dal pool"
