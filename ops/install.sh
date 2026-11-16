@@ -212,10 +212,13 @@ if [ -z "$RADICE" ] && [ -d /run/systemd/system ]; then
   systemctl enable --quiet sovereignvpn-reconcile.service sovereignvpn-expire.timer sovereignvpn-exit.timer sovereignvpn-unbound.service sovereignvpn-pihole.service
 fi
 
-# 6. immagine di Unbound, costruita dalla base pin-nata per digest (Pi-hole si scarica per digest al primo avvio)
+# 6. le immagini del DNS, qui e non all'avvio (le unita' usano --pull never): Unbound costruita dalla base pin-nata per
+# digest, Pi-hole scaricata per digest, col riferimento letto dalla sua unita' perche' i due non divergano mai
 if [ -z "$RADICE" ] && command -v docker >/dev/null 2>&1; then
   # rete host: su un server gia' inizializzato il FORWARD in drop del firewall chiuderebbe il bridge della build
   docker build --network host -q -t sovereignvpn-unbound:14.0.0 "$SORGENTE_DNS/unbound" >/dev/null
+  IMMAGINE_PIHOLE="$(grep -o 'pihole/pihole:[^ ]*@sha256:[0-9a-f]*' "$UNITA/sovereignvpn-pihole.service")"
+  docker pull -q "$IMMAGINE_PIHOLE" >/dev/null
 fi
 
 echo "install.sh: installato. Control plane in $OPT, configurazione in $ETC, stato in $VAR."
