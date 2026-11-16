@@ -177,6 +177,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "nome dell'uscita mai risolto di nuovo": ("uscite.py", "    nuovo = _indirizzo_nuovo(st, cartella, adesso, eta, risolvi)", "    nuovo = None"),
     "nome host numerico accettato": ("uscite.py", 'and not re.fullmatch(r"[0-9.]+", host)', ""),
     "Unbound scarica l'immagine all'avvio": ("ops/systemd/sovereignvpn-unbound.service", "docker run --rm --pull never --name", "docker run --rm --name"),
+    "Tor scarica l'immagine all'avvio": ("ops/systemd/sovereignvpn-tor.service", "docker run --rm --pull never --name sovereignvpn-tor", "docker run --rm --name sovereignvpn-tor"),
+    "Tor gira come root nel container": ("ops/tor/Dockerfile", "USER debian-tor\n", ""),
     "Tor esce da qualunque paese": ("tor.py", '        "StrictNodes 1",', '        "StrictNodes 0",'),
     "TransPort di Tor aperta a tutti": ("tor.py", 'f"TransPort 127.0.0.1:{PORTA_TRANS}"', 'f"TransPort 0.0.0.0:{PORTA_TRANS}"'),
     "Pi-hole senza immagine all'installazione": ("ops/install.sh", '  docker pull -q "$IMMAGINE_PIHOLE" >/dev/null\n', ""),

@@ -1,0 +1,18 @@
+# SovereignVPN — Tor come uscita [H52, in costruzione]: il container dell'immagine nostra, in rete host, con TransPort e
+# DNSPort solo su 127.0.0.1 (tor.torrc). Parte solo dove il torrc c'e', cioe' dopo aver scelto un'uscita Tor.
+[Unit]
+Description=SovereignVPN: Tor come uscita dei peer, solo su 127.0.0.1
+Requires=docker.service
+After=docker.service
+PartOf=docker.service
+ConditionPathExists=/etc/sovereignvpn/tor/torrc
+
+[Service]
+ExecStartPre=-/usr/bin/docker rm -f sovereignvpn-tor
+ExecStart=/usr/bin/docker run --rm --pull never --name sovereignvpn-tor --network host --cap-drop ALL --security-opt no-new-privileges -v /etc/sovereignvpn/tor/torrc:/etc/tor/torrc:ro sovereignvpn-tor:14.0.0
+ExecStop=/usr/bin/docker stop sovereignvpn-tor
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target docker.service
