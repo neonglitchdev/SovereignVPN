@@ -23,6 +23,18 @@ class Torrc(unittest.TestCase):
 
 
 
+class Regole(unittest.TestCase):
+    def test_tcp_dei_peer_alla_transport_e_niente_inoltro(self):
+        r = tor.regole("10.71.0.0/24")
+        self.assertIn('iifname "wg0" ip saddr 10.71.0.0/24 ip daddr != 10.71.0.1 meta l4proto tcp redirect to :9040', r)
+        self.assertIn('iifname "wg0" drop', r)  # niente inoltro dei peer: l'UDP non esce dalla WAN
+        self.assertIn("priority filter - 2", r)
+
+    def test_subnet_non_valida_rifiutata(self):
+        with self.assertRaises(ValueError):
+            tor.regole("10.71.0.0/33")
+
+
 class Immagine(unittest.TestCase):
     def test_stessa_base_pin_nata_di_unbound_e_mai_root(self):
         import pathlib
