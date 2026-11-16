@@ -11,6 +11,7 @@ for d in ops control-plane/sovereignctl config/examples mac/prepara-server.sh; d
   mkdir -p "$APP/Contents/Resources/sovereignvpn/$(dirname "$d")"; cp -R "$RADICE/$d" "$APP/Contents/Resources/sovereignvpn/$d"
 done
 find "$APP" -name __pycache__ -type d -prune -exec rm -rf {} +
+cp "$QUI/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"  # il logo: mac/icona/logo.svg, rigenerato da mac/icona/genera.py
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -21,6 +22,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
  <key>CFBundleVersion</key><string>14.0.0</string>
  <key>CFBundleShortVersionString</key><string>14.0.0</string>
  <key>CFBundleExecutable</key><string>SovereignVPN</string>
+ <key>CFBundleIconFile</key><string>AppIcon</string>
  <key>CFBundlePackageType</key><string>APPL</string>
  <key>LSMinimumSystemVersion</key><string>14.0</string>
  <key>NSHighResolutionCapable</key><true/>

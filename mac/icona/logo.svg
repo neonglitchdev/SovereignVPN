@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- SovereignVPN: un portale ad arco con la corona (il tunnel sovrano) e la luce in fondo (l'uscita).
+       Griglia delle icone macOS: tela 1024, riquadro arrotondato 824 con margine 100. -->
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1D4A73"/>
+      <stop offset="1" stop-color="#0B1D33"/>
+    </linearGradient>
+    <linearGradient id="avorio" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBF8F0"/>
+      <stop offset="1" stop-color="#DCD5C3"/>
+    </linearGradient>
+    <linearGradient id="galleria" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#050E1A"/>
+      <stop offset="1" stop-color="#0E2540"/>
+    </linearGradient>
+    <linearGradient id="pavimento" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#2C5B87"/>
+      <stop offset="1" stop-color="#0E2540" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="luce" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE2A3"/>
+      <stop offset="0.35" stop-color="#FFB547"/>
+      <stop offset="1" stop-color="#FFB547" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="ombra" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#fondo)" filter="url(#ombra)"/>
+  <!-- corona: tre punte con le perle, poggiata sulla chiave dell'arco -->
+  <path d="M428 312 L436 224 L478 268 L512 192 L546 268 L588 224 L596 312 Z" fill="url(#avorio)"/>
+  <circle cx="436" cy="220" r="15" fill="#FBF8F0"/>
+  <circle cx="512" cy="188" r="17" fill="#FBF8F0"/>
+  <circle cx="588" cy="220" r="15" fill="#FBF8F0"/>
+  <!-- portale: arco pieno a tutto sesto su due piedritti -->
+  <path d="M300 800 V500 A212 212 0 0 1 724 500 V800 Z" fill="url(#avorio)"/>
+  <!-- l'apertura della galleria -->
+  <path d="M384 800 V516 A128 128 0 0 1 640 516 V800 Z" fill="url(#galleria)"/>
+  <!-- il pavimento in prospettiva, verso la luce -->
+  <path d="M384 800 L640 800 L540 622 L484 622 Z" fill="url(#pavimento)"/>
+  <!-- la luce in fondo: l'uscita -->
+  <circle cx="512" cy="600" r="92" fill="url(#luce)"/>
+  <circle cx="512" cy="600" r="30" fill="#FFF3D6"/>
+</svg>
