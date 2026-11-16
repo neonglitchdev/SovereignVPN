@@ -10,7 +10,7 @@ chiude nel documento (regola di CLAUDE.md). Ognuna si rovescia cambiando una rig
 | H3 | Un prerequisito mancante esce col codice 1 (errore di sistema) | ANC-0255 non lo assegna; 2 è riservato all'input non valido | `sovereignctl init --check` | Francesco |
 | H4 | Kernel minimo 5.6 | WireGuard è nel kernel mainline dalla 5.6; ANC-0163 chiede una minima «dichiarata» che non c'è | `preflight.KERNEL_MINIMO` | prima prova su Debian 12 |
 | H5 | 10 GiB liberi su / | Il documento chiede il controllo (FR-BOOT-001) ma non la soglia | `preflight.DISCO_MINIMO` | dopo il primo `compose pull` misurato |
-| H6 | IPAM: prima /24 libera fra 10.66.0.0 e 10.99.0.0 | ANC-0174 vuole un IPAM configurabile e senza collisioni, non dà la rete | `preflight.CANDIDATE_VPN` | Francesco |
+| H6 | IPAM: una /24 libera fra 10.66.0.0 e 10.99.0.0, scelta a caso (dal 16/11: prima era la prima libera, e due server federati nascevano con la stessa rete, H50); `init --check --json` la riporta nel campo `subnet` e `mac/prepara-server.sh` la scrive una volta sola in server.toml | ANC-0174 vuole un IPAM configurabile e senza collisioni, non dà la rete | `preflight.CANDIDATE_VPN` | Francesco |
 | H7 | Porta di amministrazione TCP 8443, solo su 127.0.0.1 o sulla VPN | ADR-006: API e dashboard non pubbliche; il numero non c'è | `preflight.PORTA_ADMIN` | Francesco |
 | H8 | La configurazione è un file TOML | `tomllib` è nella libreria standard dalla 3.11 (ANC-0334); YAML vorrebbe una dipendenza | `configurazione.leggi` | Francesco |
 | H9 | MTU predefinita 1420, ammessa fra 1280 e 1500 | 1420 è il valore abituale di WireGuard; 1280 è il minimo di IPv6 | `configurazione.valida` | primo test di PMTU (FR-WG) |

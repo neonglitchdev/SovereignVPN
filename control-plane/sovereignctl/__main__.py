@@ -179,6 +179,7 @@ def _main(argv=None):
     falliti = [c for c in controlli if c["esito"] != "OK"]
     rapporto = {"versione": VERSIONE, "comando": "init --check", "mutazioni_eseguite": 0,
                 "controlli_eseguiti": len(controlli), "superati": len(controlli) - len(falliti),
+                "subnet": rete,  # quella data o quella scelta dall'IPAM: prepara-server.sh la scrive in server.toml
                 "controlli": controlli, "piano": preflight.piano(imp, rete) if not falliti else []}
     if not falliti:  # FR-BOOT-002: il manifest si mostra in anteprima; lo scrive solo `init` vero
         try:
