@@ -177,6 +177,8 @@ GUASTI = {  # devono essere PRESI: almeno una prova rossa
     "nome dell'uscita mai risolto di nuovo": ("uscite.py", "    nuovo = _indirizzo_nuovo(st, cartella, adesso, eta, risolvi)", "    nuovo = None"),
     "nome host numerico accettato": ("uscite.py", 'and not re.fullmatch(r"[0-9.]+", host)', ""),
     "Unbound scarica l'immagine all'avvio": ("ops/systemd/sovereignvpn-unbound.service", "docker run --rm --pull never --name", "docker run --rm --name"),
+    "Tor esce da qualunque paese": ("tor.py", '        "StrictNodes 1",', '        "StrictNodes 0",'),
+    "TransPort di Tor aperta a tutti": ("tor.py", 'f"TransPort 127.0.0.1:{PORTA_TRANS}"', 'f"TransPort 0.0.0.0:{PORTA_TRANS}"'),
     "Pi-hole senza immagine all'installazione": ("ops/install.sh", '  docker pull -q "$IMMAGINE_PIHOLE" >/dev/null\n', ""),
     "il DNS non si accende con Docker": ("ops/systemd/sovereignvpn-unbound.service", "WantedBy=multi-user.target docker.service", "WantedBy=multi-user.target"),
     "il DNS non riparte col riavvio di Docker": ("ops/systemd/sovereignvpn-pihole.service", "PartOf=docker.service\n", ""),
